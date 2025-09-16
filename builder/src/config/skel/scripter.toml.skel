@@ -1,0 +1,25 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_json = "build_dir/parser/<profile>/parser_output.json"
+
+[global]
+regex = []
+
+# Chapter-specific filters
+# Example:
+# [chapter_id.lfs-chapter6]
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [section_id.ch-tools-binutils-pass1]
+# regex = []
+
+# Package-specific filters
+# Example:
+# [package.binutils]
+# regex = []
+

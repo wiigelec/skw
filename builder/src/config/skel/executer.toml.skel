@@ -1,0 +1,22 @@
+# ================================================================
+# Executer Configuration
+# ================================================================
+
+[main]
+script_dir   = "build_dir/scripter/<profile>/build_scripts"
+packages     = []
+package_name = "$pkg_name--$pkg_ver--$book_name-$book_ver.txz"
+package_dir  = "package_dir/<book-name>"
+
+[host]
+chapter_ids = []
+section_ids = []
+packages    = []
+
+[chroot]
+# type can be "individual" or "sequential"
+type        = "individual"
+chapter_ids = []
+section_ids = []
+packages    = []
+

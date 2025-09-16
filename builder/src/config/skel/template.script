@@ -1,0 +1,33 @@
+#!/bin/bash
+# ================================================================
+# ScratchKit Build Script Template
+# ================================================================
+# Variables injected by scripter:
+#   $pkg_name
+#   $pkg_ver
+#   $book_name
+#   $book_ver
+#   $sources
+#   $build_instructions
+# ================================================================
+
+set -euo pipefail
+
+echo ">>> Building package: ${pkg_name}-${pkg_ver}"
+
+# Unpack sources
+for src in ${sources}; do
+    tar -xf "$src"
+done
+
+cd "${pkg_name}-${pkg_ver}"
+
+# Apply build instructions
+# (each line from build_instructions will be inserted here)
+# Example:
+# ./configure --prefix=/usr
+# make
+# make install
+
+echo ">>> Finished building ${pkg_name}-${pkg_ver}"
+

@@ -1,0 +1,31 @@
+# ================================================================
+# Parser Configuration
+# ================================================================
+
+[main]
+xml_path = "build_dir/books/<book-name>/lfs-full.xml"
+output_file = "parser_output.json"
+
+[xpaths]
+source_book = ""
+chapter_id = ""
+section_id = ""
+package_name = ""
+package_version = ""
+sources = ""
+dependencies = ""
+build_instructions = ""
+
+[chapter_filters]
+include  = []
+exclude  = []
+
+[section_filters]
+include  = []
+exclude  = []
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+
