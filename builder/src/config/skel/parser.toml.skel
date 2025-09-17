@@ -3,26 +3,45 @@
 # ================================================================
 
 [main]
-xml_path = "build_dir/books/<book-name>/lfs-full.xml"
+xml_path = "build_dir/books/${book}/lfs-full.xml"
 output_file = "parser_output.json"
 
 [xpaths]
 source_book = ""
-chapter_id = ""
-section_id = ""
-package_name = ""
-package_version = ""
-sources = ""
+chapter_id = "//chapter"
+section_id = "./sect1"
+package_name = "./sect1info/productname/text()"
+package_version = "./sect1info/productnumber/text()"
+source_titles = ""
+source_urls = ".//ulink[contains(@url,'tar.') or contains(@url,'.patch')]/@url"
+source_checksums = ".//listitem//literal/text()"
 dependencies = ""
-build_instructions = ""
+build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
 
 [chapter_filters]
 include  = []
-exclude  = []
+exclude  = [ "chapter-intro",
+             "chapter-partitioning",		
+           ]
 
 [section_filters]
 include  = []
-exclude  = []
+exclude  = [ "ch-materials-introduction",
+             "ch-preps-introduction",
+             "ch-preps-aboutsbus",
+             "ch-preps-abouttestsuites",
+             "ch-tools-introduction",
+             "ch-tools-introduction-cross",
+             "ch-tools-introduction-chroot",
+             "ch-tools-chroot",
+             "ch-system-introduction",
+             "ch-system-pkgmgt",
+             "ch-system-aboutdebug",
+
+             "ch-finish-getcounted",
+             "ch-finish-whatnow",
+             "afterlfs"
+           ]
 
 [package_filters]
 include = []

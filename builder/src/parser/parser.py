@@ -45,15 +45,27 @@ class Parser:
                 if not self._filter_ok(sec_id, self.cfg.get("section_filters", {})):
                     continue
 
+                build_instructions = []
+                userinput_nodes = sec.xpath(self.cfg["xpaths"]["build_instructions"]) if self.cfg["xpaths"]["build_instructions"] else []
+                for userinput_node in userinput_nodes:
+                    full_command = "".join(userinput_node.itertext()).strip()
+
+                    if full_command:
+                        build_instructions.append(full_command)
+
                 entry = {
                     "source_book": self.book,
                     "chapter_id": chap_id,
                     "section_id": sec_id,
                     "package_name": self._xpath_or_none(sec, self.cfg["xpaths"]["package_name"]),
                     "package_version": self._xpath_or_none(sec, self.cfg["xpaths"]["package_version"]),
-                    "sources": sec.xpath(self.cfg["xpaths"]["sources"]) if self.cfg["xpaths"]["sources"] else [],
+                    "sources": {
+                        "titles": sec.xpath(self.cfg["xpaths"].get("source_titles", "")) if self.cfg["xpaths"].get("source_titles") else [],
+                        "urls": sec.xpath(self.cfg["xpaths"].get("source_urls", "")) if self.cfg["xpaths"].get("source_urls") else [],
+                        "checksums": sec.xpath(self.cfg["xpaths"].get("source_checksums", "")) if self.cfg["xpaths"].get("source_checksums") else [],
+                    },
                     "dependencies": sec.xpath(self.cfg["xpaths"]["dependencies"]) if self.cfg["xpaths"]["dependencies"] else [],
-                    "build_instructions": sec.xpath(self.cfg["xpaths"]["build_instructions"]) if self.cfg["xpaths"]["build_instructions"] else [],
+                    "build_instructions":build_instructions
                 }
                 results.append(entry)
 

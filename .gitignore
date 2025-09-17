@@ -1,2 +1,3 @@
 */config
 */build_dir
+*/__pycache__/*
