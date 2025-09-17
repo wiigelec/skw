@@ -6,6 +6,8 @@ import sys
 import tomllib  # Python 3.11+
 import subprocess
 
+from parser.parser import Parser
+
 class Builder:
     def __init__(self):
         self.skel_dir = "src/config/skel"
@@ -164,7 +166,9 @@ class Builder:
     # Workflow stubs
     # -------------------------------
     def parse_book(self, book, profile):
-        print(f"[STUB] parse called for book '{book}' profile '{profile}' (XML -> JSON not yet implemented)")
+        build_dir = self._get_build_dir()
+        parser = Parser(build_dir, book, profile)
+        parser.run()
 
     def script_book(self, book, profile):
         print(f"[STUB] script called for book '{book}' profile '{profile}' (JSON -> shell scripts not yet implemented)")
