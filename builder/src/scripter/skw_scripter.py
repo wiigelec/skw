@@ -20,10 +20,11 @@ class SKWScripter:
         with open(self.config_path, "rb") as f:
             self.cfg = tomllib.load(f)
 
-        # Load template
-        self.template_path = os.path.join(profiles_dir, book, profile, "template.script")
+        # Load default template
+        default_template = self.cfg.get("main", {}).get("default_template", "template.script")
+        self.template_path = os.path.join(profiles_dir, book, profile, default_template)
         if not os.path.exists(self.template_path):
-            sys.exit(f"template.script not found for {book}/{profile}")
+            sys.exit(f"Default template not found: {self.template_path}")
 
         with open(self.template_path, "r") as f:
             self.template = f.read()
@@ -43,6 +44,10 @@ class SKWScripter:
             entries = json.load(f)
 
         for idx, entry in enumerate(entries, start=1):
+
+            # Pick template (override-aware)
+            template = self._select_template(entry)
+            
             # Expand template
             script_content = self._expand_template(entry)
 
@@ -110,6 +115,35 @@ class SKWScripter:
                 except Exception as e:
                     print(f"Regex error on {p}: {e}")
         return content
+
+    # -------------------
+    # Template Selection
+    # -------------------
+    def _select_template(self, entry):
+        # Start with default
+        template_file = self.cfg.get("main", {}).get("default_template", "template.script")
+
+        # Priority: package > section > chapter
+        if entry.get("package_name"):
+            pkg_key = f"package.{entry['package_name']}"
+            if pkg_key in self.cfg and "template" in self.cfg[pkg_key]:
+                template_file = self.cfg[pkg_key]["template"]
+
+        sec_key = f"section_id.{entry['section_id']}"
+        if sec_key in self.cfg and "template" in self.cfg[sec_key]:
+            template_file = self.cfg[sec_key]["template"]
+
+        chap_key = f"chapter_id.{entry['chapter_id']}"
+        if chap_key in self.cfg and "template" in self.cfg[chap_key]:
+            template_file = self.cfg[chap_key]["template"]
+
+        path = os.path.join(self.profiles_dir, self.book, self.profile, template_file)
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                return f.read()
+        else:
+            print(f"Warning: template {path} not found, falling back to default.")
+            return self.default_template
 
     def _substitute(self, value: str) -> str:
         substitutions = {
