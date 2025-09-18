@@ -3,7 +3,7 @@
 # ================================================================
 
 [main]
-xml_path = "build_dir/books/${book}/lfs-full.xml"
+xml_path = "build/books/${book}/lfs-full.xml"
 output_file = "parser_output.json"
 
 [xpaths]
@@ -13,10 +13,108 @@ section_id = "./sect1"
 package_name = "./sect1info/productname/text()"
 package_version = "./sect1info/productnumber/text()"
 source_titles = ""
-source_urls = ".//ulink[contains(@url,'tar.') or contains(@url,'.patch')]/@url"
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}-${package_version}') and contains(@url,'.tar')]/@url"
 source_checksums = ".//listitem//literal/text()"
 dependencies = ""
 build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
+
+
+#------------------------------------------------------------------#
+# XPATH overrides
+#------------------------------------------------------------------#
+
+[ch-materials-patches.xpaths]
+source_urls = ".//ulink[contains(@url,'.patch')]/@url"
+
+[ch-tools-creatingminlayout.xpaths]
+source_urls = ""
+
+[ch-preps-addinguser.xpaths]
+source_urls = ""
+
+[ch-preps-settingenviron.xpaths]
+source_urls = ""
+
+[ch-tools-linux-headers.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'kernel/') and contains(@url,'linux-')]/@url"
+
+[chapter-cross-tools.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,substring-before('${package_name}','-')) and contains(@url,'.tar')]/@url"
+
+[ch-tools-glibc.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}') and contains(@url,'.tar')]/@url"
+
+[ch-tools-binutils-pass2.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,substring-before('${package_name}','-')) and contains(@url,'.tar')]/@url"
+
+[ch-tools-gcc-pass2.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,substring-before('${package_name}','-')) and contains(@url,'.tar')]/@url"
+
+[ch-tools-changingowner.xpaths]
+source_urls = ""
+
+[ch-tools-kernfs.xpaths]
+source_urls = ""
+
+[ch-tools-creatingdirs.xpaths]
+source_urls = ""
+
+[ch-tools-createfiles.xpaths]
+source_urls = ""
+
+[ch-tools-cleanup.xpaths]
+source_urls = ""
+
+[chapter-building-system.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}-${package_version}') and contains(@url,'.tar')]/@url"
+
+[ch-system-lz4.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'lz4') and contains(@url,'.tar')]/@url"
+
+[ch-system-tcl.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}') and contains(@url,'src') and contains(@url,'.tar')]/@url"
+
+[ch-system-expect.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}') and contains(@url,'.tar')]/@url"
+
+[ch-system-xml-parser.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'XML-Parser') and contains(@url,'.tar')]/@url"
+
+[ch-system-libelf.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'elfutils') and contains(@url,'.tar')]/@url"
+
+[ch-system-flit-core.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'flit_core') and contains(@url,'.tar')]/@url"
+
+[ch-system-stripping.xpaths]
+source_urls = ""
+
+[ch-system-cleanup.xpaths]
+source_urls = ""
+
+[chapter-config.xpaths]
+source_urls = ""
+
+[ch-bootable-introduction.xpaths]
+source_urls = ""
+
+[ch-bootable-fstab.xpaths]
+source_urls = ""
+
+[ch-bootable-kernel.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'kernel/') and contains(@url,'linux-')]/@url"
+
+[ch-finish-theend.xpaths]
+source_urls = ""
+
+[ch-finish-reboot.xpaths]
+source_urls = ""
+
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
 
 [chapter_filters]
 include  = []
@@ -36,8 +134,12 @@ exclude  = [ "ch-materials-introduction",
              "ch-tools-chroot",
              "ch-system-introduction",
              "ch-system-pkgmgt",
+             "ch-config-introduction" ,
+             "ch-config-systemd-custom" ,
+             "ch-config-udev" ,
+             "ch-config-symlinks" ,
+             "ch-bootable-introduction" ,
              "ch-system-aboutdebug",
-
              "ch-finish-getcounted",
              "ch-finish-whatnow",
              "afterlfs"
