@@ -3,7 +3,8 @@
 # ================================================================
 
 [main]
-parser_json = "build_dir/parser/<profile>/parser_output.json"
+parser_json = "build/parser/<profile>/parser_output.json"
+default_template = "template.scripts"
 
 [global]
 regex = []
@@ -11,15 +12,18 @@ regex = []
 # Chapter-specific filters
 # Example:
 # [chapter_id.lfs-chapter6]
+# template = "lfs-chapter6.script"
 # regex = ["s/foo/bar/"]
 
 # Section-specific filters
 # Example:
 # [section_id.ch-tools-binutils-pass1]
+# template = "ch-tools-binutils-pass1.script"
 # regex = []
 
 # Package-specific filters
 # Example:
 # [package.binutils]
+# template = "binutils.script"
 # regex = []
 
