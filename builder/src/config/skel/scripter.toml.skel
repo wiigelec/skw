@@ -4,7 +4,7 @@
 
 [main]
 parser_json = "build/parser/<profile>/parser_output.json"
-default_template = "template.scripts"
+default_template = "template.script"
 
 [global]
 regex = []
