@@ -1,3 +1,4 @@
-*/config
-*/build_dir
-*/__pycache__/*
+*/build
+*/profiles
+__pycache__/
+*.pyc
