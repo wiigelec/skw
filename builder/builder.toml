@@ -5,7 +5,7 @@
 build_dir = "build"
 
 # Directory for storing final packages (future use)
-package_dir = "packages"
+package_dir = "packages/${book}/${profile}"
 
 # Directory containing all book and profile configurations
 profiles_dir = "profiles"
