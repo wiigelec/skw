@@ -82,6 +82,15 @@ class SKWExecuter:
         self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
         self.require_confirm_root = self.cfg["main"].get("require_confirm_root", True)
 
+        # Load package dir
+        self.package_dir = Path(
+            self._expand_vars(
+                self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")),
+                vars_map,
+            )
+        )
+        self.package_dir.mkdir(parents=True, exist_ok=True)
+
     def _expand_vars(self, value, vars_map):
         """Expand ${var} placeholders and environment variables in strings."""
         if not isinstance(value, str):
@@ -242,7 +251,7 @@ class SKWExecuter:
             return proc.returncode
 
     def _create_archive(self, destdir, pkg_file, entry, exec_mode):
-        out_path = self.exec_dir / "packages" / pkg_file
+        out_path = self.package_dir / pkg_file
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         fmt = self.cfg["main"].get("package_format", "tar.xz")
