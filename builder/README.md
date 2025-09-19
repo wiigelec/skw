@@ -57,4 +57,4 @@ The primary interface is the `skw-build` command-line tool.
 # Run the full pipeline
 ./skw-build parse --book <book_name> --profile <profile_name>
 ./skw-build script --book <book_name> --profile <profile_name>
-./skw-build execute --book <book_name> --profile <profile_name> --yes
+./skw-build execute --book <book_name> --profile <profile_name>
