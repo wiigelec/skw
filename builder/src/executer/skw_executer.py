@@ -61,10 +61,13 @@ class SKWExecuter:
             with open(builder_toml, "rb") as bf:
                 builder_cfg = tomllib.load(bf)
 
+         # Map for variable expansion
         vars_map = {
             "build_dir": str(self.build_dir),
             "profiles_dir": str(self.profiles_dir),
             "package_dir": str(builder_cfg.get("paths", {}).get("package_dir", "")),
+            "book": self.book,
+            "profile": self.profile,
         }
 
         # Config with variable expansion
