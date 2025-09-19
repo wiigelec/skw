@@ -144,9 +144,9 @@ class Builder:
         scripter = SKWScripter(self.build_dir, self.profiles_dir, book, profile)
         scripter.run()
 
-    def execute_book(self, book, profile):
-        # stub for SKWExecuter
-        print(f"Would run executer for {book}/{profile}")
+    def execute_book(self, book, profile, auto_confirm=False):
+        executer = SKWExecuter(self.build_dir, self.profiles_dir, book, profile, auto_confirm=auto_confirm)
+        executer.run_all()
 
 
 # -------------------
@@ -181,6 +181,7 @@ def main():
     p = sub.add_parser("execute")
     p.add_argument("--book", required=True)
     p.add_argument("--profile", required=True)
+    p.add_argument("--yes", action="store_true", help="auto confirm dangerous actions")
 
     args = parser.parse_args()
     builder = Builder()
@@ -200,7 +201,7 @@ def main():
     elif args.command == "script":
         builder.script_book(args.book, args.profile)
     elif args.command == "execute":
-        builder.execute_book(args.book, args.profile)
+        builder.execute_book(args.book, args.profile, auto_confirm=args.yes)
     else:
         parser.print_help()
 
