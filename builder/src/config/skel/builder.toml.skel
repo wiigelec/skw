@@ -2,23 +2,12 @@
 # ScratchKit Builder Configuration
 # ================================================================
 
-[dir_paths]
-# Root directory for all builds
-build_dir = "build_dir"
+[paths]
+# Workspace for cloning and building book sources
+build_dir = "build"
 
-# Directory for generated packages
-package_dir = "package_dir"
+# Directory for storing final packages (future use)
+package_dir = "packages/${book}/${profile}"
 
-# Optional: logs, cache, or temp directories can be added here
-log_dir = "logs"
-cache_dir = "cache"
-
-[project]
-name = "scratchkit"
-toolset = "builder"
-config_version = "1.0"
-
-[options]
-# jobs = 4
-# verbose = true
-
+# Directory containing all book and profile configurations
+profiles_dir = "profiles"
