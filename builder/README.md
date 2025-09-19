@@ -1,6 +1,6 @@
 # ScratchKit Builder (SKW Builder)
 
-ScratchKit Builder is a sophisticated, automated build system designed to construct custom Linux distributions from source. It is heavily inspired by projects like Linux From Scratch (LFS) and automates the entire pipeline, from parsing build instructions to compiling, packaging, and deploying the resulting software.
+ScratchKit Builder is a sophisticated, automated build system designed to construct custom Linux distributions from source. It is heavily inspired by Linux From Scratch (LFS) and automates the entire pipeline, from parsing build instructions to compiling, packaging, and deploying the resulting software.
 
 ## Core Responsibilities 🎯
 
