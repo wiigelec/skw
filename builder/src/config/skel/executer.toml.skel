@@ -17,8 +17,12 @@ upload_repo = "/var/lib/skw/packages"
 # upload_repo = "builder@server:/srv/packages"
 
 # Download repository: local path or http URL
-download_repo = "/var/lib/skw/packages"
-# download_repo = "http://mirror.example.com/packages"
+# Download repos in priority order (first is primary, rest are fallbacks)
+download_repos = [
+  "/var/lib/skw/packages", 
+  "http://mirror1.example.com/packages",
+  "http://mirror2.example.com/packages"
+]
 
 # Package format: tar, tar.gz, tar.xz
 package_format = "tar.xz"
