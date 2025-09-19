@@ -28,7 +28,7 @@ The system is broken down into three primary stages:
 
 The end-to-end workflow is managed by the main `builder.py` script.
 
-1.  **Setup**: A user defines a "Book" (e.g., LFS) and a "Profile" (e.g., systemd). This creates a directory structure with skeleton configuration files (`book.toml`, `parser.toml`, `scripter.toml`, `executer.toml`).
+1.  **Setup**: A user defines a "Book" (e.g., LFS) and a "Profile" (e.g., full_build). This creates a directory structure with skeleton configuration files (`book.toml`, `parser.toml`, `scripter.toml`, `executer.toml`).
 2.  **Installation**: The source XML for the Book is downloaded and prepared using the `install-book` command.
 3.  **Parse**: The `parse` command is run, which executes the `SKWParser` to generate `parser_output.json`.
 4.  **Script**: The `script` command is run, which executes the `SKWScripter` to generate executable build scripts based on the JSON data.
