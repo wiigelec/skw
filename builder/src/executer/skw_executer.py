@@ -68,13 +68,13 @@ class SKWExecuter:
         for script in scripts:
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
-
-            # Step A: cache check
+    
+            # Step A: check cache
             if self._package_exists(pkg_file):
                 self._install_package(pkg_file, entry)
                 self._log_skip(script, pkg_file)
                 continue
-
+    
             # Step B: run script
             exec_mode = self._exec_mode(entry)
             make_package = self._should_package(entry)
@@ -84,14 +84,14 @@ class SKWExecuter:
                 rc = self._run_script(script, entry, exec_mode, destdir)
             else:
                 rc = self._run_script(script, entry, exec_mode, None)
-
+    
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
-
+    
             # Step C/D/E: package, install, upload
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
-                self._install_package(archive, entry)
+                self._install_local_package(archive, entry)
                 self._upload_package(archive)
 
     # ---------------------------
@@ -244,6 +244,9 @@ class SKWExecuter:
         meta_path = out_path.with_suffix(out_path.suffix + ".meta.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
+            
+        print(f"[PKG] Created package {out_path.name} "
+            f"({out_path.stat().st_size // 1024} KB, sha256={sha256[:12]}...)")
 
         return out_path
 
@@ -341,6 +344,54 @@ class SKWExecuter:
 
         with tarfile.open(pkg_path, "r:*") as tar:
             tar.extractall(path=target)
+            
+        print(f"[PKG] Installed cached package {pkg_file} "
+            f"from {repo} into {self._exec_mode(entry)} target")
+            
+    def _install_local_package(self, archive, entry):
+        """
+        Install a freshly created local package archive into the target environment.
+        """
+        meta_path = archive.with_suffix(archive.suffix + ".meta.json")
+        if not meta_path.exists():
+            sys.exit(f"ERROR: missing metadata {meta_path}")
+    
+        with open(meta_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+    
+        expected_sha = metadata.get("sha256")
+        actual_sha = self._sha256_file(archive)
+        if expected_sha != actual_sha:
+            sys.exit(f"ERROR: checksum mismatch for {archive}")
+    
+        self._extract_package(archive, entry)
+        
+        print(f"[PKG] Installed freshly built package {archive.name} "
+            f"into {self._exec_mode(entry)} target")
+        
+    def _extract_package(self, archive, entry):
+        exec_mode = self._exec_mode(entry)
+        if exec_mode == "chroot":
+            target = self.chroot_dir
+        else:
+            pkg = entry.get("package_name", "")
+            sec = entry.get("section_id", "")
+            chap = entry.get("chapter_id", "")
+            targets = self.cfg.get("extract.targets", {})
+            target = (
+                targets.get("packages", {}).get(pkg) or
+                targets.get("sections", {}).get(sec) or
+                targets.get("chapters", {}).get(chap) or
+                self.default_extract_dir
+            )
+    
+            if str(target) == "/" and self.require_confirm_root and not self.auto_confirm:
+                ans = input(f"WARNING: installing {archive.name} into /. Continue? [y/N] ")
+                if ans.lower() not in ["y", "yes"]:
+                    sys.exit("Aborted")
+    
+        with tarfile.open(archive, "r:*") as tar:
+            tar.extractall(path=target)
 
     def _upload_package(self, archive):
         if self.upload_repo.startswith("http"):
@@ -351,6 +402,8 @@ class SKWExecuter:
         else:
             shutil.copy2(archive, Path(self.upload_repo))
             shutil.copy2(str(archive) + ".meta.json", Path(self.upload_repo))
+            
+        print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
 
     def _log_skip(self, script, pkg_file):
         log_path = self.logs_dir / (script.name + ".log")
