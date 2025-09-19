@@ -15,6 +15,7 @@ import tomllib
 import socket
 import platform
 import hashlib
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -161,6 +162,7 @@ class SKWExecuter:
             "package_version": ver,
         }
 
+        tmpl = re.sub(r"\$\{([^}]+)\}", r"{\1}", tmpl)
         return tmpl.format(**values) + "." + self.cfg["main"].get("package_format", "tar.xz")
 
     def _exec_mode(self, entry):
