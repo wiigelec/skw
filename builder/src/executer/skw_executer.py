@@ -53,28 +53,51 @@ class SKWExecuter:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
 
-        # Config
-        self.upload_repo = self.cfg["main"].get("upload_repo", "")
+        # Load builder.toml for path substitution
+        builder_cfg = {}
+        builder_toml = Path("builder.toml")
+        if builder_toml.exists():
+            with open(builder_toml, "rb") as bf:
+                builder_cfg = tomllib.load(bf)
+
+        vars_map = {
+            "build_dir": str(self.build_dir),
+            "profiles_dir": str(self.profiles_dir),
+            "package_dir": str(builder_cfg.get("paths", {}).get("package_dir", "")),
+        }
+
+        # Config with variable expansion
+        self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
         self.download_repos = self.cfg["main"].get("download_repos", [])
         if not self.download_repos and "download_repo" in self.cfg["main"]:
             self.download_repos = [self.cfg["main"]["download_repo"]]
 
+        self.download_repos = [self._expand_vars(r, vars_map) for r in self.download_repos]
+
         self.chroot_dir = Path(self.cfg["main"].get("chroot_dir", self.exec_dir / "chroot"))
         self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
         self.require_confirm_root = self.cfg["main"].get("require_confirm_root", True)
+
+    def _expand_vars(self, value, vars_map):
+        """Expand ${var} placeholders and environment variables in strings."""
+        if not isinstance(value, str):
+            return value
+        for k, v in vars_map.items():
+            value = value.replace(f"${{{k}}}", v)
+        return os.path.expandvars(value)  # expand $ENVVAR too
 
     def run_all(self):
         scripts = sorted(self.scripts_dir.glob("*.sh"))
         for script in scripts:
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
-    
+
             # Step A: check cache
             if self._package_exists(pkg_file):
                 self._install_package(pkg_file, entry)
                 self._log_skip(script, pkg_file)
                 continue
-    
+
             # Step B: run script
             exec_mode = self._exec_mode(entry)
             make_package = self._should_package(entry)
@@ -84,10 +107,10 @@ class SKWExecuter:
                 rc = self._run_script(script, entry, exec_mode, destdir)
             else:
                 rc = self._run_script(script, entry, exec_mode, None)
-    
+
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
-    
+
             # Step C/D/E: package, install, upload
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
@@ -99,43 +122,36 @@ class SKWExecuter:
     # ---------------------------
 
     def _find_metadata(self, script_name):
-        """
-        Match script against parser_output.json by chapter_id + section_id.
-        Script filenames are assumed to follow:
-            NNNN_chapter-<chapter_id>_ch-<section_id>_<rest>.sh
-        """
         base = os.path.basename(script_name).split(".")[0]
         parts = base.split("_")
-    
+
         chapter_id = None
         section_id = None
-    
+
         for p in parts:
             if p.startswith("chapter-"):
                 chapter_id = p
             elif p.startswith("ch-"):
                 section_id = p
-    
+
         if not chapter_id or not section_id:
             sys.exit(f"ERROR: could not parse chapter/section IDs from {script_name}")
-    
+
         for e in self.entries:
             if e.get("chapter_id") == chapter_id and e.get("section_id") == section_id:
                 return e
-    
-        sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
 
+        sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
 
     def _pkg_filename(self, entry):
         tmpl = self.cfg["main"]["package_name_template"]
-    
-        # choose a synthetic package id if no real name is given
+
         pkg = entry.get("package_name")
         if not pkg:
             pkg = entry.get("section_id") or "noname"
-    
+
         ver = entry.get("package_version") or "noversion"
-    
+
         values = {
             "book": self.book,
             "profile": self.profile,
@@ -186,19 +202,18 @@ class SKWExecuter:
         pkg = entry.get("package_name")
         if not pkg:
             pkg = entry.get("section_id") or entry.get("chapter_id")
-    
+
         if not pkg:
             sys.exit("ERROR: cannot determine package identifier for entry")
-    
+
         if mode == "host":
             destdir = self.exec_dir / "destdir" / pkg
         else:
             destdir = self.chroot_dir / "destdir" / pkg
-    
-        # Clean existing destdir
+
         if destdir.exists():
             shutil.rmtree(destdir)
-    
+
         destdir.mkdir(parents=True, exist_ok=True)
         return str(destdir)
 
@@ -254,9 +269,9 @@ class SKWExecuter:
         meta_path = out_path.with_suffix(out_path.suffix + ".meta.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
-            
+
         print(f"[PKG] Created package {out_path.name} "
-            f"({out_path.stat().st_size // 1024} KB, sha256={sha256[:12]}...)")
+              f"({out_path.stat().st_size // 1024} KB, sha256={sha256[:12]}...)")
 
         return out_path
 
@@ -354,31 +369,28 @@ class SKWExecuter:
 
         with tarfile.open(pkg_path, "r:*") as tar:
             tar.extractall(path=target)
-            
+
         print(f"[PKG] Installed cached package {pkg_file} "
-            f"from {repo} into {self._exec_mode(entry)} target")
-            
+              f"from {repo} into {self._exec_mode(entry)} target")
+
     def _install_local_package(self, archive, entry):
-        """
-        Install a freshly created local package archive into the target environment.
-        """
         meta_path = archive.with_suffix(archive.suffix + ".meta.json")
         if not meta_path.exists():
             sys.exit(f"ERROR: missing metadata {meta_path}")
-    
+
         with open(meta_path, "r", encoding="utf-8") as f:
             metadata = json.load(f)
-    
+
         expected_sha = metadata.get("sha256")
         actual_sha = self._sha256_file(archive)
         if expected_sha != actual_sha:
             sys.exit(f"ERROR: checksum mismatch for {archive}")
-    
+
         self._extract_package(archive, entry)
-        
+
         print(f"[PKG] Installed freshly built package {archive.name} "
-            f"into {self._exec_mode(entry)} target")
-        
+              f"into {self._exec_mode(entry)} target")
+
     def _extract_package(self, archive, entry):
         exec_mode = self._exec_mode(entry)
         if exec_mode == "chroot":
@@ -394,12 +406,12 @@ class SKWExecuter:
                 targets.get("chapters", {}).get(chap) or
                 self.default_extract_dir
             )
-    
+
             if str(target) == "/" and self.require_confirm_root and not self.auto_confirm:
                 ans = input(f"WARNING: installing {archive.name} into /. Continue? [y/N] ")
                 if ans.lower() not in ["y", "yes"]:
                     sys.exit("Aborted")
-    
+
         with tarfile.open(archive, "r:*") as tar:
             tar.extractall(path=target)
 
@@ -412,7 +424,7 @@ class SKWExecuter:
         else:
             shutil.copy2(archive, Path(self.upload_repo))
             shutil.copy2(str(archive) + ".meta.json", Path(self.upload_repo))
-            
+
         print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
 
     def _log_skip(self, script, pkg_file):
