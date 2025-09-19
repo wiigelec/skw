@@ -97,7 +97,7 @@ class Builder:
             sys.exit(f"book.toml not found for {book}. Did you run add-book?")
 
         with open(book_path, "rb") as f:
-            book_cfg = tomli.load(f)["main"]
+            book_cfg = tomllib.load(f)["main"]
 
         repo_path = book_cfg["repo_path"]
         version = book_cfg["version"]
