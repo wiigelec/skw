@@ -13,13 +13,13 @@ chroot_dir = "${build_dir}/chroot"
 chroot_archive = ""
 
 # Upload repository: local path or scp target (user@host:/path)
-upload_repo = "/var/lib/skw/packages"
+upload_repo = "${package_dir}"
 # upload_repo = "builder@server:/srv/packages"
 
 # Download repository: local path or http URL
 # Download repos in priority order (first is primary, rest are fallbacks)
 download_repos = [
-  "/var/lib/skw/packages", 
+  "${package_dir}", 
   "http://mirror1.example.com/packages",
   "http://mirror2.example.com/packages"
 ]
@@ -33,7 +33,7 @@ package_name_template = "${book}-${profile}-${chapter_id}-${section_id}-${packag
 
 # Default extract dir for host mode (when installing from cache or after packaging)
 # Can be overridden below for specific packages/sections/chapters
-default_extract_dir = "/"
+default_extract_dir = "/mnt/lfs"
 
 # Require user confirmation before extracting to "/" (set true for safety)
 require_confirm_root = true
