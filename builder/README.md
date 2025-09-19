@@ -41,14 +41,15 @@ The end-to-end workflow is managed by the main `builder.py` script.
 The primary interface is the `skw-build` command-line tool.
 
 ```bash
-# List available books
-./skw-build list-books
-
 # Add a new book
 ./skw-build add-book --name <book_name>
 
 # Add a new profile to a book
 ./skw-build add-profile --book <book_name> --name <profile_name>
+
+# List available books and profiles
+./skw-build list-books
+./skw-build list-profiles --book (book_name>
 
 # Install the book sources
 ./skw-build install-book --book <book_name>
