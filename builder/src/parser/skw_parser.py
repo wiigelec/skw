@@ -4,7 +4,6 @@ import json
 import tomllib
 from lxml import etree
 
-
 class SKWParser:
     def __init__(self, build_dir, profiles_dir, book, profile):
         self.build_dir = build_dir

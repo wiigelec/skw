@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import glob
 import tomllib
 import argparse
 import shutil
@@ -9,7 +10,6 @@ import subprocess
 from parser.skw_parser import SKWParser
 from scripter.skw_scripter import SKWScripter
 # from skw_executer import SKWExecuter   # todo: implement
-
 
 class Builder:
     def __init__(self, config_path="builder.toml", skel_dir="src/config/skel"):
@@ -54,8 +54,19 @@ class Builder:
 
         os.makedirs(profile_path, exist_ok=True)
 
-        for fname in ["parser.toml.skel", "scripter.toml.skel", "executer.toml.skel", "template.script"]:
-            src = os.path.join(self.skel_dir, fname)
+        src_dir = self.skel_dir
+        skeletons = ["parser.toml.skel", "scripter.toml.skel", "executer.toml.skel"]
+        scripts = glob.glob(os.path.join(src_dir, "*.script"))
+
+        # copy skeletons
+        for fname in skeletons:
+            src = os.path.join(src_dir, fname)
+            dst = os.path.join(profile_path, fname.replace(".skel", ""))
+            shutil.copyfile(src, dst)
+
+        # copy scripts
+        for src in scripts:
+            fname = os.path.basename(src)
             dst = os.path.join(profile_path, fname.replace(".skel", ""))
             shutil.copyfile(src, dst)
 
@@ -86,7 +97,7 @@ class Builder:
             sys.exit(f"book.toml not found for {book}. Did you run add-book?")
 
         with open(book_path, "rb") as f:
-            book_cfg = tomllib.load(f)["main"]
+            book_cfg = tomli.load(f)["main"]
 
         repo_path = book_cfg["repo_path"]
         version = book_cfg["version"]

@@ -9,17 +9,14 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
-DESTDIR="/dest/dir"
-
-# --- Sources ---
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+
+source_url="{{sources.urls}}"
 tarball=$(basename "$source_urls")
 dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
 tar -xf "$tarball"
 cd "$dirname"
-
 
 
 ### START BUILD COMMANDS ###

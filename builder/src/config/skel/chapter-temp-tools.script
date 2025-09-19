@@ -9,17 +9,25 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
-DESTDIR="/dest/dir"
 
-# --- Sources ---
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
+
+# If not already running as lfs, restart as lfs with login env
+if [[ "$(id -un)" != "lfs" ]]; then
+    exec su - lfs -c "LFS=$LFS $0 $*"
+fi
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+
+source_url="{{sources.urls}}"
 tarball=$(basename "$source_urls")
 dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
 tar -xf "$tarball"
 cd "$dirname"
-
 
 
 ### START BUILD COMMANDS ###

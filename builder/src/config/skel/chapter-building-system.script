@@ -9,17 +9,34 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
-DESTDIR="/dest/dir"
+### SETUP DESTDIR ###
 
-# --- Sources ---
+DESTDIR="$1"
+
+# Setup if DESTDIR is not empty
+if [[ -n "${DESTDIR:-}" ]]; then
+    # Refuse to operate on /
+    if [[ "$DESTDIR" == "/" ]]; then
+        :
+    else
+        # Remove if it already exists
+        if [[ -d "$DESTDIR" ]]; then
+            echo "Removing existing $DESTDIR"
+            rm -rf -- "$DESTDIR"
+        fi
+        # Recreate it
+        mkdir -pv -- "$DESTDIR"
+    fi
+fi
+
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+
+source_url="{{sources.urls}}"
 tarball=$(basename "$source_urls")
 dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
 tar -xf "$tarball"
 cd "$dirname"
-
 
 
 ### START BUILD COMMANDS ###
