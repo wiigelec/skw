@@ -128,17 +128,24 @@ class SKWExecuter:
 
     def _pkg_filename(self, entry):
         tmpl = self.cfg["main"]["package_name_template"]
-        pkg = entry.get("package_name") or entry.get("section_id")
+    
+        # choose a synthetic package id if no real name is given
+        pkg = entry.get("package_name")
+        if not pkg:
+            pkg = entry.get("section_id") or "noname"
+    
         ver = entry.get("package_version") or "noversion"
     
-        return tmpl.format(**{
+        values = {
             "book": self.book,
             "profile": self.profile,
             "chapter_id": entry.get("chapter_id", ""),
             "section_id": entry.get("section_id", ""),
             "package_name": pkg,
-            "package_version": ver
-        }) + "." + self.cfg["main"].get("package_format", "tar.xz")
+            "package_version": ver,
+        }
+
+        return tmpl.format(**values) + "." + self.cfg["main"].get("package_format", "tar.xz")
 
     def _exec_mode(self, entry):
         c = self.cfg.get("chroot", {})
@@ -178,17 +185,20 @@ class SKWExecuter:
     def _make_destdir(self, mode, entry):
         pkg = entry.get("package_name")
         if not pkg:
-            # Fallback: use section_id or chapter_id as synthetic package name
-            pkg = entry.get("section_id")
-
+            pkg = entry.get("section_id") or entry.get("chapter_id")
+    
         if not pkg:
             sys.exit("ERROR: cannot determine package identifier for entry")
-            
+    
         if mode == "host":
             destdir = self.exec_dir / "destdir" / pkg
-            print(destdir)
         else:
             destdir = self.chroot_dir / "destdir" / pkg
+    
+        # Clean existing destdir
+        if destdir.exists():
+            shutil.rmtree(destdir)
+    
         destdir.mkdir(parents=True, exist_ok=True)
         return str(destdir)
 
