@@ -1,4 +1,88 @@
-def run_all(self):
+#!/usr/bin/env python3
+"""
+skw_executer.py
+Execution engine for ScratchKit (SKW) pipeline.
+"""
+
+import os
+import sys
+import json
+import tarfile
+import shutil
+import subprocess
+import requests
+import tomllib
+import socket
+import platform
+import hashlib
+import re
+from pathlib import Path
+from datetime import datetime
+
+
+class SKWExecuter:
+    def __init__(self, build_dir, profiles_dir, book, profile, auto_confirm=False):
+        self.build_dir = Path(build_dir)
+        self.profiles_dir = Path(profiles_dir)
+        self.book = book
+        self.profile = profile
+        self.exec_dir = self.build_dir / "executer" / book / profile
+        self.logs_dir = self.exec_dir / "logs"
+        self.downloads_dir = self.exec_dir / "downloads"
+        self.auto_confirm = auto_confirm
+
+        # Load executer.toml
+        cfg_path = self.profiles_dir / book / profile / "executer.toml"
+        if not cfg_path.exists():
+            sys.exit(f"ERROR: missing {cfg_path}")
+        with open(cfg_path, "rb") as f:
+            self.cfg = tomllib.load(f)
+
+        # Load parser output
+        parser_out = self.build_dir / "parser" / book / profile / "parser_output.json"
+        if not parser_out.exists():
+            sys.exit(f"ERROR: missing {parser_out}")
+        with open(parser_out, "r", encoding="utf-8") as f:
+            self.entries = json.load(f)
+
+        # Scripts dir
+        self.scripts_dir = self.build_dir / "scripter" / book / profile / "scripts"
+        if not self.scripts_dir.exists():
+            sys.exit(f"ERROR: missing {self.scripts_dir}")
+
+        # Ensure dirs
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.downloads_dir.mkdir(parents=True, exist_ok=True)
+
+        # Load builder.toml for path substitution
+        builder_cfg = {}
+        builder_toml = Path("builder.toml")
+        if builder_toml.exists():
+            with open(builder_toml, "rb") as bf:
+                builder_cfg = tomllib.load(bf)
+
+         # Map for variable expansion
+        vars_map = {
+            "build_dir": str(self.build_dir),
+            "profiles_dir": str(self.profiles_dir),
+            "package_dir": str(builder_cfg.get("paths", {}).get("package_dir", "")),
+            "book": self.book,
+            "profile": self.profile,
+        }
+
+        # Config with variable expansion
+        self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
+        self.download_repos = self.cfg["main"].get("download_repos", [])
+        if not self.download_repos and "download_repo" in self.cfg["main"]:
+            self.download_repos = [self.cfg["main"]["download_repo"]]
+
+        self.download_repos = [self._expand_vars(r, vars_map) for r in self.download_repos]
+
+        self.chroot_dir = Path(self.cfg["main"].get("chroot_dir", self.exec_dir / "chroot"))
+        self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
+        self.require_confirm_root = self.cfg["main"].get("require_confirm_root", True)
+
+    def run_all(self):
         scripts = sorted(self.scripts_dir.glob("*.sh"))
         for script in scripts:
             entry = self._find_metadata(script.name)
