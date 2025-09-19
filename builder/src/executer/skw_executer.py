@@ -125,15 +125,19 @@ class SKWExecuter:
     
         sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
 
+
     def _pkg_filename(self, entry):
         tmpl = self.cfg["main"]["package_name_template"]
+        pkg = entry.get("package_name") or entry.get("section_id")
+        ver = entry.get("package_version") or "noversion"
+    
         return tmpl.format(**{
             "book": self.book,
             "profile": self.profile,
             "chapter_id": entry.get("chapter_id", ""),
             "section_id": entry.get("section_id", ""),
-            "package_name": entry.get("package_name", ""),
-            "package_version": entry.get("package_version", "")
+            "package_name": pkg,
+            "package_version": ver
         }) + "." + self.cfg["main"].get("package_format", "tar.xz")
 
     def _exec_mode(self, entry):
@@ -173,8 +177,16 @@ class SKWExecuter:
 
     def _make_destdir(self, mode, entry):
         pkg = entry.get("package_name")
+        if not pkg:
+            # Fallback: use section_id or chapter_id as synthetic package name
+            pkg = entry.get("section_id")
+
+        if not pkg:
+            sys.exit("ERROR: cannot determine package identifier for entry")
+            
         if mode == "host":
             destdir = self.exec_dir / "destdir" / pkg
+            print(destdir)
         else:
             destdir = self.chroot_dir / "destdir" / pkg
         destdir.mkdir(parents=True, exist_ok=True)
