@@ -70,6 +70,15 @@ class SKWExecuter:
             "profile": self.profile,
         }
 
+        # Load package dir (expanded from builder.toml or fallback)
+        self.package_dir = Path(
+            self._expand_vars(
+                self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")),
+                vars_map,
+            )
+        )
+        self.package_dir.mkdir(parents=True, exist_ok=True)
+
         # Config with variable expansion
         self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
         self.download_repos = self.cfg["main"].get("download_repos", [])
