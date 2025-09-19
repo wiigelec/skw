@@ -99,10 +99,31 @@ class SKWExecuter:
     # ---------------------------
 
     def _find_metadata(self, script_name):
+        """
+        Match script against parser_output.json by chapter_id + section_id.
+        Script filenames are assumed to follow:
+            NNNN_chapter-<chapter_id>_ch-<section_id>_<rest>.sh
+        """
+        base = os.path.basename(script_name).split(".")[0]
+        parts = base.split("_")
+    
+        chapter_id = None
+        section_id = None
+    
+        for p in parts:
+            if p.startswith("chapter-"):
+                chapter_id = p
+            elif p.startswith("ch-"):
+                section_id = p
+    
+        if not chapter_id or not section_id:
+            sys.exit(f"ERROR: could not parse chapter/section IDs from {script_name}")
+    
         for e in self.entries:
-            if e.get("script_name") == script_name:
+            if e.get("chapter_id") == chapter_id and e.get("section_id") == section_id:
                 return e
-        sys.exit(f"ERROR: no metadata for {script_name}")
+    
+        sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
 
     def _pkg_filename(self, entry):
         tmpl = self.cfg["main"]["package_name_template"]
