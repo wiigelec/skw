@@ -395,7 +395,7 @@ class SKWExecuter:
         self._extract_package(archive, entry)
 
         print(f"[PKG] Installed freshly built package {archive.name} "
-              f"into {self._exec_mode(entry)} target")
+              f"into {target}")
 
     def _extract_package(self, archive, entry):
         exec_mode = self._exec_mode(entry)
