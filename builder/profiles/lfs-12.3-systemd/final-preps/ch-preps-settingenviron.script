@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
+
+### START BUILD COMMANDS ###
+
+sudo env HOME=/home/lfs bash -l <<LFS_EOF
+
+{{build_instructions}}
+
+LFS_EOF
+
+### END BUILD COMMANDS ###
+
