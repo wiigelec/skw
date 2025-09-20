@@ -23,6 +23,13 @@ build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
 # XPATH overrides
 #------------------------------------------------------------------#
 
+[ch-materials-introduction.xpaths]
+source_urls = ""
+build_instructions = ".//screen[@role=\"nodump\"]/userinput"
+
+[ch-materials-packages.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'.tar')]/@url"
+
 [ch-materials-patches.xpaths]
 source_urls = ".//ulink[contains(@url,'.patch')]/@url"
 
@@ -124,8 +131,7 @@ exclude  = [ "chapter-intro",
 
 [section_filters]
 include  = []
-exclude  = [ "ch-materials-introduction",
-             "ch-preps-introduction",
+exclude  = [ "ch-preps-introduction",
              "ch-preps-aboutsbus",
              "ch-preps-abouttestsuites",
              "ch-tools-introduction",

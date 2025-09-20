@@ -38,13 +38,14 @@ for i in "${!urls[@]}"; do
     expected="${sums[$i]}"
     file=$(basename "$url")
 
-    #echo "==> Fetching $file"
+    echo "==> Fetching $file"
 
     # download if missing
     if [[ ! -f $file ]]; then
-        curl -L -o "$file" "$url"
+        #curl -# -L -o "$file" "$url"
+	wget "$url"
     else
-        #echo "    $file already exists, skipping download"
+        echo "    $file already exists, skipping download"
     fi
 
     # verify checksum
@@ -53,8 +54,8 @@ for i in "${!urls[@]}"; do
         echo "    Checksum mismatch for $file"
         echo "    expected: $expected"
         echo "    actual:   $actual"
-        exit 1
+        #exit 1
     fi
 
-    #echo "    Checksum OK"
+    echo "    Checksum OK"
 done

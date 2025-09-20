@@ -9,6 +9,14 @@ default_template = "template.script"
 [global]
 regex = []
 
+[ch-materials-introduction]
+template = "chapter-final-preps.script"
+regex = [ 
+		"r@(?s)wget --input-file.*?.*\\$LFS/sources/\\*\\n?@@",
+		"s@mkdir@sudo mkdir@",	
+		"s@chmod@sudo chmod@",	
+ ]
+
 [chapter-getting-materials]
 template = "chapter-getting-materials.script"
 
