@@ -8,4 +8,4 @@ build_dir = "build"
 package_dir = "packages/${book}/${profile}"
 
 # Directory containing all book and profile configurations
-profiles_dir = "profiles"
+profiles_dir = "default-profiles"
