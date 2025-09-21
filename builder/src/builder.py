@@ -7,9 +7,9 @@ import argparse
 import shutil
 import subprocess
 
-from parser.skw_parser import SKWParser
-from scripter.skw_scripter import SKWScripter
-from executer.skw_executer import SKWExecuter
+from skw_parser import SKWParser
+from skw_scripter import SKWScripter
+from skw_executer import SKWExecuter
 
 class Builder:
     def __init__(self, config_path="builder.toml", skel_dir="src/config/skel"):
