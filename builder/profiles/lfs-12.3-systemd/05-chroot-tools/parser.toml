@@ -1,0 +1,55 @@
+# ================================================================
+# Parser Configuration
+# ================================================================
+
+[main]
+xml_path = "build/books/${book}/lfs-full.xml"
+output_file = "parser_output.json"
+
+[xpaths]
+source_book = ""
+chapter_id = "//chapter"
+section_id = "./sect1"
+package_name = "./sect1info/productname/text()"
+package_version = "./sect1info/productnumber/text()"
+source_titles = ""
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}-${package_version}') and contains(@url,'.tar')]/@url"
+source_checksums = ""
+dependencies = ""
+build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
+
+
+#------------------------------------------------------------------#
+# XPATH overrides
+#------------------------------------------------------------------#
+
+[ch-tools-changingowner.xpaths]
+source_urls=""
+
+[ch-tools-creatingdirs.xpaths]
+source_urls=""
+
+[ch-tools-createfiles.xpaths]
+source_urls=""
+
+[ch-tools-cleanup.xpaths]
+source_urls=""
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = [ "chapter-chroot-temporary-tools" ]
+exclude  = []
+
+[section_filters]
+include  = []
+exclude  = [ "ch-tools-introduction-chroot", "ch-tools-kernfs", "ch-tools-chroot" ]
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+

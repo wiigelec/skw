@@ -170,6 +170,16 @@ class SKWExecuter:
         return tmpl.format(**values) + "." + self.cfg["main"].get("package_format", "tar.xz")
 
     def _exec_mode(self, entry):
+        # Host rules take precedence
+        h = self.cfg.get("host", {})
+        if entry.get("package_name") in h.get("packages", []):
+            return "host"
+        if entry.get("section_id") in h.get("sections", []):
+            return "host"
+        if entry.get("chapter_id") in h.get("chapters", []):
+            return "host"
+
+        # Then chroot rules
         c = self.cfg.get("chroot", {})
         if entry.get("package_name") in c.get("packages", []):
             return "chroot"
@@ -177,6 +187,8 @@ class SKWExecuter:
             return "chroot"
         if entry.get("chapter_id") in c.get("chapters", []):
             return "chroot"
+
+        # Default fallback
         return "host"
 
     def _should_package(self, entry):
@@ -226,7 +238,34 @@ class SKWExecuter:
     def _run_script(self, script, entry, mode, destdir=None):
         log_path = self.logs_dir / (script.name + ".log")
         with open(log_path, "w", encoding="utf-8") as logf:
+            mounts = []
             if mode == "chroot":
+                # Prepare mount points
+                scripts_target = self.chroot_dir / "scripts"
+                dev_target = self.chroot_dir / "dev"
+                proc_target = self.chroot_dir / "proc"
+                sys_target = self.chroot_dir / "sys"
+
+                scripts_target.mkdir(parents=True, exist_ok=True)
+                dev_target.mkdir(parents=True, exist_ok=True)
+                proc_target.mkdir(parents=True, exist_ok=True)
+                sys_target.mkdir(parents=True, exist_ok=True)
+
+                # Bind mounts
+                bind_mounts = [
+                    (str(self.scripts_dir), str(scripts_target)),
+                    ("/dev", str(dev_target)),
+                    ("/proc", str(proc_target)),
+                    ("/sys", str(sys_target)),
+                ]
+
+                for src, dst in bind_mounts:
+                    try:
+                        subprocess.run(["mount", "--bind", src, dst], check=True)
+                        mounts.append(dst)
+                    except subprocess.CalledProcessError as e:
+                        sys.exit(f"ERROR: failed to bind-mount {src} -> {dst}: {e}")
+
                 cmd = ["chroot", str(self.chroot_dir), "/bin/bash", f"/scripts/{script.name}"]
                 if destdir:
                     cmd.append(destdir)
@@ -236,10 +275,17 @@ class SKWExecuter:
                     cmd.append(destdir)
 
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            for line in proc.stdout:
-                sys.stdout.write(line)
-                logf.write(line)
-            proc.wait()
+            try:
+                for line in proc.stdout:
+                    sys.stdout.write(line)
+                    logf.write(line)
+                proc.wait()
+            finally:
+                # Always unmount bind mounts
+                if mode == "chroot":
+                    for m in reversed(mounts):  # reverse order for safe unmount
+                        subprocess.run(["umount", "-lf", m], check=False)
+
             return proc.returncode
 
     def _create_archive(self, destdir, pkg_file, entry, exec_mode):
