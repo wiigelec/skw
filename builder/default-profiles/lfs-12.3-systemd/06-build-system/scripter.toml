@@ -1,0 +1,62 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_json = "build/parser/<profile>/parser_output.json"
+default_template = "template.script"
+
+[global]
+regex = [ "r@make.*check.*@@", 
+	  "r@make.*test.*@@", 
+	  "r@ninja.*test.*@@", 
+	  "r@.*tester.*@@", 
+	  "r@.*test_summary.*@@" ]
+
+
+[ch-system-glibc]
+regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@" ]
+
+[ch-system-binutils]
+regex = [ "r@grep '\\^FAIL:.*@@" ]
+
+[ch-system-gcc]
+regex = [ 
+	    "r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
+	    "r@(?s)echo 'int main\\(\\).*?rm -v dummy.c a.out dummy.log\\n?@@",
+	]
+
+[ch-system-bash]
+regex = [ "r@(?s)set timeout.*?EOF\\n?@@" ]
+
+[ch-system-coreutils]
+regex = [ "r@.*< /dev/null@@", "s@groupdel dummy@@" ]
+
+[ch-system-groff]
+regex = [ "r@<paper_size>@letter@" ]
+
+[ch-system-stripping]
+template = "chroot-nosrc.script"
+
+[ch-system-cleanup]
+template = "chroot-nosrc.script"
+
+
+# Chapter-specific filters
+# Example:
+# [<chapter>]
+# template = "chapter.script"
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [<section>]
+# template = "section.script"
+# regex = []
+
+# Package-specific filters
+# Example:
+# [<package>]
+# template = "package.script"
+# regex = []
+
