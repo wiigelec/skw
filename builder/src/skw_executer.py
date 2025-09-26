@@ -477,8 +477,8 @@ class SKWExecuter:
                 ["tar", "--extract", "--file", str(archive), "--directory", str(target), "--preserve-permissions"],
                 check=True
         )
-    except subprocess.CalledProcessError as e:
-        sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
+        except subprocess.CalledProcessError as e:
+            sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
 
     def _upload_package(self, archive):
         if self.upload_repo.startswith("http"):
