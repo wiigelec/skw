@@ -96,13 +96,13 @@ class SKWExecuter:
         for script in scripts:
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
-
+    
             # Step A: check cache
             if self._package_exists(pkg_file):
                 self._install_package(pkg_file, entry)
                 self._log_skip(script, pkg_file)
                 continue
-
+    
             # Step B: run script
             exec_mode = self._exec_mode(entry)
             make_package = self._should_package(entry)
@@ -112,15 +112,19 @@ class SKWExecuter:
                 rc = self._run_script(script, entry, exec_mode, destdir)
             else:
                 rc = self._run_script(script, entry, exec_mode, None)
-
+    
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
-
+    
             # Step C/D/E: package, install, upload
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
                 self._upload_package(archive)
+    
+                # Step F: cleanup DESTDIR after packaging
+                if destdir and Path(destdir).exists():
+                    shutil.rmtree(destdir, ignore_errors=True)
 
     # ---------------------------
     # Core helpers
@@ -217,22 +221,20 @@ class SKWExecuter:
         return include and not exclude
 
     def _make_destdir(self, mode, entry):
-        pkg = entry.get("package_name")
-        if not pkg:
-            pkg = entry.get("section_id") or entry.get("chapter_id")
-
+        pkg = entry.get("package_name") or entry.get("section_id") or entry.get("chapter_id")
         if not pkg:
             sys.exit("ERROR: cannot determine package identifier for entry")
-
+    
         if mode == "host":
             destdir = self.exec_dir / "destdir" / pkg
         else:
             destdir = self.chroot_dir / "destdir" / pkg
-
+    
+        # Always start fresh
         if destdir.exists():
             shutil.rmtree(destdir)
-
         destdir.mkdir(parents=True, exist_ok=True)
+    
         return str(destdir)
 
     def _run_script(self, script, entry, mode, destdir=None):
