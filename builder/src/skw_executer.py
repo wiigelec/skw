@@ -486,8 +486,18 @@ class SKWExecuter:
         # If validation passes, extract with system tar
         try:
             subprocess.run(
-                ["tar", "--extract", "--file", str(archive), "--directory", str(target), "--preserve-permissions", "--strip-components=0"],
-                check=True
+                [
+                    "tar",
+                    "--extract",
+                    "--file", str(archive),
+                    "--directory", str(target),
+                    "--preserve-permissions",
+                    "--strip-components=0",
+                    "--warning=no-absolute-paths"
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
         except subprocess.CalledProcessError as e:
             sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
