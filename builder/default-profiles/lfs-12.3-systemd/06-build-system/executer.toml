@@ -55,12 +55,12 @@ chapters = [ "chapter-building-system" ]
 # Scripts that should produce packages
 packages = []
 sections = []
-chapters = []
+chapters = [ "chapter-building-system" ]
 
 [packages.exclude]
 # Explicit exclusions (take precedence)
 packages = []
-sections = []
+sections = [ "ch-system-cleanup" ]
 chapters = []
 
 

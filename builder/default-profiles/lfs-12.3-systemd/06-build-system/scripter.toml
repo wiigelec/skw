@@ -11,11 +11,36 @@ regex = [ "r@make.*check.*@@",
 	  "r@make.*test.*@@", 
 	  "r@ninja.*test.*@@", 
 	  "r@.*tester.*@@", 
-	  "r@.*test_summary.*@@" ]
+	  "r@.*test_summary.*@@",
+	  "r@make(?: (.*))? install@make DESTDIR=$DESTDIR \\g<1> install@",
+ 	  "r@(mkdir\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(ln)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(rm)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(install)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(chmod)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+ 	  "r@(cat >) (/.*)@\\1 $DESTDIR\\2@",
+ 	  "r@(cat >>) (/.*)@\\1 $DESTDIR\\2@",
+ 	  "r@(touch) (/.*)@\\1 $DESTDIR\\2@",
+]
 
+[ch-system-iana-etc]
+regex = [ "r@(### START BUILD COMMANDS ###)@\\1\\n\\nmkdir -pv $DESTDIR/etc@" ]
 
 [ch-system-glibc]
-regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@" ]
+regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@",
+          "r@make (localedata.*)@make DESTDIR=$DESTDIR \\1@",
+          "r@ZONEINFO=(.*)@ZONEINFO=$DESTDIR\\1@",
+          "r@(touch \\$DESTDIR/etc/ld\\.so\\.conf)@mkdir -p $DESTDIR/etc\\n\\1@"
+]
+
+[ch-system-bzip2]
+regex = [ "r@(make DESTDIR.*install)@\\1\\nmkdir -p $DESTDIR/usr/{lib,bin}",
+	  "r@for i in /@for i in $DESTDIR/@" 
+]
 
 [ch-system-binutils]
 regex = [ "r@grep '\\^FAIL:.*@@" ]
@@ -23,11 +48,16 @@ regex = [ "r@grep '\\^FAIL:.*@@" ]
 [ch-system-gmp]
 regex = [ "r@.*gmp-check-log@@" ]
 
+[ch-system-shadow]
+regex = [ "r@(touch .*/passwd)@mkdir -p $DESTDIR/usr/bin\\n\\1@",
+	  "r@(?s)pwconv.*?/etc/default/useradd\\n?@@"
+]
+
 [ch-system-gcc]
-regex = [ 
-	    "r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
-	    "r@(?s)echo 'int main\\(\\).*?rm -v dummy.c a.out dummy.log\\n?@@",
-	]
+regex = [ "r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
+	  "r@(?s)echo 'int main\\(\\).*?rm -v dummy.c a.out dummy.log\\n?@@",
+	  "r@    /usr/lib@    $DESTDIR/usr/lib@"	
+]
 
 [ch-system-bash]
 regex = [ "r@(?s)set timeout.*?EOF\\n?@@" ]

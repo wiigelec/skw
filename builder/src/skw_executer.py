@@ -496,7 +496,7 @@ class SKWExecuter:
         try:
             # Use a shell pipeline to grep -v the noisy line
             subprocess.run(
-                f"{' '.join(cmd)} 2> >(grep -v \"Removing leading /\" >&2)",
+                f"{' '.join(cmd)} 2> >(grep -v \"Removing leading \" >&2)",
                 shell=True,
                 check=True
             )
