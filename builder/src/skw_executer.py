@@ -484,20 +484,21 @@ class SKWExecuter:
                     sys.exit(f"SECURITY ERROR: illegal path in archive {archive} -> {member.name}")
     
         # If validation passes, extract with system tar
+        # Run tar, but filter stderr so only "Removing leading '/'" messages are hidden
+        cmd = [
+            "tar",
+            "--extract",
+            "--file", str(archive),
+            "--directory", str(target),
+            "--preserve-permissions"
+        ]
+    
         try:
+            # Use a shell pipeline to grep -v the noisy line
             subprocess.run(
-                [
-                    "tar",
-                    "--extract",
-                    "--file", str(archive),
-                    "--directory", str(target),
-                    "--preserve-permissions",
-                    "--strip-components=0",
-                    "--warning=no-absolute-paths"
-                ],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                f"{' '.join(cmd)} 2> >(grep -v \"Removing leading /\" >&2)",
+                shell=True,
+                check=True
             )
         except subprocess.CalledProcessError as e:
             sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
