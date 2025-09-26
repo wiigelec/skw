@@ -420,8 +420,7 @@ class SKWExecuter:
                 if ans.lower() not in ["y", "yes"]:
                     sys.exit("Aborted")
 
-        with tarfile.open(pkg_path, "r:*") as tar:
-            tar.extractall(path=target)
+        target = self._extract_package(pkg_path, entry)
 
         print(f"[PKG] Installed cached package {pkg_file} "
               f"from {repo} into {target}")
@@ -473,7 +472,13 @@ class SKWExecuter:
                 member_path = Path(target) / member.name
                 if not str(member_path.resolve()).startswith(str(Path(target).resolve())):
                     sys.exit(f"SECURITY ERROR: illegal path in archive {archive}")
-            tar.extractall(path=target)
+        try:
+            subprocess.run(
+                ["tar", "--extract", "--file", str(archive), "--directory", str(target), "--preserve-permissions"],
+                check=True
+        )
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
 
     def _upload_package(self, archive):
         if self.upload_repo.startswith("http"):
