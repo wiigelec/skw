@@ -228,9 +228,9 @@ class SKWExecuter:
         if mode == "host":
             destdir = self.exec_dir / "destdir" / pkg
         else:
+            # Inside chroot, this will be visible as /destdir/<pkg>
             destdir = self.chroot_dir / "destdir" / pkg
     
-        # Always start fresh
         if destdir.exists():
             shutil.rmtree(destdir)
         destdir.mkdir(parents=True, exist_ok=True)
@@ -242,40 +242,40 @@ class SKWExecuter:
         with open(log_path, "w", encoding="utf-8") as logf:
             mounts = []
             if mode == "chroot":
-                # Prepare mount points
                 scripts_target = self.chroot_dir / "scripts"
                 dev_target = self.chroot_dir / "dev"
                 proc_target = self.chroot_dir / "proc"
                 sys_target = self.chroot_dir / "sys"
-
+    
                 scripts_target.mkdir(parents=True, exist_ok=True)
                 dev_target.mkdir(parents=True, exist_ok=True)
                 proc_target.mkdir(parents=True, exist_ok=True)
                 sys_target.mkdir(parents=True, exist_ok=True)
-
-                # Bind mounts
+    
                 bind_mounts = [
                     (str(self.scripts_dir), str(scripts_target)),
                     ("/dev", str(dev_target)),
                     ("/proc", str(proc_target)),
                     ("/sys", str(sys_target)),
                 ]
-
+    
                 for src, dst in bind_mounts:
                     try:
                         subprocess.run(["mount", "--bind", src, dst], check=True)
                         mounts.append(dst)
                     except subprocess.CalledProcessError as e:
                         sys.exit(f"ERROR: failed to bind-mount {src} -> {dst}: {e}")
-
+    
+                # Important: pass only the *chroot-internal* destdir
                 cmd = ["chroot", str(self.chroot_dir), "/bin/bash", f"/scripts/{script.name}"]
                 if destdir:
-                    cmd.append(destdir)
+                    internal_destdir = "/" + str(Path(destdir).relative_to(self.chroot_dir))
+                    cmd.append(internal_destdir)
             else:
                 cmd = ["/bin/bash", str(script)]
                 if destdir:
                     cmd.append(destdir)
-
+    
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             try:
                 for line in proc.stdout:
@@ -283,11 +283,10 @@ class SKWExecuter:
                     logf.write(line)
                 proc.wait()
             finally:
-                # Always unmount bind mounts
                 if mode == "chroot":
-                    for m in reversed(mounts):  # reverse order for safe unmount
+                    for m in reversed(mounts):
                         subprocess.run(["umount", "-lf", m], check=False)
-
+    
             return proc.returncode
 
     def _create_archive(self, destdir, pkg_file, entry, exec_mode):
