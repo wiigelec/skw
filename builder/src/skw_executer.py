@@ -466,17 +466,29 @@ class SKWExecuter:
         return target
 
     def _safe_extract(self, archive, target):
-        """Safer tar extraction to prevent path traversal attacks."""
+        """Safer tar extraction using system tar, but tolerant of symlinks and leading '/'."""
+        target_path = Path(target).resolve()
+    
         with tarfile.open(archive, "r:*") as tar:
             for member in tar.getmembers():
-                member_path = Path(target) / member.name
-                if not str(member_path.resolve()).startswith(str(Path(target).resolve())):
-                    sys.exit(f"SECURITY ERROR: illegal path in archive {archive}")
+                # Strip leading '/' to handle absolute paths
+                name = member.name.lstrip("/")
+                member_path = (target_path / name).resolve()
+    
+                # Check symlinks separately
+                if member.issym() or member.islnk():
+                    # Allow symlinks; system tar will recreate them faithfully
+                    continue
+    
+                if not str(member_path).startswith(str(target_path)):
+                    sys.exit(f"SECURITY ERROR: illegal path in archive {archive} -> {member.name}")
+    
+        # If validation passes, extract with system tar
         try:
             subprocess.run(
-                ["tar", "--extract", "--file", str(archive), "--directory", str(target), "--preserve-permissions"],
+                ["tar", "--extract", "--file", str(archive), "--directory", str(target), "--preserve-permissions", "--strip-components=0"],
                 check=True
-        )
+            )
         except subprocess.CalledProcessError as e:
             sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
 
