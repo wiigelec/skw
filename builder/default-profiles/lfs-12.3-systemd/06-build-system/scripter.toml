@@ -20,6 +20,9 @@ regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@
 [ch-system-binutils]
 regex = [ "r@grep '\\^FAIL:.*@@" ]
 
+[ch-system-gmp]
+regex = [ "r@.*gmp-check-log@@" ]
+
 [ch-system-gcc]
 regex = [ 
 	    "r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
