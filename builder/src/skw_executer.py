@@ -441,6 +441,30 @@ class SKWExecuter:
         target = self._extract_package(archive, entry)
         print(f"[PKG] Installed freshly built package {archive.name} into {target}")
 
+    def _extract_package(self, archive, entry):
+        exec_mode = self._exec_mode(entry)
+        if exec_mode == "chroot":
+            target = self.chroot_dir
+        else:
+            pkg = entry.get("package_name", "")
+            sec = entry.get("section_id", "")
+            chap = entry.get("chapter_id", "")
+            targets = self.cfg.get("extract.targets", {})
+            target = (
+                targets.get("packages", {}).get(pkg)
+                or targets.get("sections", {}).get(sec)
+                or targets.get("chapters", {}).get(chap)
+                or self.default_extract_dir
+            )
+    
+            if str(target) == "/" and self.require_confirm_root and not self.auto_confirm:
+                ans = input(f"WARNING: installing {archive.name} into /. Continue? [y/N] ")
+                if ans.lower() not in ["y", "yes"]:
+                    sys.exit("Aborted")
+    
+        self._safe_extract(archive, target)
+        return target
+
     def _safe_extract(self, archive, target):
         """Safer tar extraction to prevent path traversal attacks."""
         with tarfile.open(archive, "r:*") as tar:
