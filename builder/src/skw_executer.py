@@ -429,42 +429,25 @@ class SKWExecuter:
         meta_path = archive.with_suffix(archive.suffix + ".meta.json")
         if not meta_path.exists():
             sys.exit(f"ERROR: missing metadata {meta_path}")
-
+    
         with open(meta_path, "r", encoding="utf-8") as f:
             metadata = json.load(f)
-
+    
         expected_sha = metadata.get("sha256")
         actual_sha = self._sha256_file(archive)
         if expected_sha != actual_sha:
             sys.exit(f"ERROR: checksum mismatch for {archive}")
+    
+        target = self._extract_package(archive, entry)
+        print(f"[PKG] Installed freshly built package {archive.name} into {target}")
 
-        self._extract_package(archive, entry)
-
-        print(f"[PKG] Installed freshly built package {archive.name} "
-              f"into {target}")
-
-    def _extract_package(self, archive, entry):
-        exec_mode = self._exec_mode(entry)
-        if exec_mode == "chroot":
-            target = self.chroot_dir
-        else:
-            pkg = entry.get("package_name", "")
-            sec = entry.get("section_id", "")
-            chap = entry.get("chapter_id", "")
-            targets = self.cfg.get("extract.targets", {})
-            target = (
-                targets.get("packages", {}).get(pkg) or
-                targets.get("sections", {}).get(sec) or
-                targets.get("chapters", {}).get(chap) or
-                self.default_extract_dir
-            )
-
-            if str(target) == "/" and self.require_confirm_root and not self.auto_confirm:
-                ans = input(f"WARNING: installing {archive.name} into /. Continue? [y/N] ")
-                if ans.lower() not in ["y", "yes"]:
-                    sys.exit("Aborted")
-
+    def _safe_extract(self, archive, target):
+        """Safer tar extraction to prevent path traversal attacks."""
         with tarfile.open(archive, "r:*") as tar:
+            for member in tar.getmembers():
+                member_path = Path(target) / member.name
+                if not str(member_path.resolve()).startswith(str(Path(target).resolve())):
+                    sys.exit(f"SECURITY ERROR: illegal path in archive {archive}")
             tar.extractall(path=target)
 
     def _upload_package(self, archive):
