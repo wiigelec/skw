@@ -60,7 +60,7 @@ chapters = [ "chapter-building-system" ]
 [packages.exclude]
 # Explicit exclusions (take precedence)
 packages = []
-sections = [ "ch-system-cleanup" ]
+sections = [ "ch-system-stripping", "ch-system-cleanup" ]
 chapters = []
 
 
