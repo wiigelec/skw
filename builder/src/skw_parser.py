@@ -118,7 +118,7 @@ class SKWParser:
                 name = pkg.get("name")
                 version = pkg.get("version", "")
                 section_id = pkg.get("section_id", f"custom-{name}")
-                chapter_id = "custom"
+                chapter_id = pkg.get("chapter_id", f"custom-{name}")
 
                 build_instructions = []
 
