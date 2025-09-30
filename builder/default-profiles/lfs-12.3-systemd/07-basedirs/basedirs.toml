@@ -1,0 +1,22 @@
+# ================================================================
+# basedirs
+# ================================================================
+
+[[custom_packages]]
+name = "basedirs"
+version = "12.3"
+section_id = "basedirs"
+chapter_id = "basedirs"
+xpath_commands = [ "//sect1[@id='ch-tools-creatingminlayout']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-tools-createfiles']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-tools-glibc']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-network']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-clock']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-console']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-locale']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-inputrc']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-config-shells']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-bootable-fstab']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-bootable-grub']//screen[not(@role=\"nodump\")]/userinput",
+                   "//sect1[@id='ch-finish-theend']//screen[not(@role=\"nodump\")]/userinput"
+]
