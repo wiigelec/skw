@@ -1,0 +1,57 @@
+# ================================================================
+# Parser Configuration
+# ================================================================
+
+[main]
+xml_path = "build/books/${book}/lfs-full.xml"
+output_file = "parser_output.json"
+
+[xpaths]
+source_book = ""
+chapter_id = "//chapter"
+section_id = "./sect1"
+package_name = "./sect1info/productname/text()"
+package_version = "./sect1info/productnumber/text()"
+source_titles = ""
+source_urls = ""
+source_checksums = ""
+dependencies = ""
+build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
+
+
+#------------------------------------------------------------------#
+# XPATH overrides
+#------------------------------------------------------------------#
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = [ "none" ]
+exclude  = []
+
+[section_filters]
+include  = [ "ch-tools-creatingminlayout", 
+             "ch-tools-createfiles", 
+             "ch-tools-glibc", 
+             "ch-config-network", 
+             "ch-config-clock", 
+             "ch-config-console",
+             "ch-config-locale",
+             "ch-config-inputrc",
+             "ch-config-shells",
+             "ch-bootable-fstab",
+             "ch-bootable-grub",
+             "ch-finish-theend"
+]
+exclude  = []
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+
+[custom_code]
+configs = ["basedirs.toml"]
