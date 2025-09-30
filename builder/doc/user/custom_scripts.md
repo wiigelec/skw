@@ -1,6 +1,6 @@
 # Configuring the Parser to Create Custom Scripts
 
-The **ScratchKit parser** is designed not only to process the main XML *Book* but also to inject custom build steps that are not defined in the source XML. This feature allows you to add your own packages, run arbitrary commands, or create specialized setup scripts without modifying the original Book.
+The **ScratchKit parser** is designed not only to process the main XML *Book* but also to inject custom build steps that may or may not be defined in the source XML. This feature allows you to add your own packages, run arbitrary commands, or create specialized setup scripts.
 
 This is accomplished by defining custom package configurations in one or more separate **TOML files** and then referencing them from your main `parser.toml`.
 
