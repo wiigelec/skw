@@ -53,7 +53,7 @@ chapters = []
 
 [package]
 # Scripts that should produce packages
-packages = []
+packages = [ "basedirs" ]
 sections = []
 chapters = []
 
