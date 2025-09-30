@@ -5,8 +5,8 @@
 [[custom_packages]]
 name = "basedirs"
 version = "12.3"
-section_id = "ch_basedirs"
-chapter_id = "chapter_basedirs"
+section_id = "ch-basedirs"
+chapter_id = "chapter-basedirs"
 xpath_commands = [ "//sect1[@id='ch-tools-creatingminlayout']//screen[not(@role=\"nodump\")]/userinput",
                    "//sect1[@id='ch-tools-createfiles']//screen[not(@role=\"nodump\")]/userinput",
                    "//sect1[@id='ch-tools-glibc']//screen[not(@role=\"nodump\")]/userinput",
