@@ -70,10 +70,11 @@ class SKWExecuter:
             "profile": self.profile,
         }
 
-        # Load package dir (expanded from builder.toml or fallback)
+        # Load package dir from the main builder.toml config
+        package_dir_template = builder_cfg.get("paths", {}).get("package_dir", "packages/${book}/${profile}")
         self.package_dir = Path(
             self._expand_vars(
-                self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")),
+                package_dir_template,
                 vars_map,
             )
         )
