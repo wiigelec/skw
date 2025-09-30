@@ -19,7 +19,11 @@ regex = [ "s@$LFS@$DESTDIR",
           "r@(chgrp)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
           "r@(chmod)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
           "r@(?s)patch -Np1 -i.*?rm -v a.out\\n?@@",
-          "r@(touch \\$DESTDIR/var/log/.*)@mkdir -p $DESTDIR/var/log\\n\\1@"
+          "r@(touch \\$DESTDIR/var/log/.*)@mkdir -p $DESTDIR/var/log\\n\\1@",
+          "s@chgrp -v utmp@chgrp -v 13@",
+          "r@(cat > \\$DESTDIR/etc/systemd/network/.*)@mkdir -p $DESTDIR/etc/systemd/network\\n\\1@",
+          "r@(cat > \\$DESTDIR/boot/grub/.*)@mkdir -p $DESTDIR//boot/grub\\n\\1@",
+          "s@mkdir -pv $DESTDIR/tools@@"
 ]
 
 # Chapter-specific filters
