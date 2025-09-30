@@ -18,7 +18,8 @@ regex = [ "s@$LFS@$DESTDIR",
           "r@(touch) (/.*)@\\1 $DESTDIR\\2@",
           "r@(chgrp)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
           "r@(chmod)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
-          "r@(?s)patch -Np1 -i.*?rm -v a.out\\n?@@"
+          "r@(?s)patch -Np1 -i.*?rm -v a.out\\n?@@",
+          "r@(touch \\$DESTDIR/var/log/.*)@mkdir -p $DESTDIR/var/log\\n\\1@"
 ]
 
 # Chapter-specific filters
