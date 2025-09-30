@@ -25,7 +25,7 @@ class Builder:
         self.skel_dir = os.path.abspath(skel_dir)
 
         os.makedirs(self.build_dir, exist_ok=True)
-        os.makedirs(self.package_dir, exist_ok=True)
+        #os.makedirs(self.package_dir, exist_ok=True)
 
     # -------------------
     # Book + Profile
