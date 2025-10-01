@@ -218,7 +218,15 @@ class SKWParser:
             if entry.chapter_id in include_chaps:
                 root_ids.append(sec_id)
 
-        return list(set(root_ids))
+       # Deduplicate while preserving order
+        seen = set()
+        ordered_root_ids = []
+        for sec_id in root_ids:
+            if sec_id not in seen:
+                seen.add(sec_id)
+                ordered_root_ids.append(sec_id)
+    
+        return ordered_root_ids
 
     # =====================================================
     # Step 3: Dependency class masks
