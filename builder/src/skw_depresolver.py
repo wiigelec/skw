@@ -41,13 +41,15 @@ class SKWDepResolver:
         Resolve the max dependency level for a node. Priority:
         1) explicit node entry in dep_classes
         2) 'default' in dep_classes
-        3) hardcoded ['required','recommended']
+       3) hardcoded []
         """
         allowed = (
             self.dep_classes.get(node_id)
             or self.dep_classes.get("default")
-            or ["required", "recommended"]
+            or []
         )
+        if not allowed:
+            return 0  # A max weight of 0 means no dependencies will be followed
         return max(self.WEIGHT_MAP[c] for c in allowed if c in self.WEIGHT_MAP)
 
     def _build_initial_graph(self):
