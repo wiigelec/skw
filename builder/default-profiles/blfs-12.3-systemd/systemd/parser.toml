@@ -1,5 +1,5 @@
 # ================================================================
-# Parser Configuration
+# Parser Configuration (fixed for lowercase IDs + clean versions)
 # ================================================================
 
 [main]
@@ -10,22 +10,23 @@ output_file = "parser_output.json"
 source_book = ""
 chapter_id = "//chapter"
 section_id = "./sect1 | ./sect1/sect2"
+
+# Lowercase section id for package_name
 package_name = "translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-package_version = "substring-after(title/text(), substring-before(title/text(), '-'))"
+
+# Package version = everything after the last dash in the title, else blank
+package_version = "substring-after(title/text(), concat('-', substring-after(title/text(), '-')))"
+
 source_urls = ""
 source_checksums = ""
-dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
-dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
-dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
-dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend"
+
+# Dependencies (lowercased so IDs match package_name)
+dependencies_required    = "translate(.//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_recommended = "translate(.//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_optional    = "translate(.//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_runtime     = "translate(.//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+
 build_instructions = ""
-
-
-#------------------------------------------------------------------#
-# XPATH overrides
-#------------------------------------------------------------------#
-
-
 
 #------------------------------------------------------------------#
 # FILTERS
@@ -43,4 +44,3 @@ exclude  = []
 include = [ "systemd" ]
 exclude = []
 deps    = [ "required","recommended","runtime" ]
-
