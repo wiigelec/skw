@@ -20,7 +20,7 @@ class SKWDepResolver:
     Pass 2 remains a stub; it currently only preserves pass-1 structure.
     """
 
-    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3}
+    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3, "runtime": 1}
 
     def __init__(self, parsed_entries: dict[str, ParsedEntry],
                  root_section_ids: list[str],
