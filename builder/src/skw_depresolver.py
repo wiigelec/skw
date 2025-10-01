@@ -127,40 +127,44 @@ class SKWDepResolver:
         return subgraph
 
     def _pass2_transform_graph(self, graph: dict[str, list[tuple[str, int, str]]]) -> dict[str, list[tuple[str, int, str]]]:
-        """
-        Match Bash semantics:
-          - 'a' (after): for each edge X -a-> Y, add P -b-> Y for all parents P of X.
-          - 'f' (first): insert fence nodes as before.
-        """
         out = {n: list(edges) for n, edges in graph.items()}
     
         def _add_edge(src, dst, w, q='b'):
             out.setdefault(src, []).append((dst, w, q))
     
-        # Handle 'after'
+        # Collect after and first edges
         after_edges = []
-        for x, edges in out.items():
+        first_map = {}
+        for x, edges in list(out.items()):
             keep = []
             for (dep, w, q) in edges:
                 if q == 'a':
                     after_edges.append((x, dep, w))
                 elif q == 'f':
-                    # handled later
-                    keep.append((dep, w, q))
+                    first_map.setdefault(x, []).append((dep, w))
                 else:
                     keep.append((dep, w, 'b'))
             out[x] = keep
     
-        # Promote 'after' upward
+        # Promote 'after' edges upward
         for x, y, w in after_edges:
             for parent, edges in out.items():
                 if any(dep == x for dep, _, _ in edges):
                     _add_edge(parent, y, w, 'b')
     
-        # Handle 'first' like before (fence nodes)
-        # … reuse your fence node logic here …
+        # Handle 'first' edges with fence nodes
+        for x, f_deps in first_map.items():
+            fence = f"{x}-pass1"
+            _add_edge(x, fence, 1, 'b')
+            fset = set()
+            for (y, w) in f_deps:
+                _add_edge(fence, y, w, 'b')
+                fset.add(y)
+            for dep, _, _ in out.get(x, []):
+                if dep not in fset and dep != fence:
+                    _add_edge(dep, fence, 1, 'b')
     
-        # Deduplicate
+        # Deduplicate edges
         for n, edges in out.items():
             best = {}
             for (dst, w, q) in edges:
@@ -170,13 +174,9 @@ class SKWDepResolver:
             out[n] = [(dst, w, q) for (dst, q), w in best.items()]
     
         return out
-
+    
+    
     def _pass3_topological_sort(self, graph: dict[str, list[tuple[str, int, str]]]) -> list[str]:
-        """
-        Match Bash semantics: cycle removal is global.
-        - Use Kahn’s algorithm for topo sort.
-        - If cycles remain, prune weakest edge(s) and retry.
-        """
         while True:
             indegree = {n: 0 for n in graph}
             for edges in graph.values():
@@ -204,12 +204,13 @@ class SKWDepResolver:
             weakest = None
             for src, edges in graph.items():
                 for (dst, w, q) in edges:
-                    if weakest is None or w > weakest[2]:
+                    if weakest is None or w < weakest[2]:
                         weakest = (src, dst, w)
             if weakest:
                 src, dst, _ = weakest
                 graph[src] = [(d, w, q) for (d, w, q) in graph[src] if d != dst]
                 self.warnings.append(f"Pruned edge {src} -> {dst} to break cycle.")
             else:
-                break  # fallback
+                break  # no edges left, fallback
         return order
+    
