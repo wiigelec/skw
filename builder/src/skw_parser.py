@@ -144,7 +144,7 @@ class SKWParser:
                         package_name=pkg["name"],
                         package_version=pkg.get("version", ""),
                         sources={"urls": [], "checksums": []},
-                        "dependencies": {"required": [], "recommended": [], "optional": [], "runtime": []},
+                        dependencies={"required": [], "recommended": [], "optional": [], "runtime": []},
                         build_instructions=build_instructions,
                     )
                 )
