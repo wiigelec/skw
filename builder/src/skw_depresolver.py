@@ -236,7 +236,6 @@ class SKWDepResolver:
                             reported_cycles.add(key)
                         continue  # Ignore this weaker edge
 
-                # ** THE FIX IS HERE: Changed 'if' to 'elif' **
                 elif dep_id not in visited:
                     visit(dep_id)
 
