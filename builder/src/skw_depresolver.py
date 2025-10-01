@@ -41,8 +41,12 @@ class SKWDepResolver:
         Resolve the max dependency level for a node. Priority:
         1) explicit node entry in dep_classes
         2) 'default' in dep_classes
-       3) hardcoded []
+        3) hardcoded [] (no dependencies)
         """
+        # Add a special exception for the 'root' node
+        if node_id == 'root':
+            return 1 # Always allow the root to reach the requested packages
+            
         allowed = (
             self.dep_classes.get(node_id)
             or self.dep_classes.get("default")
