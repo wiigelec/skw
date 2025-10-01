@@ -1,4 +1,5 @@
 import copy
+import heapq
 from collections import deque
 from dataclasses import dataclass, field
 
@@ -20,7 +21,7 @@ class SKWDepResolver:
     Pass 2 remains a stub; it currently only preserves pass-1 structure.
     """
 
-    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3, "external": 4}
+    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3, "external": 4, "runtime": 3}
 
     def __init__(self, parsed_entries: dict[str, ParsedEntry],
                  root_section_ids: list[str],
@@ -175,30 +176,46 @@ class SKWDepResolver:
     
         return out
     
-    
     def _pass3_topological_sort(self, graph: dict[str, list[tuple[str, int, str]]]) -> list[str]:
+        """
+        Topological sort with global cycle pruning.
+        - Uses a min-heap (heapq) to process nodes in ascending edge-weight order,
+          so required < recommended < optional < external.
+        - If cycles remain, prune the globally weakest edge and retry.
+        """
+        import heapq
+    
         while True:
+            # Compute indegree of each node
             indegree = {n: 0 for n in graph}
             for edges in graph.values():
                 for (dst, _, _) in edges:
                     indegree[dst] = indegree.get(dst, 0) + 1
     
-            q = deque([n for n, d in indegree.items() if d == 0])
+            # Initialize heap with nodes of indegree 0
+            q = []
+            for n, d in indegree.items():
+                if d == 0:
+                    heapq.heappush(q, (0, n))  # root-level nodes get weight 0
+    
             order = []
             visited = set()
     
             while q:
-                n = q.popleft()
+                _, n = heapq.heappop(q)
                 if n != 'root':
                     order.append(n)
                 visited.add(n)
-                for (dst, _, _) in graph.get(n, []):
+    
+                # Process outgoing edges, sorted by weight
+                for (dst, w, _) in sorted(graph.get(n, []), key=lambda e: e[1]):
                     indegree[dst] -= 1
                     if indegree[dst] == 0:
-                        q.append(dst)
+                        heapq.heappush(q, (w, dst))
     
+            # Success: all nodes visited
             if len(visited) == len(graph):
-                return order  # success
+                return order
     
             # Cycle detected: prune weakest edge globally
             weakest = None
@@ -206,11 +223,12 @@ class SKWDepResolver:
                 for (dst, w, q) in edges:
                     if weakest is None or w < weakest[2]:
                         weakest = (src, dst, w)
+    
             if weakest:
                 src, dst, _ = weakest
                 graph[src] = [(d, w, q) for (d, w, q) in graph[src] if d != dst]
                 self.warnings.append(f"Pruned edge {src} -> {dst} to break cycle.")
             else:
-                break  # no edges left, fallback
-        return order
+                break  # No edges left, fallback
     
+        return order
