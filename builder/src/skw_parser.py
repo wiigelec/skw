@@ -134,12 +134,13 @@ class SKWParser:
                     "optional": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_optional"))],
                     "runtime": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_runtime"))],
                 }
-
+                deps = {k: [d.lower() for d in v] for k, v in deps.items()}\
                 deps = self._filter_dependencies(pkg_name, deps)
 
                 build_instructions = self._collect_instructions(
                     sec, self._get_xpath_expr(sec_id, chap_id, "build_instructions")
                 )
+                
 
                 entry = ParsedEntry(
                     source_book=self.book,
