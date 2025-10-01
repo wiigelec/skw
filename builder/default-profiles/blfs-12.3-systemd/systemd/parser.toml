@@ -42,5 +42,5 @@ exclude  = []
 [package_filters]
 include = ["systemd" ]
 exclude = []
-deps    = [ "required" ]
+deps    = [ "required","recommended","runtime" ]
 
