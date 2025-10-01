@@ -1,0 +1,46 @@
+# ================================================================
+# Parser Configuration
+# ================================================================
+
+[main]
+xml_path = "build/books/${book}/blfs-systemd-full.xml"
+output_file = "parser_output.json"
+
+[xpaths]
+source_book = ""
+chapter_id = "//chapter"
+section_id = "./sect1 | ./sect1/sect2"
+package_name = "translate(substring-before(title/text(), '-'), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+package_version = "substring-after(title/text(), '-')"
+source_urls = ""
+source_checksums = ""
+dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_runtime     = ".//para[@role='required' or @role='recommended' or @role='optional']//xref[@role='runtime']/@linkend"
+build_instructions = ""
+
+
+#------------------------------------------------------------------#
+# XPATH overrides
+#------------------------------------------------------------------#
+
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = []
+exclude  = []
+
+[section_filters]
+include  = []
+exclude  = []
+
+[package_filters]
+include = ["systemd" ]
+exclude = []
+deps    = [ "required" ]
+
