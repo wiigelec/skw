@@ -22,7 +22,7 @@ class ParsedEntry:
     package_name: str
     package_version: str
     sources: dict
-    dependencies: list
+    dependencies: dict
     build_instructions: list
 
 
@@ -77,6 +77,10 @@ class SKWParser:
                 pkg_name = self._xpath_or_none(sec, pkg_name_expr)
                 pkg_ver = self._xpath_or_none(sec, pkg_ver_expr)
 
+                # --- Package filter logic ---
+                if not self._package_allowed(pkg_name):
+                    continue
+
                 context = {
                     "book": self.book,
                     "chapter_id": chap_id,
@@ -86,20 +90,27 @@ class SKWParser:
                 }
 
                 sources = {
-                    "urls": self._safe_xpath(sec, self._expand_xpath(
-                        self._get_xpath_expr(sec_id, chap_id, "source_urls"), context
-                    )),
-                    "checksums": self._safe_xpath(sec, self._expand_xpath(
-                        self._get_xpath_expr(sec_id, chap_id, "source_checksums"), context
-                    )),
+                    "urls": [str(x) for x in self._safe_xpath(
+                        sec, self._expand_xpath(
+                            self._get_xpath_expr(sec_id, chap_id, "source_urls"), context
+                        )
+                    )],
+                    "checksums": [str(x) for x in self._safe_xpath(
+                        sec, self._expand_xpath(
+                            self._get_xpath_expr(sec_id, chap_id, "source_checksums"), context
+                        )
+                    )],
                 }
 
                 deps = {
-                    "required": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_required")),
-                    "recommended": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_recommended")),
-                    "optional": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_optional")),
-                    "runtime": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_runtime")),
+                    "required": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_required"))],
+                    "recommended": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_recommended"))],
+                    "optional": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_optional"))],
+                    "runtime": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_runtime"))],
                 }
+
+                # Trim deps based on filters
+                deps = self._filter_dependencies(pkg_name, deps)
 
                 build_instructions = self._collect_instructions(
                     sec, self._get_xpath_expr(sec_id, chap_id, "build_instructions")
@@ -136,6 +147,12 @@ class SKWParser:
                         if cmd:
                             build_instructions.append(cmd)
 
+                if not self._package_allowed(pkg["name"]):
+                    continue
+
+                deps = {"required": [], "recommended": [], "optional": [], "runtime": []}
+                deps = self._filter_dependencies(pkg["name"], deps)
+
                 results.append(
                     ParsedEntry(
                         source_book=self.book,
@@ -144,7 +161,7 @@ class SKWParser:
                         package_name=pkg["name"],
                         package_version=pkg.get("version", ""),
                         sources={"urls": [], "checksums": []},
-                        dependencies={"required": [], "recommended": [], "optional": [], "runtime": []},
+                        dependencies=deps,
                         build_instructions=build_instructions,
                     )
                 )
@@ -210,3 +227,38 @@ class SKWParser:
             raise ParserConfigError(
                 f"Invalid XPath expression: {expr}"
             ) from e
+
+    # --- Package Filtering System ---
+    def _package_allowed(self, pkg_name):
+        """Check include/exclude filters for a package."""
+        pkg_filters = self.cfg.get("package_filters", {})
+        includes = pkg_filters.get("include", [])
+        excludes = pkg_filters.get("exclude", [])
+
+        if pkg_name in excludes:
+            return False
+        if includes and pkg_name not in includes:
+            return False
+        return True
+
+    def _get_package_config(self, pkg_name):
+        """Return per-package config override if it exists."""
+        for pkg in self.cfg.get("package", []):  # [[package]] array in TOML
+            if pkg.get("name") == pkg_name:
+                return pkg
+        return None
+
+    def _filter_dependencies(self, pkg_name, deps):
+        """Trim dependencies according to global filters and per-package overrides."""
+        pkg_filters = self.cfg.get("package_filters", {})
+        allowed_deps = pkg_filters.get("deps", [])
+
+        # Per-package override
+        pkg_cfg = self._get_package_config(pkg_name)
+        if pkg_cfg and "deps" in pkg_cfg:
+            allowed_deps = pkg_cfg["deps"]
+
+        if not allowed_deps:
+            return deps
+
+        return {cls: deps.get(cls, []) for cls in allowed_deps if cls in deps}
