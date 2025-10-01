@@ -86,10 +86,6 @@ class SKWDepResolver:
             else:
                 self.warnings.append(f"Requested root '{root_id}' not found; skipping.")
 
-        # make edge order deterministic
-        for sid in self.graph:
-            self.graph[sid].sort(key=lambda t: (t[0], t[1], t[2]))
-
     def resolve_build_order(self) -> list[ParsedEntry]:
         reachable_graph = self._pass1_generate_subgraph()
         transformed_graph = self._pass2_transform_graph(reachable_graph)
@@ -189,9 +185,7 @@ class SKWDepResolver:
                 key = (dst, q)
                 if key not in best or w < best[key]:
                     best[key] = w
-            dedup = [(dst, w, q) for (dst, q), w in best.items()]
-            dedup.sort(key=lambda t: (t[0], t[1], t[2]))
-            out[n] = dedup
+            out[n] = [(dst, w, q) for (dst, q), w in best.items()]
     
         return out
 
