@@ -2,7 +2,6 @@ import copy
 from collections import deque
 from dataclasses import dataclass, field
 
-# Define the ParsedEntry dataclass, as it's the expected output format.
 @dataclass
 class ParsedEntry:
     source_book: str
@@ -17,176 +16,140 @@ class ParsedEntry:
 
 class SKWDepResolver:
     """
-    Resolves package dependencies based on a three-pass graph algorithm.
-
-    This class implements the logic described in the func_dependencies script,
-    translating its file-based graph manipulation into an in-memory process.
-    It builds a subgraph of reachable nodes, transforms it to handle special
-    dependency qualifiers, and performs a topological sort with cycle-breaking
-    to produce a valid build order.
+    Three-pass dependency resolver (reachable subgraph → qualifier transform → topo sort).
+    Pass 2 remains a stub; it currently only preserves pass-1 structure.
     """
 
-    def __init__(self, parsed_entries: dict[str, ParsedEntry], root_section_ids: list[str], dep_classes: dict[str, list[str]]):
+    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3}
+
+    def __init__(self, parsed_entries: dict[str, ParsedEntry],
+                 root_section_ids: list[str],
+                 dep_classes: dict[str, list[str]]):
         self.parsed_entries = parsed_entries
         self.root_section_ids = root_section_ids
         self.dep_classes = dep_classes
-        self.graph = {}
-        self.reverse_graph = {} # To find parents easily
-
-        # Maps dependency types to the integer weights used in the script.
-        self.WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3}
+        self.graph: dict[str, list[tuple[str, int, str]]] = {}
+        self.reverse_graph: dict[str, list[str]] = {}
+        # Fast lookup for package name → section_id
+        self.name_to_id = {e.package_name: sid for sid, e in parsed_entries.items()}
+        # Collect diagnostics for callers
+        self.warnings: list[str] = []
         self._build_initial_graph()
 
+    def _max_weight_for(self, node_id: str) -> int:
+        """
+        Resolve the max dependency level for a node. Priority:
+        1) explicit node entry in dep_classes
+        2) 'default' in dep_classes
+        3) hardcoded ['required','recommended']
+        """
+        allowed = (
+            self.dep_classes.get(node_id)
+            or self.dep_classes.get("default")
+            or ["required", "recommended"]
+        )
+        return max(self.WEIGHT_MAP[c] for c in allowed if c in self.WEIGHT_MAP)
+
     def _build_initial_graph(self):
-        """
-        Converts the ParsedEntry objects into an internal graph representation.
-        The graph is a dictionary where keys are package IDs and values are
-        lists of (dependency_id, weight, qualifier) tuples.
-        """
-        # [cite_start]Create a special 'root' node for the user-requested packages [cite: 30]
+        # seed nodes
         self.graph['root'] = []
         self.reverse_graph['root'] = []
+        for sid in self.parsed_entries:
+            self.graph.setdefault(sid, [])
+            self.reverse_graph.setdefault(sid, [])
 
-        all_ids = set(self.parsed_entries.keys())
-        for section_id in all_ids:
-            self.graph.setdefault(section_id, [])
-            self.reverse_graph.setdefault(section_id, [])
-
+        # package edges
         for section_id, entry in self.parsed_entries.items():
             for dep_type, deps in entry.dependencies.items():
                 weight = self.WEIGHT_MAP.get(dep_type)
-                if not weight:
+                if weight is None:
+                    self.warnings.append(
+                        f"Unknown dependency class '{dep_type}' in {section_id}; skipping."
+                    )
                     continue
-
                 for dep_name in deps:
-                    # The script implies dependencies are tracked by package name,
-                    # which we map back to section_id.
-                    dep_id = self._find_id_for_package_name(dep_name)
-                    if dep_id and dep_id in all_ids:
-                        # For now, all qualifiers are 'before' ('b') as a default
-                        # [cite_start]The script's qualifiers are 'b', 'a', 'f' [cite: 32]
-                        self.graph[section_id].append((dep_id, weight, 'b'))
-                        self.reverse_graph.setdefault(dep_id, []).append(section_id)
+                    dep_id = self.name_to_id.get(dep_name)
+                    if not dep_id:
+                        self.warnings.append(
+                            f"{section_id} depends on unknown package '{dep_name}'; skipping."
+                        )
+                        continue
+                    # default qualifier 'b' (before)
+                    self.graph[section_id].append((dep_id, weight, 'b'))
+                    self.reverse_graph[dep_id].append(section_id)
 
-        # [cite_start]Add edges from the root node to the user's requested packages [cite: 31]
+        # edges from root to requested packages
         for root_id in self.root_section_ids:
             if root_id in self.graph:
                 self.graph['root'].append((root_id, 1, 'b'))
-                self.reverse_graph.setdefault(root_id, []).append('root')
+                self.reverse_graph[root_id].append('root')
+            else:
+                self.warnings.append(f"Requested root '{root_id}' not found; skipping.")
 
-    def _find_id_for_package_name(self, package_name: str) -> str | None:
-        """Finds the section_id for a given package name."""
-        for section_id, entry in self.parsed_entries.items():
-            if entry.package_name == package_name:
-                return section_id
-        return None
+        # make edge order deterministic
+        for sid in self.graph:
+            self.graph[sid].sort(key=lambda t: (t[0], t[1], t[2]))
 
     def resolve_build_order(self) -> list[ParsedEntry]:
-        """
-        Executes the full three-pass dependency resolution algorithm.
-        """
-        # [cite_start]Pass 1: Generate the subgraph of reachable nodes [cite: 25]
-        reachable_graph, max_weights = self._pass1_generate_subgraph()
-
-        # [cite_start]Pass 2: Transform the graph to handle special qualifiers [cite: 43]
+        reachable_graph = self._pass1_generate_subgraph()
         transformed_graph = self._pass2_transform_graph(reachable_graph)
-
-        # [cite_start]Pass 3: Remove cycles and generate the topological sort [cite: 24]
         sorted_ids = self._pass3_topological_sort(transformed_graph)
+        return [self.parsed_entries[sid] for sid in sorted_ids if sid in self.parsed_entries]
 
-        # Convert the final list of IDs back to ParsedEntry objects
-        build_order = []
-        for section_id in sorted_ids:
-            if section_id in self.parsed_entries:
-                build_order.append(self.parsed_entries[section_id])
-            # Note: A full implementation would also handle entries for
-            # newly created -pass1 and -groupxx nodes.
-
-        return build_order
-
-    def _pass1_generate_subgraph(self) -> tuple[dict, dict]:
+    def _pass1_generate_subgraph(self) -> dict[str, list[tuple[str, int, str]]]:
         """
-        Performs a traversal from the 'root' node to find all reachable
-        [cite_start]packages, respecting the dependency weight limits. [cite: 22]
+        BFS from 'root', respecting each node's max dependency level.
         """
         q = deque(['root'])
-        reachable_nodes = {'root'}
-        max_weights = {} # Store max weight allowed for each node's deps
+        reachable = {'root'}
 
         while q:
             node_id = q.popleft()
-            
-            # [cite_start]Determine max dependency level for this node. [cite: 79, 80]
-            # The script uses DEP_LEVEL, mapped here via dep_classes config.
-            allowed_classes = self.dep_classes.get(node_id, ['required', 'recommended'])
-            max_weight = max(self.WEIGHT_MAP[c] for c in allowed_classes if c in self.WEIGHT_MAP)
-            max_weights[node_id] = max_weight
+            max_weight = self._max_weight_for(node_id)
+            for dep_id, weight, _ in self.graph.get(node_id, []):
+                if weight <= max_weight and dep_id not in reachable:
+                    reachable.add(dep_id)
+                    q.append(dep_id)
 
-            for dep_id, weight, qualifier in self.graph.get(node_id, []):
-                if weight <= max_weight:
-                    if dep_id not in reachable_nodes:
-                        reachable_nodes.add(dep_id)
-                        q.append(dep_id)
-
-        # Create the subgraph containing only reachable nodes and their edges.
-        subgraph = {node: [] for node in reachable_nodes}
-        for node_id in reachable_nodes:
-            if node_id in self.graph:
-                 subgraph[node_id] = [
-                    edge for edge in self.graph[node_id] if edge[0] in reachable_nodes
-                ]
-        return subgraph, max_weights
+        subgraph = {nid: [] for nid in reachable}
+        for nid in reachable:
+            subgraph[nid] = [e for e in self.graph.get(nid, []) if e[0] in reachable]
+        return subgraph
 
     def _pass2_transform_graph(self, graph: dict) -> dict:
-        """
-        In a full implementation, this pass would handle 'after' and 'first'
-        [cite_start]qualifiers by modifying the graph structure. [cite: 51, 63]
-        [cite_start]This stub simulates the removal of dangling edges. [cite: 46]
-        """
-        # Loop 1: Remove dangling edges (already done by subgraph creation)
-        # Loop 2: Treat 'after' edges (not implemented in this stub)
-        # Loop 3: Create '-pass1' nodes for 'first' edges (not implemented)
-        print("INFO: Pass 2 (Graph Transformation) is a stub in this implementation.")
-        return copy.deepcopy(graph) # Return a copy to modify in the next pass
+        # Placeholder for 'after'/'first' handling; keep structure stable for now.
+        return copy.deepcopy(graph)
 
     def _pass3_topological_sort(self, graph: dict) -> list[str]:
         """
-        Performs a DFS-based topological sort, detecting and breaking cycles.
-        This mirrors the logic in the 'generate_dependency_tree' function.
+        DFS topo sort with simple cycle breaking (ignore back-edge) and one-time cycle reporting.
         """
-        sorted_list = []
-        # Path tracks nodes in the current recursion stack to detect cycles.
-        path = set()
-        # Visited tracks all nodes that have been fully processed.
-        visited = set()
+        sorted_list: list[str] = []
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        reported_cycles: set[tuple[str, str]] = set()
 
-        def visit(node_id):
-            path.add(node_id)
-            visited.add(node_id)
-
-            # [cite_start]Note: The script's cycle breaking is complex. [cite: 70, 148]
-            # If A->B and B is on the current path, it's a cycle.
-            # The script would prune the A->B edge if its weight is higher
-            # than other weights in the cycle.
-            # This simplified version just reports cycles.
-            for dep_id, weight, qualifier in graph.get(node_id, []):
-                if dep_id in path:
-                    print(f"WARNING: Cycle detected involving {node_id} and {dep_id}. Simple sort will proceed.")
-                    continue # Simple cycle breaking: ignore back-edge
+        def visit(nid: str):
+            visiting.add(nid)
+            for dep_id, _, _ in graph.get(nid, []):
+                if dep_id in visiting:
+                    key = tuple(sorted((nid, dep_id)))
+                    if key not in reported_cycles:
+                        self.warnings.append(f"Cycle detected: {nid} ↔ {dep_id}. Ignoring edge {nid}→{dep_id}.")
+                        reported_cycles.add(key)
+                    # skip the back-edge
+                    continue
                 if dep_id not in visited:
                     visit(dep_id)
+            visiting.remove(nid)
+            visited.add(nid)
+            if nid != 'root':
+                sorted_list.append(nid)
 
-            path.remove(node_id)
-            # Add the node to the front of the list (reverse topological order)
-            if node_id != 'root':
-                sorted_list.insert(0, node_id)
+        for dep_id, _, _ in graph.get('root', []):
+            if dep_id not in visited:
+                visit(dep_id)
 
-        # Start the sort from the 'root' node's dependencies.
-        if 'root' in graph:
-            # Sort initial dependencies to have a deterministic starting order
-            root_deps = sorted(graph['root'])
-            for dep_id, _, _ in root_deps:
-                if dep_id not in visited:
-                    visit(dep_id)
+        # deterministic final order
+        return sorted(sorted_list, key=lambda x: x)
 
-        return sorted_list
