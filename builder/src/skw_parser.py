@@ -94,8 +94,12 @@ class SKWParser:
                     )),
                 }
 
-                deps_expr = self._get_xpath_expr(sec_id, chap_id, "dependencies")
-                deps = self._safe_xpath(sec, deps_expr)
+                deps = {
+                    "required": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_required")),
+                    "recommended": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_recommended")),
+                    "optional": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_optional")),
+                    "runtime": self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_runtime")),
+                }
 
                 build_instructions = self._collect_instructions(
                     sec, self._get_xpath_expr(sec_id, chap_id, "build_instructions")
@@ -139,8 +143,8 @@ class SKWParser:
                         section_id=pkg.get("section_id", f"custom-{pkg['name']}"),
                         package_name=pkg["name"],
                         package_version=pkg.get("version", ""),
-                        sources={"titles": [], "urls": [], "checksums": []},
-                        dependencies=[],
+                        sources={"urls": [], "checksums": []},
+                        "dependencies": {"required": [], "recommended": [], "optional": [], "runtime": []},
                         build_instructions=build_instructions,
                     )
                 )
