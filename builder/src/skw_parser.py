@@ -4,7 +4,7 @@ import tomllib
 from string import Template
 from lxml import etree
 from dataclasses import dataclass, asdict
-from dependency_processor import DependencyResolver   # <-- your resolver will be provided
+from skw_depresolver import SKWDepResolver
 
 
 class ParserConfigError(Exception):
@@ -60,7 +60,7 @@ class SKWParser:
         section_dep_classes = self._get_dependency_classes(parsed_entries)
 
         # Step 4: Dependency resolution
-        resolver = DependencyResolver(
+        resolver = SKWDepResolver(
             parsed_entries=parsed_entries,
             root_section_ids=root_section_ids,
             dep_classes=section_dep_classes
@@ -234,7 +234,7 @@ class SKWParser:
         return dep_classes
 
     # =====================================================
-    # Helpers (unchanged from your original)
+    # Helpers
     # =====================================================
     def _get_xpath_expr(self, sec_id, chap_id, key):
         if sec_id in self.cfg and "xpaths" in self.cfg[sec_id]:
