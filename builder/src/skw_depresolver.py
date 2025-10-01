@@ -116,9 +116,84 @@ class SKWDepResolver:
             subgraph[nid] = [e for e in self.graph.get(nid, []) if e[0] in reachable]
         return subgraph
 
-    def _pass2_transform_graph(self, graph: dict) -> dict:
-        # Placeholder for 'after'/'first' handling; keep structure stable for now.
-        return copy.deepcopy(graph)
+    def _pass2_transform_graph(self, graph: dict[str, list[tuple[str, int, str]]]) -> dict[str, list[tuple[str, int, str]]]:
+        """
+        Transform qualifiers:
+          - 'a' (after): reverse edge direction (X -a-> Y) ==> (Y -b-> X)
+          - 'f' (first): create X-pass1 fence:
+              * X -> X-pass1 (required, 'b')
+              * X-pass1 -> Y for each original (X -f-> Y) (preserve weight, 'b')
+              * For each non-first dep D of X: add D -> X-pass1 (required, 'b')
+        All other edges keep qualifier 'b'. Edges are deduped and sorted.
+        """
+        # Work on a deep copy so caller's graph remains untouched
+        out: dict[str, list[tuple[str, int, str]]] = {n: list(edges) for n, edges in graph.items()}
+    
+        def _add_node(nid: str):
+            if nid not in out:
+                out[nid] = []
+    
+        def _add_edge(src: str, dst: str, weight: int, qual: str = 'b'):
+            _add_node(src); _add_node(dst)
+            out[src].append((dst, weight, qual))
+    
+        # 1) Normalize: collect 'a' and 'f' edges; strip them from 'out'
+        after_edges: list[tuple[str, str, int]] = []     # (X, Y, w) meaning X -a-> Y
+        first_map: dict[str, list[tuple[str, int]]] = {} # X -> [(Y, w), ...]
+    
+        for x in list(out.keys()):
+            new_list: list[tuple[str, int, str]] = []
+            for (dep, w, q) in out.get(x, []):
+                if q == 'a':
+                    after_edges.append((x, dep, w))  # to be reversed
+                elif q == 'f':
+                    first_map.setdefault(x, []).append((dep, w))  # handled later
+                else:
+                    # keep 'b' (and any unknown treated as 'b' upstream)
+                    new_list.append((dep, w, 'b'))
+            out[x] = new_list
+    
+        # Ensure all nodes from original graph exist
+        for n in graph:
+            _add_node(n)
+    
+        # 2) Apply 'a' edges as reversed 'b' edges:  (X -a-> Y) ==> (Y -b-> X)
+        for x, y, w in after_edges:
+            _add_edge(y, x, w, 'b')
+    
+        # 3) Apply 'f' edges via fence nodes
+        for x, f_deps in first_map.items():
+            fence = f"{x}-pass1"
+            _add_node(fence)
+    
+            # X depends on the fence (required)
+            _add_edge(x, fence, 1, 'b')
+    
+            # Fence depends on every first dep (preserve weight)
+            fset = set()
+            for (y, w) in f_deps:
+                _add_edge(fence, y, w, 'b')
+                fset.add(y)
+    
+            # For each non-first dep D of X, force D to come after the fence:
+            # encode as D depends on fence (required), so fence (and thus Y) precedes D.
+            non_first_deps = [dep for (dep, _, _) in out.get(x, []) if dep not in fset and dep != fence]
+            for d in non_first_deps:
+                _add_edge(d, fence, 1, 'b')
+    
+        # 4) Deduplicate edges per node and sort deterministically
+        for n, edges in out.items():
+            # Use a set to dedupe; keep the *lowest* weight if duplicates exist
+            best = {}
+            for (dst, w, q) in edges:
+                key = (dst, q)
+                if key not in best or w < best[key]:
+                    best[key] = w
+            dedup = [(dst, w, q) for (dst, q), w in best.items()]
+            dedup.sort(key=lambda t: (t[0], t[1], t[2]))
+            out[n] = dedup
+    
+        return out
 
     def _pass3_topological_sort(self, graph: dict) -> list[str]:
         """
