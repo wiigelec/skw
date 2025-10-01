@@ -226,5 +226,5 @@ class SKWDepResolver:
                 visit(dep_id)
 
         # deterministic final order
-        return sorted
+        return sorted_list
 
