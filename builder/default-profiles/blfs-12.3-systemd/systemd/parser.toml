@@ -1,5 +1,5 @@
 # ================================================================
-# Parser Configuration (fixed for lowercase IDs + clean versions)
+# Parser Configuration (fixed for lowercase IDs + versions + deps)
 # ================================================================
 
 [main]
@@ -14,17 +14,18 @@ section_id = "./sect1 | ./sect1/sect2"
 # Lowercase section id for package_name
 package_name = "translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
-# Package version = everything after the last dash in the title, else blank
+# Package version = everything after the last dash in the title
+# If no dash, result is blank
 package_version = "substring-after(title/text(), concat('-', substring-after(title/text(), '-')))"
 
 source_urls = ""
 source_checksums = ""
 
-# Dependencies (lowercased so IDs match package_name)
-dependencies_required    = "translate(.//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_recommended = "translate(.//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_optional    = "translate(.//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_runtime     = "translate(.//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+# Dependencies (lowercased properly, not split into chars)
+dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
 build_instructions = ""
 
