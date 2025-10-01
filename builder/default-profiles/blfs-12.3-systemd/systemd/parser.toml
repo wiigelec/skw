@@ -11,7 +11,7 @@ source_book = ""
 chapter_id = "//chapter"
 section_id = "./sect1 | ./sect1/sect2"
 package_name = "translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-substring-after(title/text(), substring-before(title/text(), '-'))
+package_version = "substring-after(title/text(), substring-before(title/text(), '-'))"
 source_urls = ""
 source_checksums = ""
 dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
