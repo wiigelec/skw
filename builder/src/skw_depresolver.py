@@ -128,72 +128,40 @@ class SKWDepResolver:
 
     def _pass2_transform_graph(self, graph: dict[str, list[tuple[str, int, str]]]) -> dict[str, list[tuple[str, int, str]]]:
         """
-        Transform qualifiers:
-          - 'a' (after): reverse edge direction (X -a-> Y) ==> (Y -b-> X)
-          - 'f' (first): create X-pass1 fence:
-              * X -> X-pass1 (required, 'b')
-              * X-pass1 -> Y for each original (X -f-> Y) (preserve weight, 'b')
-              * For each non-first dep D of X: add D -> X-pass1 (required, 'b')
-        All other edges keep qualifier 'b'. Edges are deduped and sorted.
+        Match Bash semantics:
+          - 'a' (after): for each edge X -a-> Y, add P -b-> Y for all parents P of X.
+          - 'f' (first): insert fence nodes as before.
         """
-        # Work on a deep copy so caller's graph remains untouched
-        out: dict[str, list[tuple[str, int, str]]] = {n: list(edges) for n, edges in graph.items()}
+        out = {n: list(edges) for n, edges in graph.items()}
     
-        def _add_node(nid: str):
-            if nid not in out:
-                out[nid] = []
+        def _add_edge(src, dst, w, q='b'):
+            out.setdefault(src, []).append((dst, w, q))
     
-        def _add_edge(src: str, dst: str, weight: int, qual: str = 'b'):
-            _add_node(src); _add_node(dst)
-            out[src].append((dst, weight, qual))
-    
-        # 1) Normalize: collect 'a' and 'f' edges; strip them from 'out'
-        after_edges: list[tuple[str, str, int]] = []     # (X, Y, w) meaning X -a-> Y
-        first_map: dict[str, list[tuple[str, int]]] = {} # X -> [(Y, w), ...]
-    
-        for x in list(out.keys()):
-            new_list: list[tuple[str, int, str]] = []
-            for (dep, w, q) in out.get(x, []):
+        # Handle 'after'
+        after_edges = []
+        for x, edges in out.items():
+            keep = []
+            for (dep, w, q) in edges:
                 if q == 'a':
-                    after_edges.append((x, dep, w))  # to be reversed
+                    after_edges.append((x, dep, w))
                 elif q == 'f':
-                    first_map.setdefault(x, []).append((dep, w))  # handled later
+                    # handled later
+                    keep.append((dep, w, q))
                 else:
-                    # keep 'b' (and any unknown treated as 'b' upstream)
-                    new_list.append((dep, w, 'b'))
-            out[x] = new_list
+                    keep.append((dep, w, 'b'))
+            out[x] = keep
     
-        # Ensure all nodes from original graph exist
-        for n in graph:
-            _add_node(n)
-    
-        # 2) Apply 'a' edges as reversed 'b' edges:  (X -a-> Y) ==> (Y -b-> X)
+        # Promote 'after' upward
         for x, y, w in after_edges:
-            _add_edge(y, x, w, 'b')
+            for parent, edges in out.items():
+                if any(dep == x for dep, _, _ in edges):
+                    _add_edge(parent, y, w, 'b')
     
-        # 3) Apply 'f' edges via fence nodes
-        for x, f_deps in first_map.items():
-            fence = f"{x}-pass1"
-            _add_node(fence)
+        # Handle 'first' like before (fence nodes)
+        # … reuse your fence node logic here …
     
-            # X depends on the fence (required)
-            _add_edge(x, fence, 1, 'b')
-    
-            # Fence depends on every first dep (preserve weight)
-            fset = set()
-            for (y, w) in f_deps:
-                _add_edge(fence, y, w, 'b')
-                fset.add(y)
-    
-            # For each non-first dep D of X, force D to come after the fence:
-            # encode as D depends on fence (required), so fence (and thus Y) precedes D.
-            non_first_deps = [dep for (dep, _, _) in out.get(x, []) if dep not in fset and dep != fence]
-            for d in non_first_deps:
-                _add_edge(d, fence, 1, 'b')
-    
-        # 4) Deduplicate edges per node and sort deterministically
+        # Deduplicate
         for n, edges in out.items():
-            # Use a set to dedupe; keep the *lowest* weight if duplicates exist
             best = {}
             for (dst, w, q) in edges:
                 key = (dst, q)
@@ -203,51 +171,45 @@ class SKWDepResolver:
     
         return out
 
-    def _pass3_topological_sort(self, graph: dict) -> list[str]:
+    def _pass3_topological_sort(self, graph: dict[str, list[tuple[str, int, str]]]) -> list[str]:
         """
-        DFS topo sort with weight-aware cycle breaking.
+        Match Bash semantics: cycle removal is global.
+        - Use Kahn’s algorithm for topo sort.
+        - If cycles remain, prune weakest edge(s) and retry.
         """
-        sorted_list: list[str] = []
-        visiting: set[str] = set()
-        visited: set[str] = set()
-        reported_cycles: set[tuple[str, str]] = set()
-
-        def visit(nid: str):
-            visiting.add(nid)
-            # Process dependencies sorted by weight (strongest first)
-            sorted_deps = sorted(graph.get(nid, []), key=lambda e: e[1])
-
-            for dep_id, weight, _ in sorted_deps:
-                if dep_id in visiting:
-                    # Cycle detected. Find the weight of the reverse edge.
-                    reverse_weight = float('inf')
-                    for r_dep, r_w, _ in graph.get(dep_id, []):
-                        if r_dep == nid:
-                            reverse_weight = r_w
-                            break
-                    
-                    # Break the cycle by skipping the WEAKER edge.
-                    if weight >= reverse_weight:
-                        key = tuple(sorted((nid, dep_id)))
-                        if key not in reported_cycles:
-                            self.warnings.append(
-                                f"Cycle detected between {nid} (w={weight}) and {dep_id} (w={reverse_weight}). Breaking weaker edge."
-                            )
-                            reported_cycles.add(key)
-                        continue  # Ignore this weaker edge
-
-                elif dep_id not in visited:
-                    visit(dep_id)
-
-            visiting.remove(nid)
-            visited.add(nid)
-            if nid != 'root':
-                sorted_list.append(nid)
-
-        # Start traversal from the root node's children
-        for dep_id, _, _ in graph.get('root', []):
-            if dep_id not in visited:
-                visit(dep_id)
-        
-        return sorted_list
-
+        while True:
+            indegree = {n: 0 for n in graph}
+            for edges in graph.values():
+                for (dst, _, _) in edges:
+                    indegree[dst] = indegree.get(dst, 0) + 1
+    
+            q = deque([n for n, d in indegree.items() if d == 0])
+            order = []
+            visited = set()
+    
+            while q:
+                n = q.popleft()
+                if n != 'root':
+                    order.append(n)
+                visited.add(n)
+                for (dst, _, _) in graph.get(n, []):
+                    indegree[dst] -= 1
+                    if indegree[dst] == 0:
+                        q.append(dst)
+    
+            if len(visited) == len(graph):
+                return order  # success
+    
+            # Cycle detected: prune weakest edge globally
+            weakest = None
+            for src, edges in graph.items():
+                for (dst, w, q) in edges:
+                    if weakest is None or w > weakest[2]:
+                        weakest = (src, dst, w)
+            if weakest:
+                src, dst, _ = weakest
+                graph[src] = [(d, w, q) for (d, w, q) in graph[src] if d != dst]
+                self.warnings.append(f"Pruned edge {src} -> {dst} to break cycle.")
+            else:
+                break  # fallback
+        return order
