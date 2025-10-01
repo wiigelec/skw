@@ -87,6 +87,15 @@ class SKWDepResolver:
                 self.warnings.append(f"Requested root '{root_id}' not found; skipping.")
 
     def resolve_build_order(self) -> list[ParsedEntry]:
+        # Fast-path: if no dependencies exist, just return the requested roots
+        if all(not entry.dependencies for entry in self.parsed_entries.values()):
+            return [
+                self.parsed_entries[sid]
+                for sid in self.root_section_ids
+                if sid in self.parsed_entries
+            ]
+    
+        # Otherwise run the full 3-pass resolution
         reachable_graph = self._pass1_generate_subgraph()
         transformed_graph = self._pass2_transform_graph(reachable_graph)
         sorted_ids = self._pass3_topological_sort(transformed_graph)
