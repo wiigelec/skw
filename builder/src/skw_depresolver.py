@@ -67,11 +67,10 @@ class SKWDepResolver:
                         f"Unknown dependency class '{dep_type}' in {section_id}; skipping."
                     )
                     continue
-                for dep_name in deps:
-                    dep_id = self.name_to_id.get(dep_name)
-                    if not dep_id:
+                for dep_id in deps:
+                    if dep_id not in self.graph:
                         self.warnings.append(
-                            f"{section_id} depends on unknown package '{dep_name}'; skipping."
+                            f"{section_id} depends on unknown package '{dep_id}'; skipping."
                         )
                         continue
                     # default qualifier 'b' (before)
