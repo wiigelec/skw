@@ -10,8 +10,13 @@ output_file = "parser_output.json"
 source_book = ""
 chapter_id = "//chapter"
 section_id = "./sect1 | ./sect1/sect2"
-package_name = "translate(substring(substring-before(translate(title/text(), '0123456789', '##########'), '#'), 1, string-length(substring-before(translate(title/text(), '0123456789', '##########'), '#')) - 1), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-package_version = "substring-after(title/text(), substring-before(translate(title/text(), '0123456789', '##########'), '#'))"
+
+# Use section @id in lowercase for package_name
+package_name = "translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+
+# Extract version as title minus the section id and dash
+package_version = "substring-after(title/text(), concat(@id, '-'))"
+
 source_urls = ""
 source_checksums = ""
 dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
