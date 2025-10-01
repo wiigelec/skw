@@ -97,22 +97,15 @@ class SKWParser:
 
         for chap in self._safe_xpath(tree, chapter_xpath):
             chap_id = chap.get("id")
-            if not self._filter_ok(chap_id, self.cfg.get("chapter_filters", {})):
-                continue
 
             for sec in self._safe_xpath(chap, section_xpath):
                 sec_id = sec.get("id")
-                if not self._filter_ok(sec_id, self.cfg.get("section_filters", {})):
-                    continue
-
+               
                 pkg_name_expr = self._get_xpath_expr(sec_id, chap_id, "package_name")
                 pkg_ver_expr = self._get_xpath_expr(sec_id, chap_id, "package_version")
 
                 pkg_name = self._xpath_scalar(sec, pkg_name_expr)
                 pkg_ver = self._xpath_scalar(sec, pkg_ver_expr)
-
-                if not self._package_allowed(pkg_name):
-                    continue
 
                 context = {
                     "book": self.book,
