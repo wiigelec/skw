@@ -4,7 +4,7 @@ import tomllib
 from string import Template
 from lxml import etree
 from dataclasses import dataclass, asdict
-
+from skw_depresolver import SKWDepResolver
 
 class ParserConfigError(Exception):
     """Raised when parser configuration is invalid or missing."""
@@ -24,6 +24,9 @@ class ParsedEntry:
     sources: dict
     dependencies: dict
     build_instructions: list
+    
+
+class DependencyResolver:
 
 
 class SKWParser:
@@ -45,9 +48,43 @@ class SKWParser:
         with open(self.config_path, "rb") as f:
             self.cfg = tomllib.load(f)
 
+    # =====================================================
+    # Main workflow (Steps 1–5)
+    # =====================================================
     def run(self):
-        xml_path = self._substitute(self.cfg["main"]["xml_path"])
+        # Step 1: Parse book -> ParsedEntry dict
+        parsed_entries = self._parse_book_xml()
+
+        # Step 2: Apply filters -> root section ids
+        root_section_ids = self._get_root_sections(parsed_entries)
+
+        # Step 3: Dependency class masks (default = none)
+        section_dep_classes = self._get_dependency_classes(parsed_entries)
+
+        # Step 4: Dependency resolution
+        resolver = SKWDepResolver(
+            parsed_entries=parsed_entries,
+            root_section_ids=root_section_ids,
+            dep_classes=section_dep_classes
+        )
+        ordered_build_list = resolver.resolve_build_order()
+
+        # Step 5: Output JSON
+        profile_parser_dir = os.path.join(self.build_dir, "parser", self.book, self.profile)
+        os.makedirs(profile_parser_dir, exist_ok=True)
         output_file = self.cfg["main"]["output_file"]
+        output_path = os.path.join(profile_parser_dir, output_file)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump([asdict(r) for r in ordered_build_list], f, indent=2)
+
+        print(f"Parser complete. Ordered build plan written to {output_path}")
+
+    # =====================================================
+    # Step 1: Parse XML into ParsedEntry dict
+    # =====================================================
+    def _parse_book_xml(self) -> dict[str, ParsedEntry]:
+        xml_path = self._substitute(self.cfg["main"]["xml_path"])
 
         if not os.path.exists(xml_path):
             raise ParserInputError(
@@ -55,9 +92,8 @@ class SKWParser:
             )
 
         tree = etree.parse(xml_path)
-        results: list[ParsedEntry] = []
+        results: dict[str, ParsedEntry] = {}
 
-        # --- Normal book parsing ---
         chapter_xpath = self.cfg["xpaths"]["chapter_id"]
         section_xpath = self.cfg["xpaths"]["section_id"]
 
@@ -77,7 +113,6 @@ class SKWParser:
                 pkg_name = self._xpath_scalar(sec, pkg_name_expr)
                 pkg_ver = self._xpath_scalar(sec, pkg_ver_expr)
 
-                # --- Package filter logic ---
                 if not self._package_allowed(pkg_name):
                     continue
 
@@ -109,25 +144,23 @@ class SKWParser:
                     "runtime": [str(x) for x in self._safe_xpath(sec, self._get_xpath_expr(sec_id, chap_id, "dependencies_runtime"))],
                 }
 
-                # Trim deps based on filters
                 deps = self._filter_dependencies(pkg_name, deps)
 
                 build_instructions = self._collect_instructions(
                     sec, self._get_xpath_expr(sec_id, chap_id, "build_instructions")
                 )
 
-                results.append(
-                    ParsedEntry(
-                        source_book=self.book,
-                        chapter_id=chap_id,
-                        section_id=sec_id,
-                        package_name=pkg_name or "",
-                        package_version=pkg_ver or "",
-                        sources=sources,
-                        dependencies=deps,
-                        build_instructions=build_instructions,
-                    )
+                entry = ParsedEntry(
+                    source_book=self.book,
+                    chapter_id=chap_id,
+                    section_id=sec_id,
+                    package_name=pkg_name or "",
+                    package_version=pkg_ver or "",
+                    sources=sources,
+                    dependencies=deps,
+                    build_instructions=build_instructions,
                 )
+                results[sec_id] = entry
 
         # --- Custom code packages ---
         for cfg_file in self.cfg.get("custom_code", {}).get("configs", []):
@@ -153,30 +186,58 @@ class SKWParser:
                 deps = {"required": [], "recommended": [], "optional": [], "runtime": []}
                 deps = self._filter_dependencies(pkg["name"], deps)
 
-                results.append(
-                    ParsedEntry(
-                        source_book=self.book,
-                        chapter_id=pkg.get("chapter_id", f"custom-{pkg['name']}"),
-                        section_id=pkg.get("section_id", f"custom-{pkg['name']}"),
-                        package_name=pkg["name"],
-                        package_version=pkg.get("version", ""),
-                        sources={"urls": [], "checksums": []},
-                        dependencies=deps,
-                        build_instructions=build_instructions,
-                    )
+                entry = ParsedEntry(
+                    source_book=self.book,
+                    chapter_id=pkg.get("chapter_id", f"custom-{pkg['name']}"),
+                    section_id=pkg.get("section_id", f"custom-{pkg['name']}"),
+                    package_name=pkg["name"],
+                    package_version=pkg.get("version", ""),
+                    sources={"urls": [], "checksums": []},
+                    dependencies=deps,
+                    build_instructions=build_instructions,
                 )
+                results[entry.section_id] = entry
 
-        # --- Write output ---
-        profile_parser_dir = os.path.join(self.build_dir, "parser", self.book, self.profile)
-        os.makedirs(profile_parser_dir, exist_ok=True)
-        output_path = os.path.join(profile_parser_dir, output_file)
+        return results
 
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump([asdict(r) for r in results], f, indent=2)
+    # =====================================================
+    # Step 2: Filtering
+    # =====================================================
+    def _get_root_sections(self, parsed_entries: dict[str, ParsedEntry]) -> list[str]:
+        root_ids = []
 
-        print(f"Parser complete. Output written to {output_path}")
+        include_sections = self.cfg.get("section_filters", {}).get("include", [])
+        root_ids.extend(include_sections)
 
-    # --- Helpers ---
+        include_pkgs = self.cfg.get("package_filters", {}).get("include", [])
+        for pkg in include_pkgs:
+            for sec_id, entry in parsed_entries.items():
+                if entry.package_name == pkg:
+                    root_ids.append(sec_id)
+
+        include_chaps = self.cfg.get("chapter_filters", {}).get("include", [])
+        for sec_id, entry in parsed_entries.items():
+            if entry.chapter_id in include_chaps:
+                root_ids.append(sec_id)
+
+        return list(set(root_ids))
+
+    # =====================================================
+    # Step 3: Dependency class masks
+    # =====================================================
+    def _get_dependency_classes(self, parsed_entries: dict[str, ParsedEntry]) -> dict[str, list[str]]:
+        dep_classes = {}
+        for sec_id, entry in parsed_entries.items():
+            pkg_cfg = self._get_package_config(entry.package_name)
+            if pkg_cfg and "deps" in pkg_cfg:
+                dep_classes[sec_id] = pkg_cfg["deps"]
+            else:
+                dep_classes[sec_id] = []  # default = no dependencies
+        return dep_classes
+
+    # =====================================================
+    # Helpers
+    # =====================================================
     def _get_xpath_expr(self, sec_id, chap_id, key):
         if sec_id in self.cfg and "xpaths" in self.cfg[sec_id]:
             return self.cfg[sec_id]["xpaths"].get(key)
@@ -212,7 +273,6 @@ class SKWParser:
         return instructions
 
     def _safe_xpath(self, node, expr):
-        """Run xpath safely: return list, raise ParserConfigError if invalid."""
         if not expr or not str(expr).strip():
             return []
         try:
@@ -221,7 +281,6 @@ class SKWParser:
             raise ParserConfigError(f"Invalid XPath expression: {expr}") from e
 
     def _xpath_scalar(self, node, expr):
-        """Evaluate XPath and return a single scalar (string/number/bool)."""
         if not expr or not str(expr).strip():
             return None
         try:
@@ -234,9 +293,7 @@ class SKWParser:
         except etree.XPathEvalError as e:
             raise ParserConfigError(f"Invalid XPath expression: {expr}") from e
 
-    # --- Package Filtering System ---
     def _package_allowed(self, pkg_name):
-        """Check include/exclude filters for a package."""
         pkg_filters = self.cfg.get("package_filters", {})
         includes = pkg_filters.get("include", [])
         excludes = pkg_filters.get("exclude", [])
@@ -248,23 +305,19 @@ class SKWParser:
         return True
 
     def _get_package_config(self, pkg_name):
-        """Return per-package config override if it exists."""
-        for pkg in self.cfg.get("package", []):  # [[package]] array in TOML
+        for pkg in self.cfg.get("package", []):
             if pkg.get("name") == pkg_name:
                 return pkg
         return None
 
     def _filter_dependencies(self, pkg_name, deps):
-        """Trim dependencies according to global filters and per-package overrides."""
         pkg_filters = self.cfg.get("package_filters", {})
         allowed_deps = pkg_filters.get("deps", [])
 
-        # Per-package override
         pkg_cfg = self._get_package_config(pkg_name)
         if pkg_cfg and "deps" in pkg_cfg:
             allowed_deps = pkg_cfg["deps"]
 
         if not allowed_deps:
             return deps
-
         return {cls: deps.get(cls, []) for cls in allowed_deps if cls in deps}
