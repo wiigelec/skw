@@ -232,14 +232,9 @@ class SKWParser:
     # Step 3: Dependency class masks
     # =====================================================
     def _get_dependency_classes(self, parsed_entries: dict[str, ParsedEntry]) -> dict[str, list[str]]:
-        dep_classes = {}
-        for sec_id, entry in parsed_entries.items():
-            pkg_cfg = self._get_package_config(entry.package_name)
-            if pkg_cfg and "deps" in pkg_cfg:
-                dep_classes[sec_id] = pkg_cfg["deps"]
-            else:
-                dep_classes[sec_id] = []  # default = no dependencies
-        return dep_classes
+        # Global dependency classes from config
+        global_deps = self.cfg.get("package_filters", {}).get("deps", [])
+        return {sec_id: global_deps for sec_id in parsed_entries}
 
     # =====================================================
     # Helpers
