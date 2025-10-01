@@ -250,6 +250,5 @@ class SKWDepResolver:
             if dep_id not in visited:
                 visit(dep_id)
         
-        # The list is built in post-order, so we reverse it for the final build order
-        return sorted_list[::-1]
+        return sorted_list
 
