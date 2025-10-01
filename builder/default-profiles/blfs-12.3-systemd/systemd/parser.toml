@@ -22,10 +22,10 @@ source_urls = ""
 source_checksums = ""
 
 # Dependencies (lowercased properly, not split into chars)
-dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/translate(@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
+dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend"
 
 build_instructions = ""
 
