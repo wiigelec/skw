@@ -74,8 +74,8 @@ class SKWParser:
                 pkg_name_expr = self._get_xpath_expr(sec_id, chap_id, "package_name")
                 pkg_ver_expr = self._get_xpath_expr(sec_id, chap_id, "package_version")
 
-                pkg_name = self._xpath_or_none(sec, pkg_name_expr)
-                pkg_ver = self._xpath_or_none(sec, pkg_ver_expr)
+                pkg_name = self._xpath_scalar(sec, pkg_name_expr)
+                pkg_ver = self._xpath_scalar(sec, pkg_ver_expr)
 
                 # --- Package filter logic ---
                 if not self._package_allowed(pkg_name):
@@ -198,12 +198,6 @@ class SKWParser:
             return False
         return True
 
-    def _xpath_or_none(self, node, expr):
-        results = self._safe_xpath(node, expr)
-        if not results:
-            return None
-        return str(results[0])
-
     def _substitute(self, value: str) -> str:
         return Template(value).safe_substitute(
             book=self.book, profile=self.profile, build_dir=self.build_dir
@@ -218,15 +212,27 @@ class SKWParser:
         return instructions
 
     def _safe_xpath(self, node, expr):
-        """Run xpath safely: skip if None/empty, raise ParserConfigError if invalid."""
+        """Run xpath safely: return list, raise ParserConfigError if invalid."""
         if not expr or not str(expr).strip():
             return []
         try:
             return node.xpath(expr)
         except etree.XPathEvalError as e:
-            raise ParserConfigError(
-                f"Invalid XPath expression: {expr}"
-            ) from e
+            raise ParserConfigError(f"Invalid XPath expression: {expr}") from e
+
+    def _xpath_scalar(self, node, expr):
+        """Evaluate XPath and return a single scalar (string/number/bool)."""
+        if not expr or not str(expr).strip():
+            return None
+        try:
+            result = node.xpath(expr)
+            if isinstance(result, list):
+                if not result:
+                    return None
+                return str(result[0])
+            return str(result)
+        except etree.XPathEvalError as e:
+            raise ParserConfigError(f"Invalid XPath expression: {expr}") from e
 
     # --- Package Filtering System ---
     def _package_allowed(self, pkg_name):
