@@ -20,7 +20,7 @@ class SKWDepResolver:
     Pass 2 remains a stub; it currently only preserves pass-1 structure.
     """
 
-    WEIGHT_MAP = {"required": 1, "recommended": 2, "optional": 3, "runtime": 1}
+    WEIGHT_MAP = {"required": 1, "runtime": 2, "recommended": 3, "optional": 4}
 
     def __init__(self, parsed_entries: dict[str, ParsedEntry],
                  root_section_ids: list[str],
@@ -205,7 +205,7 @@ class SKWDepResolver:
 
     def _pass3_topological_sort(self, graph: dict) -> list[str]:
         """
-        DFS topo sort with simple cycle breaking (ignore back-edge) and one-time cycle reporting.
+        DFS topo sort with weight-aware cycle breaking.
         """
         sorted_list: list[str] = []
         visiting: set[str] = set()
@@ -214,25 +214,42 @@ class SKWDepResolver:
 
         def visit(nid: str):
             visiting.add(nid)
-            for dep_id, _, _ in graph.get(nid, []):
+            # Process dependencies sorted by weight (strongest first)
+            sorted_deps = sorted(graph.get(nid, []), key=lambda e: e[1])
+
+            for dep_id, weight, _ in sorted_deps:
                 if dep_id in visiting:
-                    key = tuple(sorted((nid, dep_id)))
-                    if key not in reported_cycles:
-                        self.warnings.append(f"Cycle detected: {nid} ↔ {dep_id}. Ignoring edge {nid}→{dep_id}.")
-                        reported_cycles.add(key)
-                    # skip the back-edge
-                    continue
-                if dep_id not in visited:
+                    # Cycle detected. Find the weight of the reverse edge.
+                    reverse_weight = float('inf')
+                    for r_dep, r_w, _ in graph.get(dep_id, []):
+                        if r_dep == nid:
+                            reverse_weight = r_w
+                            break
+                    
+                    # Break the cycle by skipping the WEAKER edge.
+                    if weight >= reverse_weight:
+                        key = tuple(sorted((nid, dep_id)))
+                        if key not in reported_cycles:
+                            self.warnings.append(
+                                f"Cycle detected between {nid} (w={weight}) and {dep_id} (w={reverse_weight}). Breaking weaker edge."
+                            )
+                            reported_cycles.add(key)
+                        continue  # Ignore this weaker edge
+
+                # ** THE FIX IS HERE: Changed 'if' to 'elif' **
+                elif dep_id not in visited:
                     visit(dep_id)
+
             visiting.remove(nid)
             visited.add(nid)
             if nid != 'root':
                 sorted_list.append(nid)
 
+        # Start traversal from the root node's children
         for dep_id, _, _ in graph.get('root', []):
             if dep_id not in visited:
                 visit(dep_id)
-
-        # deterministic final order
-        return sorted_list
+        
+        # The list is built in post-order, so we reverse it for the final build order
+        return sorted_list[::-1]
 
