@@ -17,7 +17,7 @@ source_checksums = ""
 dependencies_required    = ".//para[@role='required']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
 dependencies_recommended = ".//para[@role='recommended']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
 dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') and not(@role='runtime')]/@linkend"
-dependencies_runtime     = ".//para[@role='required' or @role='recommended' or @role='optional']//xref[@role='runtime']/@linkend"
+dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend"
 build_instructions = ""
 
 
