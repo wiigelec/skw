@@ -24,7 +24,6 @@ dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xr
 build_instructions = ""
 
 [glib2.xpaths]
-package_name = "glib2"
 package_version = "substring-after(translate(title/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'glib-')"
 
 [docbook-xsl.xpaths]
