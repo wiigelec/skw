@@ -238,12 +238,12 @@ class SKWParser:
         if sec_id in self.cfg and "xpaths" in self.cfg[sec_id]:
             if key in self.cfg[sec_id]["xpaths"]:
                 return self.cfg[sec_id]["xpaths"][key]
-    
+
         # Chapter-specific overrides
         if chap_id in self.cfg and "xpaths" in self.cfg[chap_id]:
             if key in self.cfg[chap_id]["xpaths"]:
                 return self.cfg[chap_id]["xpaths"][key]
-    
+
         # Global fallback
         return self.cfg["xpaths"].get(key)
         
