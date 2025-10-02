@@ -11,7 +11,8 @@ source_book = ""
 chapter_id = "//chapter"
 section_id = "./sect1 | ./sect1/sect2"
 package_name    = "translate(@id, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-package_version = "substring-after(substring-after(title/text(), concat(@id, '-')), '-')"
+#package_version = "substring-after(title/text(),concat(@id, '-'))"
+package_version = "substring-after(translate(title/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),concat(@id,'-'))"
 source_urls = ""
 source_checksums = ""
 
@@ -22,6 +23,12 @@ dependencies_optional    = ".//para[@role='optional']//xref[not(@role='nodep') a
 dependencies_runtime     = ".//para[@role='required' or @role='recommended']//xref[@role='runtime']/@linkend"
 
 build_instructions = ""
+
+#[glib2.xpaths]
+#package_version = "substring-after(translate(title/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),concat(@id,'-'))"
+
+[docbook-xsl.xpaths]
+package_version = "substring-after(substring-after(translate(title/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),concat(@id,'-')),'-')"
 
 #------------------------------------------------------------------#
 # FILTERS
