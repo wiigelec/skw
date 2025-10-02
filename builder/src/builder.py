@@ -172,6 +172,7 @@ def main():
 
     p = sub.add_parser("list-sections")
     p.add_argument("--book", required=True)
+    p.add_argument("--profile", required=True)
 
     p = sub.add_parser("add-book")
     p.add_argument("--name", required=True)
@@ -204,7 +205,7 @@ def main():
     elif args.command == "list-profiles":
         builder.list_profiles(args.book)
     elif args.command == "list-sections":
-        builder.list_sections(args.book)
+        builder.list_sections(args.book, args.profile)
     elif args.command == "add-book":
         builder.add_book(args.name)
     elif args.command == "add-profile":
