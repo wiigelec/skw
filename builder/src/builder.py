@@ -204,7 +204,7 @@ def main():
     elif args.command == "list-profiles":
         builder.list_profiles(args.book)
     elif args.command == "list-sections":
-        builder.list_sections(args.book, args.profile)
+        builder.list_sections(args.book)
     elif args.command == "add-book":
         builder.add_book(args.name)
     elif args.command == "add-profile":
