@@ -235,9 +235,12 @@ class SKWParser:
     # =====================================================
     def _get_xpath_expr(self, sec_id, chap_id, key):
         if sec_id in self.cfg and "xpaths" in self.cfg[sec_id]:
-            return self.cfg[sec_id]["xpaths"].get(key)
+            # Look inside the section override
+            if key in self.cfg[sec_id]["xpaths"]:
+                return self.cfg[sec_id]["xpaths"][key]
         if chap_id in self.cfg and "xpaths" in self.cfg[chap_id]:
-            return self.cfg[chap_id]["xpaths"].get(key)
+            if key in self.cfg[chap_id]["xpaths"]:
+                return self.cfg[chap_id]["xpaths"][key]
         return self.cfg["xpaths"].get(key)
 
     def _expand_xpath(self, expr, context):
