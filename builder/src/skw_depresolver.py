@@ -15,8 +15,8 @@ class ParsedEntry:
 class SKWDepResolver:
     """
     Dependency resolver using DFS stack traversal with strict priority order:
-    required → recommended → optional → runtime.
-    Cycle detection: raises RuntimeError when a cycle is found.
+    required ? recommended ? optional ? runtime.
+    Cycle detection: raises RuntimeError with full cycle path when found.
     """
 
     PRIORITY_ORDER = ["required", "recommended", "optional", "runtime"]
@@ -34,7 +34,7 @@ class SKWDepResolver:
         """Resolve dependencies into an ordered build list."""
         build_queue: list[str] = []
         visited: set[str] = set()
-        stack: set[str] = set()
+        stack: list[str] = []  # switched to list everywhere
 
         for root_id in self.root_section_ids:
             if root_id not in self.parsed_entries:
@@ -48,26 +48,28 @@ class SKWDepResolver:
                          pkg_id: str,
                          build_queue: list[str],
                          visited: set[str],
-                         stack: set[str]) -> None:
+                         stack: list[str]) -> None:
         """Depth-first resolution of one package and its dependencies."""
         if pkg_id in visited:
             return
         if pkg_id in stack:
-            raise RuntimeError(f"Dependency cycle detected at '{pkg_id}'")
+            cycle_start = stack.index(pkg_id)
+            cycle_path = stack[cycle_start:] + [pkg_id]
+            raise RuntimeError("Dependency cycle detected: " + " -> ".join(cycle_path))
 
-        stack.add(pkg_id)
+        stack.append(pkg_id)
         entry = self.parsed_entries.get(pkg_id)
         if not entry:
             self.warnings.append(f"Unknown package '{pkg_id}'; skipping.")
-            stack.remove(pkg_id)
+            stack.pop()
             return
 
-        # Walk dependencies in flowchart order
+        # Walk dependencies in strict priority order
         for dep_class in self.PRIORITY_ORDER:
             for dep in entry.dependencies.get(dep_class, []):
                 self._resolve_package(dep, build_queue, visited, stack)
 
-        # Finished with all deps → add package to build queue
+        # Finished with all deps ? add package to build queue
         build_queue.append(pkg_id)
         visited.add(pkg_id)
-        stack.remove(pkg_id)
+        stack.pop()
