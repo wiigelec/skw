@@ -231,4 +231,4 @@ class SKWDepResolver:
             else:
                 break  # No edges left, fallback
     
-        return order
+        return order[::-1]
