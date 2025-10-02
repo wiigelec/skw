@@ -99,7 +99,9 @@ class SKWParser:
             chap_id = chap.get("id")
 
             for sec in self._safe_xpath(chap, section_xpath):
-                sec_id = sec.get("id").lower()
+                sec_id = sec.get("id")
+                if sec_id is not None:
+                    sec_id = sec_id.lower()
                
                 pkg_name_expr = self._get_xpath_expr(sec_id, chap_id, "package_name")
                 pkg_ver_expr = self._get_xpath_expr(sec_id, chap_id, "package_version")
