@@ -246,9 +246,10 @@ class SKWParser:
     
         # Global fallback
         return self.cfg["xpaths"].get(key)
-        def _expand_xpath(self, expr, context):
-            if not expr:
-                return None
+        
+    def _expand_xpath(self, expr, context):
+        if not expr:
+            return None
         return Template(expr).safe_substitute(context)
 
     def _filter_ok(self, value, filters):
