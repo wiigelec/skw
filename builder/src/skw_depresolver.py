@@ -215,7 +215,7 @@ class SKWDepResolver:
     
             # Success: all nodes visited
             if len(visited) == len(graph):
-                return order
+                return order[::-1]
     
             # Cycle detected: prune weakest edge globally
             weakest = None
@@ -231,4 +231,4 @@ class SKWDepResolver:
             else:
                 break  # No edges left, fallback
     
-        return order[::-1]
+        return order
