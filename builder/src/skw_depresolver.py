@@ -221,7 +221,7 @@ class SKWDepResolver:
             weakest = None
             for src, edges in graph.items():
                 for (dst, w, q) in edges:
-                    if weakest is None or w < weakest[2]:
+                    if weakest is None or w > weakest[2]:
                         weakest = (src, dst, w)
     
             if weakest:
