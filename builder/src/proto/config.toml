@@ -1,0 +1,26 @@
+[input]
+xml_file = "/home/wiigelec/Documents/git/skw/builder/build/books/blfs-12.3-systemd/blfs-systemd-full.xml"
+
+[output]
+format = "json"
+file = "output.json"
+
+[debug]
+#enabled = true
+
+
+[xpaths.part]
+xpath = "//part"
+title = "@xreflabel"
+chapter.xpath = "./chapter"
+
+[xpaths.chapter]
+title = "title/text()"
+sect1.xpath = "./sect1[@xreflabel]"
+
+[xpaths.sect1]
+title = "@id"
+sect2.xpath = "./sect2[@xreflabel]"
+
+[xpaths.sect2]
+title = "@xreflabel"
