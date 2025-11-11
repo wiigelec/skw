@@ -16,6 +16,11 @@ from lxml import etree
 from pathlib import Path
 from collections import OrderedDict
 
+def represent_ordereddict(dumper, data):
+    return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+
+yaml.add_representer(OrderedDict, represent_ordereddict)
+
 
 class TomlToYamlXPathConverter:
     """
@@ -45,6 +50,7 @@ class TomlToYamlXPathConverter:
         # Load essential data sources
         self._load_toml()
         self._load_xml(self.xml_path)
+        self._index_packages()
         self._load_package_list(self.input_json_path)
 
     # ---------------------------
@@ -62,41 +68,71 @@ class TomlToYamlXPathConverter:
         self.xml_root = tree.getroot()
 
     def _load_package_list(self, json_path: Path):
-        """Load list of packages from a JSON file."""
+        """Load list of packages from JSON file. Supports both top-level list and dict formats."""
         with json_path.open("r", encoding="utf-8") as f:
-            self.package_list = json.load(f)
-        if not isinstance(self.package_list, list):
-            raise ValueError("Input JSON must be a list of package objects.")
+            data = json.load(f)
+    
+        if isinstance(data, dict):
+            # Expect a key "packages" holding the list
+            packages = data.get("packages")
+            if not isinstance(packages, list):
+                raise ValueError("JSON object must contain a 'packages' list field.")
+            self.package_list = packages
+        elif isinstance(data, list):
+            self.package_list = data
+        else:
+            raise ValueError("Input JSON must be either a list or an object containing 'packages'.")
+    
+        # Sanity check
+        for pkg in self.package_list:
+            if not isinstance(pkg, dict) or "name" not in pkg or "version" not in pkg:
+                raise ValueError(f"Invalid package entry: {pkg}")
 
     # ---------------------------
     # Extraction Logic
     # ---------------------------
 
     def _find_xml_package_node(self, package_name: str, package_version: str):
-        """
-        Find the XML node matching the package name and version.
-        Example XPath:
-            .//package[name='mypkg' and version='1.0']
-        """
-        xpath_expr = f".//package[name='{package_name}' and version='{package_version}']"
-        matches = self.xml_root.xpath(xpath_expr)
-        return matches[0] if matches else None
+        key = f"{package_name.lower()}-{package_version}"
+        node = self.package_index.get(key)
+        if node is not None:
+            return node
+        print(f"[WARN] No XML node found for {package_name}-{package_version}")
+        return None
 
-    def _execute_xpath(self, node, xpath_expression: str) -> str:
-        """Execute an XPath relative to a given XML node."""
+    def _execute_xpath(self, node: etree._Element, xpath_expression: str, package_name: str = None, package_version: str = None) -> str:
+        """
+        Executes an XPath expression relative to the given XML node.
+        Supports dynamic variable substitution using {name} and {version} placeholders.
+        """
         try:
-            result = node.xpath(xpath_expression)
+            expr = xpath_expression
+    
+            # --- Variable substitution for TOML placeholders ---
+            if "{name}" in expr or "{version}" in expr:
+                expr = expr.format(
+                    name=package_name or "",
+                    version=package_version or ""
+                )
+    
+            #print(f"xpath: {expr}")
+    
+            # --- Determine context (absolute vs relative) ---
+            context = self.xml_root if expr.strip().startswith("//") else node
+            result = context.xpath(expr)
+    
+            # --- Convert output to a clean string if possible ---
+            if not result:
+                return ""
             if isinstance(result, list):
-                if len(result) == 0:
-                    return ""
-                # Return stringified first item if nodes, else joined text
-                first = result[0]
-                if isinstance(first, etree._Element):
-                    return first.text or ""
-                return " ".join(str(r) for r in result)
-            return str(result)
+                # Join multi-values into one string, separated by space
+                return " ".join(str(r).strip() for r in result if str(r).strip())
+            return str(result).strip()
+    
         except Exception as e:
-            return f"[XPathError: {e}]"
+            print(f"[WARN] XPath lookup failed for expression '{xpath_expression}': {e}")
+            return ""
+
 
     # ---------------------------
     # Recursive Structure Building
@@ -111,6 +147,9 @@ class TomlToYamlXPathConverter:
         result = OrderedDict()
 
         for key, value in node.items():
+            # Skip internal or structural keys
+            if key in ("context_xpath", "package_xpath"):
+                continue
             # Resolve child tables
             if key.startswith("child"):
                 for child_name in value:
@@ -123,9 +162,15 @@ class TomlToYamlXPathConverter:
                 result[key] = self._resolve_children(value, xml_context_node)
                 continue
 
-            # String values → treat as XPath
+            # String values treat as XPath
             if isinstance(value, str) and value.strip().startswith(("/", ".", "..")):
-                result[key] = self._execute_xpath(xml_context_node, value)
+                #print(f"xpath: {value}")
+                result[key] = self._execute_xpath(
+                    xml_context_node,
+                    value,
+                    package_name=self.current_package_name,
+                    package_version=self.current_package_version
+                )
             else:
                 result[key] = value
 
@@ -145,26 +190,71 @@ class TomlToYamlXPathConverter:
         Each package from JSON drives one item.
         """
         results = []
+        print(f"Iterating package list...")
         for pkg in self.package_list:
             name = pkg.get("name")
             version = pkg.get("version")
+            self.current_package_name = name
+            self.current_package_version = version
+            
+            print(f"{name}--{version}")
+
             if not name or not version:
                 continue
 
             xml_node = self._find_xml_package_node(name, version)
             if xml_node is None:
+                print(f"NO XML NODE FOUND")
                 continue
 
             # Start from top-level non-child sections
             item = OrderedDict()
             for section, content in self.toml_data.items():
+                if section == "lookup" or self._is_child(section):
+                    continue
                 if self._is_child(section):
                     continue
                 item[section] = self._resolve_children(content, xml_node)
 
             results.append(item)
         return results
+        
+    def _index_packages(self):
+        """
+        Build a lookup dictionary of XML nodes by normalized name-version keys,
+        using XPaths defined in the TOML [package] section.
+        """
+        self.package_index = {}
+        print("[INFO] Building XML package index from TOML configuration...")
+    
+        # Load package discovery rules from TOML
+        pkg_cfg = self.toml_data.get("package")
+        if not pkg_cfg:
+            raise ValueError("TOML must contain a [package] section with 'context_xpath', 'name', and 'version'.")
+    
+        context_xpath = pkg_cfg.get("context_xpath")
+        name_xpath = pkg_cfg.get("name")
+        version_xpath = pkg_cfg.get("version")
+    
+        if not context_xpath or not name_xpath or not version_xpath:
+            raise ValueError("[package] section must define 'context_xpath', 'name', and 'version' XPaths.")
+    
+        # Find all context nodes
+        package_nodes = self.xml_root.xpath(context_xpath)
+        print(f"[INFO] Found {len(package_nodes)} package context nodes via {context_xpath}")
+    
+        # Extract name/version for each node
+        for node in package_nodes:
+            name = self._execute_xpath(node, name_xpath)
+            version = self._execute_xpath(node, version_xpath)
+            if not name:
+                continue
+            key = f"{name.lower()}-{version}"
+            self.package_index[key] = node
+    
+        print(f"[INFO] Indexed {len(self.package_index)} packages.")
 
+        
     # ---------------------------
     # Output
     # ---------------------------
@@ -173,7 +263,7 @@ class TomlToYamlXPathConverter:
         """Write the final structure as YAML."""
         with self.output_yaml_path.open("w", encoding="utf-8") as f:
             yaml.dump(data, f, indent=2, sort_keys=False)
-        print(f"✅ YAML written to: {self.output_yaml_path}")
+        print(f"YAML written to: {self.output_yaml_path}")
 
     # ---------------------------
     # Public API
