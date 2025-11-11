@@ -61,13 +61,19 @@ class GitBuilder:
         """Load and validate configuration from a TOML file."""
         if not os.path.isfile(self.config_path):
             raise ConfigError(f"Configuration file not found: {self.config_path}")
-
+	
         try:
-            with open(self.config_path, "rb") as f:
-                data = tomllib.load(f)
+            if hasattr(tomllib, "load") and "tomllib" in sys.modules:
+                # Python 3.11+ — tomllib expects binary mode
+                with open(self.config_path, "rb") as f:
+                    data = tomllib.load(f)
+            else:
+                # Older Python — toml expects text mode
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    data = tomllib.load(f)
         except Exception as e:
             raise ConfigError(f"Failed to read TOML: {e}")
-
+            
         cfg = data.get("config")
         if not cfg or not isinstance(cfg, dict):
             raise ConfigError("Missing or invalid [config] table in TOML file.")
@@ -130,7 +136,7 @@ class GitBuilder:
         print(f"[BUILD] Expected output: {self.output_file}")
 
     def build(self):
-        """Full orchestration: clone → checkout → build."""
+        """Full orchestration: clone ? checkout ? build."""
         try:
             print("[RUN] Build process started.")
             self._clone_repo()
