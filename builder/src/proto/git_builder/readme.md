@@ -5,7 +5,7 @@
 The primary goal of this module is to provide a reliable, automated, and configurable method for:
 
 1. Reading build parameters from a single TOML configuration table.
-2. Cloning a specified Git repository.
+2. Cloning or updating a specified Git repository.
 3. Checking out a specific version (tag, branch, or commit hash).
 4. Executing a defined build command within the resulting source directory, with the expected output file noted for informational purposes.
 
@@ -42,11 +42,10 @@ The module will expose a single class, `GitBuilder`, and a main execution method
 | `__init__(self, config_path)` | Initializes the builder and immediately loads and validates the configuration from the given path. | 
 | `_load_config(self)` | Internal method to read the TOML file and store the configuration in instance attributes. **Must raise a relevant exception** if the file is missing or invalid. | 
 | `_execute_command(self, command, work_dir, use_shell)` | Internal helper for robustly executing shell commands using `subprocess.run` and logging command output. | 
-| `_clone_repo(self)` | Clones the `repo_url` into the `target_dir`. The directory is cleaned up if it exists and is not empty. | 
+| `_clone_repo(self)` | Clones the `repo_url` into the `target_dir`. If the directory exists and is not empty update the repo using `git pull`. | 
 | `_checkout_version(self)` | Executes `git checkout [version]`. | 
 | `_run_build(self)` | Executes the command defined by `build_command`. Logs the expected `output_file` as part of the build summary. | 
-| `build(self)` | The main public method that orchestrates the entire process: Load -> Clone -> Checkout -> Build. **Returns `True` on success, `False` on failure.** | 
-| `cleanup(self)` | Optional public method to remove the `target_dir` after the build is complete. | 
+| `build(self)` | The main public method that orchestrates the entire process: Load -> Clone -> Checkout -> Build. **Returns `True` on success, `False` on failure.** |
 
 ## 5. Implementation Requirements
 
