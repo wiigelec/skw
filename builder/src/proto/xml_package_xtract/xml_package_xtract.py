@@ -1,30 +1,32 @@
 """
-xml_package_extractor.py
-------------------------
+xml_package_extractor.py (lxml version)
+--------------------------------------
 
-Implements the XMLPackageExtractor class and a command-line wrapper.
+Implements the XMLPackageExtractor class using lxml for full XPath support.
 
 Reads configuration from a TOML file, extracts package data from an XML source
-using XPath-like patterns, and outputs structured results to JSON.
+using XPath expressions (with predicates, attributes, and text functions), and
+outputs structured results to JSON.
 
 Example usage:
-    python xml_package_extractor.py extract --xml book.xml --config config.toml --out packages.json
+    python xml_package_extractor.py extract --xml lfs-full.xml --config xml_package_xtract.toml --out lfs-packages.json
 """
 
 import argparse
 import json
 import sys
-import xml.etree.ElementTree as ET
 from typing import Any, Dict, List
+
+from lxml import etree  # Full XPath 1.0 support
 
 try:
     import tomllib  # Python 3.11+
 except ModuleNotFoundError:
-    import tomli as tomllib  # For older Python versions
+    import tomli as tomllib  # Fallback for Python <3.11
 
 
 class XMLPackageExtractor:
-    """Extracts package data from an XML document based on TOML-configured XPath rules."""
+    """Extracts package data from an XML document based on TOML-configured XPath rules (using lxml)."""
 
     def __init__(self, xml_file_path: str, output_json_path: str, config_file_path: str):
         self.xml_file_path = xml_file_path
@@ -44,17 +46,13 @@ class XMLPackageExtractor:
         self._load_config(config_file_path)
 
     # -----------------------------------------------------------
-    # CONFIG LOADING
+    # CONFIGURATION LOADING
     # -----------------------------------------------------------
     def _load_config(self, config_file_path: str):
         """Reads and validates configuration from a TOML file."""
         try:
-            if tomllib.__name__ == "tomllib":
-                with open(config_file_path, "rb") as f:
-                    config = tomllib.load(f)
-            else:
-                with open(config_file_path, "r", encoding="utf-8") as f:
-                    config = tomllib.load(f)
+            with open(config_file_path, "rb") as f:
+                config = tomllib.load(f)
         except FileNotFoundError:
             raise FileNotFoundError(f"Configuration file not found: {config_file_path}")
         except Exception as e:
@@ -82,59 +80,43 @@ class XMLPackageExtractor:
         print(f"[CONFIG] Loaded configuration for book: '{self.book_id}'")
 
     # -----------------------------------------------------------
-    # XML LOADING
-    # -----------------------------------------------------------
-    def _load_xml(self):
-        """Parses the XML file and returns the root element."""
-        try:
-            tree = ET.parse(self.xml_file_path)
-            return tree.getroot()
-        except FileNotFoundError:
-            raise FileNotFoundError(f"XML file not found: {self.xml_file_path}")
-        except ET.ParseError as e:
-            raise ValueError(f"Failed to parse XML file: {e}")
-
-    # -----------------------------------------------------------
-    # VALUE EXTRACTION
-    # -----------------------------------------------------------
-    def _extract_value(self, element: ET.Element, xpath: str) -> str:
-        """
-        Extracts a value using an XPath-like expression.
-
-        Supports:
-          - Attributes (./@attr)
-          - Element text (./child)
-        """
-        if not xpath:
-            return None
-
-        xpath = xpath.strip()
-        if xpath.startswith("./@"):  # attribute extraction
-            attr_name = xpath.replace("./@", "", 1)
-            return element.attrib.get(attr_name, None)
-
-        found = element.find(xpath)
-        if found is not None and found.text:
-            return found.text.strip()
-        return None
-
-    # -----------------------------------------------------------
-    # MAIN EXTRACTION LOGIC
+    # MAIN EXTRACTION LOGIC (LXML)
     # -----------------------------------------------------------
     def extract_and_save(self) -> Dict[str, Any]:
-        """Main public method to perform extraction and save to JSON."""
-        root = self._load_xml()
+        """Main method to perform extraction and save the output to JSON."""
+        try:
+            tree = etree.parse(self.xml_file_path)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"XML file not found: {self.xml_file_path}")
+        except etree.XMLSyntaxError as e:
+            raise ValueError(f"Failed to parse XML: {e}")
+
+        root = tree.getroot()
         print(f"[XML] Loaded XML root: {root.tag}")
+
+        # Use full XPath - supports predicates like [productname]
+        try:
+            nodes = tree.xpath(self.package_node_xpath)
+        except etree.XPathEvalError as e:
+            raise ValueError(f"Invalid XPath expression: {e}")
+
+        print(f"[XML] Found {len(nodes)} package nodes using: {self.package_node_xpath}")
 
         packages_data: List[Dict[str, Any]] = []
 
-        nodes = root.findall(self.package_node_xpath)
-        print(f"[XML] Found {len(nodes)} package nodes using: {self.package_node_xpath}")
+        for i, node in enumerate(nodes, start=1):
+            # Extract values using XPath expressions
+            try:
+                name = node.xpath(f"string({self.package_name_xpath})").strip()
+                version = node.xpath(f"string({self.package_version_xpath})").strip()
+            except etree.XPathEvalError as e:
+                print(f"[WARN] Invalid XPath on node {i}: {e}")
+                name, version = "N/A", "N/A"
 
-        for i, pkg_node in enumerate(nodes, start=1):
-            name = self._extract_value(pkg_node, self.package_name_xpath) or "N/A"
-            version = self._extract_value(pkg_node, self.package_version_xpath) or "N/A"
+            name = name or "N/A"
+            version = version or "N/A"
             print(f"[PKG] {i}. name={name}, version={version}")
+
             packages_data.append({"name": name, "version": version})
 
         output = {"book_id": self.book_id, "packages": packages_data}
@@ -148,17 +130,16 @@ class XMLPackageExtractor:
 
 
 # -----------------------------------------------------------
-# CLI WRAPPER
+# COMMAND LINE INTERFACE
 # -----------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
         prog="xml-package-extractor",
-        description="Extracts package data from XML using configurable TOML rules."
+        description="Extracts package data from XML using configurable TOML rules (powered by lxml XPath)."
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Extract subcommand
     extract_parser = subparsers.add_parser("extract", help="Run the XML extraction process")
     extract_parser.add_argument("--xml", required=True, help="Path to the input XML file")
     extract_parser.add_argument("--config", required=True, help="Path to the TOML configuration file")
