@@ -1,0 +1,16 @@
+[book]
+id = "lfs-12.1"
+# This ID is used for the output JSON metadata.
+
+[package]
+# Absolute XPath to find all package entries.
+# Example: Find all 'package' tags regardless of where they are in the XML.
+node_xpath = "//package" 
+
+# Relative XPath (from node_xpath) to find the package name.
+# Example: Assuming the name is stored as an attribute on the package tag.
+name_xpath = "./@name"            
+
+# Relative XPath (from node_xpath) to find the package version.
+# Example: Assuming the version is stored in a sub-element named 'version'.
+version_xpath = "./version"
