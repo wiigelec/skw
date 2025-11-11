@@ -1,8 +1,15 @@
+
+[lookup]
+package_xpath = "//chapter//sect1info[productname[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{name}')] and productnumber[contains(.,'{version}')]]"
+#package_xpath = "//chapter//sect1info[productname[contains(text(),'{name}')]]"
+
+
 [package]
+context_xpath = "//chapter//sect1info[productname and productnumber]"
 # Fields for basic package identification
-name = "./name"
-version = "./version"
-build_id = "./metadata/build-id"
+name = "./productname/text()"
+version = "./productnumber/text()"
+
 
 # Reference array pointing to child tables
 # When the converter processes this, it will substitute "source" and "dependencies"
@@ -10,20 +17,20 @@ build_id = "./metadata/build-id"
 child1 = [ "source", "dependencies" ]
 
 # A simple field nested under the package
-build_instructions = "./instructions/script/@path"
-description = "./description/text()"
+build_instructions = ""
+description = ""
 
 
 [source]
 # Fields related to the source archive/repository
 checksum_sha256 = "./source/checksum[@type='sha256']"
-urls = "./source/url/text()"
+urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'{name}') and contains(@url,'.tar')]/@url"
 
 
 [dependencies]
 # Fields that might return a list of values from the XML if the XPath is complex.
 # The converter will likely return a single concatenated string unless modified further.
-required = "./dependencies/required/package/text()"
-recommended = "./dependencies/recommended/package/text()"
-optional = "./dependencies/optional/package/text()"
-runtime = "./dependencies/runtime/package/text()"
+required = ""
+recommended = ""
+optional = ""
+runtime = ""
