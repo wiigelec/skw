@@ -77,9 +77,19 @@ class TomlToYamlConverter:
 
     def _write_yaml(self, data):
         """Write the final structured YAML."""
+        def to_dict(obj):
+            if isinstance(obj, OrderedDict):
+                return {k: to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, dict):
+                return {k: to_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [to_dict(x) for x in obj]
+            else:
+                return obj
+    
         with self.output_path.open("w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False)
-        print(f"✅ YAML written to: {self.output_path}")
+            yaml.safe_dump(to_dict(data), f, sort_keys=False)
+        print(f"YAML written to: {self.output_path}")
 
 def main():
     parser = argparse.ArgumentParser(description="Convert TOML to YAML structure.")
