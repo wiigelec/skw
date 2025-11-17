@@ -1,0 +1,29 @@
+####################################################################
+#
+#
+#
+####################################################################
+
+[book]
+title = ""
+rev = ""
+version = ""
+child1= [ "packages" ]
+
+[packages]
+chapter_id = ""
+section_id = ""
+package_name = ""
+package_version = ""
+child1 = [ "source", "dependencies" ]
+build_instructions = ""
+
+[source]
+checksums = ""
+urls = ""
+
+[dependencies]
+required = ""
+recommended = ""
+optional = ""
+runtime = ""
