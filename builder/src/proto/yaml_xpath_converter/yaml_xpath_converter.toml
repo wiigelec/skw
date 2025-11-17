@@ -35,19 +35,16 @@ child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
 build_instructions = ""
 
 [source]
-# Fields related to the source archive/repository
-url = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(term,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-checksum = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(term,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+url = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 [additional_downloads]
-urls = "//sect1[@id='ch-materials-patches']//ulink[contains(@url,'{name}') and contains(@url,'.tar')]/@url"
-checksums = ".//listitem//literal/text()"
-
-
-[patches]
-# Fields related to the source archive/repository
 urls = ""
 checksums = ""
+
+[patches]
+url = "//sect1[@id='ch-materials-patches']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-patches']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 
 [dependencies]
