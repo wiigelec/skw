@@ -5,15 +5,16 @@
 ####################################################################
 
 [package]
-name = ""
-version = ""
+xpath = "//chapter//sect1info[productname and productnumber]"
+name = "./productname/text()"
+version = "./productnumber/text()"
 book_title = ""
 book_ver = ""
 book_rev = ""
-chapter_id = ""
-section_id = ""
+chapter_id = "./ancestor::chapter/@id"
+section_id = "./ancestor::sect1/@id"
 child1 = [ "source", "patches", "additional_downloads", "dependencies" ]
-build_instructions = ""
+build_instructions = "./ancestor::sect1//screen[not(@role=\"nodump\")]/userinput/text()"
 
 [source]
 urls = ""
