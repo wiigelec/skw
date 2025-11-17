@@ -17,17 +17,17 @@ child1 = [ "source", "patches", "additional_downloads", "dependencies" ]
 build_instructions = "./ancestor::sect1//screen[not(@role=\"nodump\")]/userinput/text()"
 
 [source]
-urls = ""
-checksums = ""
+url = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 [patches]
-urls = ""
-checksums = ""
+url = "//sect1[@id='ch-materials-patches']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-patches']//varlistentry[contains(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
 
 [additional_downloads]
 urls = ""
 checksums = ""
-
 
 [dependencies]
 required = ""
