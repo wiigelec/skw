@@ -4,23 +4,29 @@
 #
 ####################################################################
 
-[book]
-title = ""
-rev = ""
+[package]
+name = ""
 version = ""
-child1= [ "packages" ]
-
-[packages]
+book_title = ""
+book_ver = ""
+book_rev = ""
 chapter_id = ""
 section_id = ""
-package_name = ""
-package_version = ""
-child1 = [ "source", "dependencies" ]
+child1 = [ "source", "patches", "additional_downloads", "dependencies" ]
 build_instructions = ""
 
 [source]
-checksums = ""
 urls = ""
+checksums = ""
+
+[patches]
+urls = ""
+checksums = ""
+
+[additional_downloads]
+urls = ""
+checksums = ""
+
 
 [dependencies]
 required = ""
