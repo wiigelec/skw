@@ -14,9 +14,10 @@ class TomlXmlToYamlConverter:
     Features:
     - Follows TOML structure and order.
     - Each [section] defines an XPath; child* keys define nested sections.
-    - Supports {field} placeholders that inherit from parent context.
+    - Supports {field} placeholders and {xpath_index} (1-based iteration index).
+    - Inherits parent context for placeholder resolution.
     - Generates one YAML file per match of the first section.
-    - File names derived from first two resolved fields.
+    - File names derived from the first two resolved fields.
     - Pretty prints multiline values using | blocks.
     """
 
@@ -46,41 +47,63 @@ class TomlXmlToYamlConverter:
 
     # === VALUE EXTRACTION ===
     def _extract_value(self, node, xpath_expr, context=None):
-        """Extract values relative to a node; supports {field} placeholders."""
+        """Extract values relative to a node; supports {field}, {xpath_index}, and {xpath_index_padded} placeholders."""
         if not xpath_expr or not xpath_expr.strip():
             return ""
-
-        # Substitute placeholders with context values
+    
+        # Inject {xpath_index} placeholders (if present in context)
+        index_val = context.get("__xpath_index__", "") if context else ""
+        int_index = int(index_val) if str(index_val).isdigit() else 0
+        padded_index = f"{int_index:04d}"
+    
+        # Substitute field placeholders
         if context:
             for key, val in context.items():
+                if key == "__xpath_index__":
+                    continue
                 if isinstance(val, list):
                     val = val[0] if val else ""
                 safe_val = str(val).replace("'", "&apos;").replace('"', "&quot;")
                 xpath_expr = xpath_expr.replace(f"{{{key}}}", safe_val)
-
+    
+        # Replace {xpath_index} and {xpath_index_padded}
+        if "{xpath_index}" in xpath_expr:
+            try:
+                formatted_index = f"{int(index_val):04d}"
+            except (TypeError, ValueError):
+                formatted_index = "0000"
+            xpath_expr = xpath_expr.replace("{xpath_index}", f"'{formatted_index}'")
+    
         try:
             vals = node.xpath(xpath_expr)
         except etree.XPathEvalError:
             return ""
-
+    
+        # Normalize scalar return types
+        if isinstance(vals, (str, int, float)):
+            vals = [str(vals)]
+        elif isinstance(vals, bool):
+            vals = [str(vals).lower()]
+    
         results = []
         for v in vals:
             if isinstance(v, etree._Element):
                 results.append((v.text or "").strip())
             elif isinstance(v, (str, int, float)):
                 results.append(str(v).strip())
-
+    
         if not results:
             return ""
-        
+    
         # Collapse character lists (from substring or string() results)
         if len(results) > 1 and all(isinstance(x, str) and len(x) == 1 for x in results):
             return "".join(results)
-
+    
         return results if len(results) > 1 else results[0]
 
+
     # === SECTION RESOLUTION ===
-    def _resolve_section(self, section_name, context_node=None, context=None):
+    def _resolve_section(self, section_name, context_node=None, context=None, index=None):
         """Recursively resolve a section, following TOML order and childN positioning."""
         section = self.toml_data[section_name]
         result = OrderedDict()
@@ -89,6 +112,7 @@ class TomlXmlToYamlConverter:
         if context is None:
             context = {}
         local_context = context.copy()
+        local_context["__xpath_index__"] = int(index or context.get("__xpath_index__", 0))
 
         # Determine which XML nodes to iterate over
         base_xpath = section.get("xpath", "")
@@ -100,9 +124,12 @@ class TomlXmlToYamlConverter:
             except etree.XPathEvalError:
                 nodes = []
 
-        # Top-level multi-node logic
+        # Handle top-level multi-node logic with enumeration (1-based)
         if context_node is None and nodes and section_name == list(self.toml_data.keys())[0]:
-            return [self._resolve_section(section_name, node, context) for node in nodes]
+            return [
+                self._resolve_section(section_name, node, context, idx + 1)
+                for idx, node in enumerate(nodes)
+            ]
 
         node = nodes[0] if nodes else None
 
@@ -143,7 +170,7 @@ class TomlXmlToYamlConverter:
 
     # === PRETTY YAML WRITER ===
     def _write_yaml(self, data, filepath):
-        """Pretty-print YAML with readable multiline block strings."""
+        """Pretty-print YAML with readable multiline block strings and clean lists."""
         def to_dict(obj):
             if isinstance(obj, OrderedDict):
                 return {k: to_dict(v) for k, v in obj.items()}
@@ -155,9 +182,16 @@ class TomlXmlToYamlConverter:
                 return obj
 
         class LiteralString(str): pass
-        
+
         def literal_representer(dumper, data):
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+
+        def sequence_representer(dumper, data):
+            """Force block style for lists (avoid inline [a, b, c])"""
+            return dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=False)
+
+        yaml.add_representer(LiteralString, literal_representer)
+        yaml.add_representer(list, sequence_representer)
 
         def prepare_literals(obj):
             if isinstance(obj, str) and "\n" in obj:
@@ -168,7 +202,6 @@ class TomlXmlToYamlConverter:
                 return {k: prepare_literals(v) for k, v in obj.items()}
             return obj
 
-        yaml.add_representer(LiteralString, literal_representer)
         clean_data = prepare_literals(to_dict(data))
 
         with filepath.open("w", encoding="utf-8") as f:
