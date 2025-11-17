@@ -1,15 +1,29 @@
 
+#------------------------------------------------------------------#
+#
+#
+#
+#------------------------------------------------------------------#
+
+
+#------------------------------------------------------------------#
+#
+#------------------------------------------------------------------#
+
 [lookup]
 package_xpath = "//chapter//sect1info[productname[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{name}')] and productnumber[contains(.,'{version}')]]"
-#package_xpath = "//chapter//sect1info[productname[contains(text(),'{name}')]]"
 
+#------------------------------------------------------------------#
+#
+#------------------------------------------------------------------#
 
 [package]
 context_xpath = "//chapter//sect1info[productname and productnumber]"
 # Fields for basic package identification
 name = "./productname/text()"
 version = "./productnumber/text()"
-
+chapter_id = ""
+section_id = ""
 
 # Reference array pointing to child tables
 # When the converter processes this, it will substitute "source" and "dependencies"
