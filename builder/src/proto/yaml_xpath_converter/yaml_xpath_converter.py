@@ -259,20 +259,51 @@ class TomlToYamlXPathConverter:
     # Output
     # ---------------------------
 
-    def _write_yaml(self, data):
-        """Write the final structure as YAML."""
-        with self.output_yaml_path.open("w", encoding="utf-8") as f:
+    def _write_yaml(self, data, package_name: str, package_version: str):
+        """Write a single package structure as YAML in the output directory."""
+        # Ensure output directory exists
+        self.output_yaml_path.mkdir(parents=True, exist_ok=True)
+
+        # Safe filename
+        filename = f"{package_name}-{package_version}.yaml".replace("/", "_")
+        output_path = self.output_yaml_path / filename
+
+        with output_path.open("w", encoding="utf-8") as f:
             yaml.dump(data, f, indent=2, sort_keys=False)
-        print(f"YAML written to: {self.output_yaml_path}")
+
+        print(f"[INFO] YAML written: {output_path}")
 
     # ---------------------------
     # Public API
     # ---------------------------
 
     def convert(self):
-        """Run the full conversion pipeline."""
-        data = self._build_structure()
-        self._write_yaml(data)
+        """Run the full conversion pipeline and write one YAML per package."""
+        print("[INFO] Starting per-package YAML generation...")
+        for pkg in self.package_list:
+            name = pkg.get("name")
+            version = pkg.get("version")
+            if not name or not version:
+                continue
+
+            xml_node = self._find_xml_package_node(name, version)
+            if xml_node is None:
+                print(f"[WARN] No XML node found for {name}-{version}")
+                continue
+
+            # --- Set current package context (needed for XPath placeholders) ---
+            self.current_package_name = name
+            self.current_package_version = version
+
+            # --- Build data for this package ---
+            package_data = OrderedDict()
+            for section, content in self.toml_data.items():
+                if section == "lookup" or self._is_child(section):
+                    continue
+                package_data[section] = self._resolve_children(content, xml_node)
+
+            # --- Write individual YAML ---
+            self._write_yaml(package_data, name, version)
 
 
 # ---------------------------
@@ -281,18 +312,18 @@ class TomlToYamlXPathConverter:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert TOML + XML + JSON to structured YAML via XPath lookups."
+    description="Convert TOML + XML + JSON to structured YAML files per package."
     )
     parser.add_argument("toml", help="Path to input TOML configuration.")
     parser.add_argument("xml", help="Path to source XML file.")
     parser.add_argument("json", help="Path to input JSON package list.")
-    parser.add_argument("yaml", help="Path to output YAML file.")
-
+    parser.add_argument("outdir", help="Directory to write YAML files into.")
+    
     args = parser.parse_args()
-
+    
     converter = TomlToYamlXPathConverter(
         input_toml_path=args.toml,
-        output_yaml_path=args.yaml,
+        output_yaml_path=Path(args.outdir),  # now directory
         xml_path=args.xml,
         input_json_path=args.json,
     )
