@@ -22,23 +22,32 @@ context_xpath = "//chapter//sect1info[productname and productnumber]"
 # Fields for basic package identification
 name = "./productname/text()"
 version = "./productnumber/text()"
-chapter_id = ""
-section_id = ""
+chapter_id = "./ancestor::chapter/@id"
+section_id = "./ancestor::sect1/@id"
+
 
 # Reference array pointing to child tables
 # When the converter processes this, it will substitute "source" and "dependencies"
 # with the actual table definitions below, making them nested objects.
-child1 = [ "source", "dependencies" ]
+child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
 
 # A simple field nested under the package
 build_instructions = ""
-description = ""
-
 
 [source]
 # Fields related to the source archive/repository
-checksum_sha256 = "./source/checksum[@type='sha256']"
-urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'{name}') and contains(@url,'.tar')]/@url"
+url = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(term,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-packages']//varlistentry[contains(translate(term,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+[additional_downloads]
+urls = "//sect1[@id='ch-materials-patches']//ulink[contains(@url,'{name}') and contains(@url,'.tar')]/@url"
+checksums = ".//listitem//literal/text()"
+
+
+[patches]
+# Fields related to the source archive/repository
+urls = ""
+checksums = ""
 
 
 [dependencies]
