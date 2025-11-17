@@ -6,6 +6,7 @@
 
 [package]
 xpath = "//chapter//sect1info[productname and productnumber]"
+build_order = "{xpath_index}"
 name = "translate(./productname/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
 version = "./productnumber/text()"
 book_title = "//bookinfo/title/text()"
@@ -51,6 +52,8 @@ checksum = """
   )
 ]//para[contains(.,'MD5')]//literal/text()
 """
+#]//para[contains(.,'MD5')]//literal/text()
+
 
 [patches]
 url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
