@@ -72,6 +72,11 @@ class TomlXmlToYamlConverter:
 
         if not results:
             return ""
+        
+        # Collapse character lists (from substring or string() results)
+        if len(results) > 1 and all(isinstance(x, str) and len(x) == 1 for x in results):
+            return "".join(results)
+
         return results if len(results) > 1 else results[0]
 
     # === SECTION RESOLUTION ===
@@ -150,7 +155,7 @@ class TomlXmlToYamlConverter:
                 return obj
 
         class LiteralString(str): pass
-
+        
         def literal_representer(dumper, data):
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
 
