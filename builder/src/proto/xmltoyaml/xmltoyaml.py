@@ -9,15 +9,15 @@ from lxml import etree
 
 class TomlXmlToYamlConverter:
     """
-    Converts an XML document into YAML following the structure and order
-    defined by a TOML mapping.
+    Converts XML + TOML mappings into multiple ordered, pretty YAML files.
 
     Features:
-    - Each [section] may define an XPath selecting nodes.
-    - Keys define relative XPaths evaluated on each node.
-    - child* arrays embed child sections inline, respecting TOML order.
-    - Multiple matches in the first section create separate YAML files.
-    - Output file names are derived from the first two field values.
+    - Follows TOML structure and order.
+    - Each [section] defines an XPath; child* keys define nested sections.
+    - Supports {field} placeholders that inherit from parent context.
+    - Generates one YAML file per match of the first section.
+    - File names derived from first two resolved fields.
+    - Pretty prints multiline values using | blocks.
     """
 
     def __init__(self, xml_path: str, toml_path: str, output_dir: str):
@@ -27,14 +27,14 @@ class TomlXmlToYamlConverter:
         self.toml_data = OrderedDict()
         self.xml_tree = None
 
-    # --- Core entrypoint ---
+    # === MAIN ENTRYPOINT ===
     def convert(self):
         self._load_toml()
         self._load_xml()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._generate_yaml_files()
 
-    # --- Loading functions ---
+    # === LOADERS ===
     def _load_toml(self):
         with self.toml_path.open("r", encoding="utf-8") as f:
             self.toml_data = toml.load(f, _dict=OrderedDict)
@@ -44,30 +44,48 @@ class TomlXmlToYamlConverter:
         with self.xml_path.open("r", encoding="utf-8") as f:
             self.xml_tree = etree.parse(f, parser)
 
-    # --- Helper for extracting values from XML ---
-    def _extract_value(self, node, xpath_expr):
+    # === VALUE EXTRACTION ===
+    def _extract_value(self, node, xpath_expr, context=None):
+        """Extract values relative to a node; supports {field} placeholders."""
         if not xpath_expr or not xpath_expr.strip():
             return ""
+
+        # Substitute placeholders with context values
+        if context:
+            for key, val in context.items():
+                if isinstance(val, list):
+                    val = val[0] if val else ""
+                safe_val = str(val).replace("'", "&apos;").replace('"', "&quot;")
+                xpath_expr = xpath_expr.replace(f"{{{key}}}", safe_val)
+
         try:
             vals = node.xpath(xpath_expr)
         except etree.XPathEvalError:
             return ""
+
         results = []
         for v in vals:
             if isinstance(v, etree._Element):
                 results.append((v.text or "").strip())
             elif isinstance(v, (str, int, float)):
                 results.append(str(v).strip())
+
         if not results:
             return ""
         return results if len(results) > 1 else results[0]
 
-    # --- Recursive TOML-driven builder ---
-    def _resolve_section(self, section_name, context_node=None):
+    # === SECTION RESOLUTION ===
+    def _resolve_section(self, section_name, context_node=None, context=None):
+        """Recursively resolve a section, following TOML order and childN positioning."""
         section = self.toml_data[section_name]
         result = OrderedDict()
 
-        # Determine which nodes to iterate over
+        # Merge parent context if any
+        if context is None:
+            context = {}
+        local_context = context.copy()
+
+        # Determine which XML nodes to iterate over
         base_xpath = section.get("xpath", "")
         if context_node is not None:
             nodes = [context_node]
@@ -77,25 +95,28 @@ class TomlXmlToYamlConverter:
             except etree.XPathEvalError:
                 nodes = []
 
-        # If this is the top-level section, build a list of entries
+        # Top-level multi-node logic
         if context_node is None and nodes and section_name == list(self.toml_data.keys())[0]:
-            return [self._resolve_section(section_name, node) for node in nodes]
+            return [self._resolve_section(section_name, node, context) for node in nodes]
 
         node = nodes[0] if nodes else None
 
-        # Walk through TOML keys in order, respecting childN position
+        # Follow TOML-defined order
         for key, value in section.items():
             if key == "xpath":
                 continue
+
             if key.startswith("child"):
                 for child_name in value:
-                    result[child_name] = self._resolve_section(child_name, node)
+                    result[child_name] = self._resolve_section(child_name, node, local_context)
             else:
-                result[key] = self._extract_value(node, value) if node is not None else ""
+                val = self._extract_value(node, value, local_context) if node is not None else ""
+                result[key] = val
+                local_context[key] = val  # Make available for placeholder substitution
 
         return result
 
-    # --- Multi-file generation ---
+    # === OUTPUT GENERATION ===
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
         entries = self._resolve_section(top_section)
@@ -115,9 +136,9 @@ class TomlXmlToYamlConverter:
             filepath = self.output_dir / filename
             self._write_yaml(entry, filepath)
 
-    # --- YAML writer ---
+    # === PRETTY YAML WRITER ===
     def _write_yaml(self, data, filepath):
-        """Pretty-print YAML with readable multiline and indentation."""
+        """Pretty-print YAML with readable multiline block strings."""
         def to_dict(obj):
             if isinstance(obj, OrderedDict):
                 return {k: to_dict(v) for k, v in obj.items()}
@@ -127,15 +148,13 @@ class TomlXmlToYamlConverter:
                 return [to_dict(x) for x in obj]
             else:
                 return obj
-    
+
         class LiteralString(str): pass
-    
+
         def literal_representer(dumper, data):
-            """Represent multiline strings with '|' literal block style."""
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
-    
+
         def prepare_literals(obj):
-            """Recursively wrap multiline strings in LiteralString for YAML output."""
             if isinstance(obj, str) and "\n" in obj:
                 return LiteralString(obj)
             elif isinstance(obj, list):
@@ -143,11 +162,10 @@ class TomlXmlToYamlConverter:
             elif isinstance(obj, dict):
                 return {k: prepare_literals(v) for k, v in obj.items()}
             return obj
-    
+
         yaml.add_representer(LiteralString, literal_representer)
-    
         clean_data = prepare_literals(to_dict(data))
-    
+
         with filepath.open("w", encoding="utf-8") as f:
             yaml.dump(
                 clean_data,
@@ -161,10 +179,9 @@ class TomlXmlToYamlConverter:
         print(f"Wrote: {filepath}")
 
 
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Convert XML + TOML mapping into multiple ordered YAML files."
+        description="Convert XML + TOML mapping into multiple ordered YAML files with placeholder resolution."
     )
     parser.add_argument("xml", help="Path to input XML file.")
     parser.add_argument("toml", help="Path to TOML mapping file.")
