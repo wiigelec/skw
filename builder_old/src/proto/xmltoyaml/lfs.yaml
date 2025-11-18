@@ -1,0 +1,15 @@
+name: ''
+version: ''
+build_order: ''
+book_title: ''
+book_ver: ''
+book_rev: ''
+chapter_id: ''
+section_id: ''
+source:
+  url: ''
+  checksum: ''
+patches:
+  url: ''
+  checksum: ''
+build_instructions: ''
