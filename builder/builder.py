@@ -12,7 +12,7 @@ from skwparse.skw_parser import SKWParser
 #from skw_executer import SKWExecuter
 
 class Builder:
-    def __init__(self, config_path="builder/builder.toml", skel_dir="src/config/skel"):
+    def __init__(self, config_path="builder/builder.toml"):
         if not os.path.exists(config_path):
             sys.exit("FATAL ERROR: builder.toml not found.")
 
@@ -22,7 +22,6 @@ class Builder:
         self.build_dir = os.path.abspath(cfg["paths"]["build_dir"])
         self.package_dir = os.path.abspath(cfg["paths"]["package_dir"])
         self.profiles_dir = os.path.abspath(cfg["paths"]["profiles_dir"])
-        self.skel_dir = os.path.abspath(skel_dir)
 
         os.makedirs(self.build_dir, exist_ok=True)
         #os.makedirs(self.package_dir, exist_ok=True)
@@ -36,7 +35,7 @@ class Builder:
             sys.exit(f"Book {name} already exists in profiles/")
         os.makedirs(book_path, exist_ok=True)
 
-        src = os.path.join(self.skel_dir, "book.toml.skel")
+        src = os.path.join(profiles_dir, "book.toml.template")
         dst = os.path.join(book_path, "book.toml")
         shutil.copyfile(src, dst)
 
