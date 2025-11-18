@@ -12,7 +12,7 @@ from skwparse.skw_parser import SKWParser
 #from skw_executer import SKWExecuter
 
 class Builder:
-    def __init__(self, config_path="builder.toml", skel_dir="src/config/skel"):
+    def __init__(self, config_path="builder/builder.toml", skel_dir="src/config/skel"):
         if not os.path.exists(config_path):
             sys.exit("FATAL ERROR: builder.toml not found.")
 
