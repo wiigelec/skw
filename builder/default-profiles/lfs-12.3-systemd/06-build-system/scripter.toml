@@ -1,0 +1,140 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_json = "build/parser/<profile>/parser_output.json"
+default_template = "template.script"
+
+[global]
+regex = [ "r@make.*check.*@@", 
+	  "r@make.*test.*@@", 
+	  "r@ninja.*test.*@@", 
+	  "r@.*tester.*@@", 
+	  "r@.*test_summary.*@@",
+	  "r@make(?: (.*))? install@make DESTDIR=$DESTDIR \\g<1> install@",
+ 	  "r@(mkdir\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+	  "r@(ln)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(rm)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(install)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+	  "r@(chmod)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+ 	  "r@(cat >) (/.*)@\\1 $DESTDIR\\2@",
+ 	  "r@(cat >>) (/.*)@\\1 $DESTDIR\\2@",
+ 	  "r@(touch) (/.*)@\\1 $DESTDIR\\2@",
+]
+
+[ch-system-iana-etc]
+regex = [ "r@(### START BUILD COMMANDS ###)@\\1\\n\\nmkdir -pv $DESTDIR/etc@" ]
+
+[ch-system-glibc]
+regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@",
+          "r@make (localedata.*)@make DESTDIR=$DESTDIR \\1@",
+          "r@ZONEINFO=(.*)@ZONEINFO=$DESTDIR\\1@",
+          "r@(touch \\$DESTDIR/etc/ld\\.so\\.conf)@mkdir -p $DESTDIR/etc\\n\\1@"
+]
+
+[ch-system-bzip2]
+regex = [ "r@(make DESTDIR.*install)@\\1\\nmkdir -p $DESTDIR/usr/{lib,bin}",
+	  "r@for i in /@for i in $DESTDIR/@" 
+]
+
+[ch-system-binutils]
+regex = [ "r@grep '\\^FAIL:.*@@" ]
+
+[ch-system-gmp]
+regex = [ "r@.*gmp-check-log@@" ]
+
+[ch-system-shadow]
+regex = [ "r@(touch .*/passwd)@mkdir -p $DESTDIR/usr/bin\\n\\1@",
+	  "r@(?s)pwconv.*?/etc/default/useradd\\n?@@"
+]
+
+[ch-system-gcc]
+regex = [ "r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
+	  "r@(?s)echo 'int main\\(\\).*?rm -v dummy.c a.out dummy.log\\n?@@",
+	  "r@    /usr/lib@    $DESTDIR/usr/lib@",
+	  "r@\\$\\(gcc -dumpmachine\\)@x86_64-pc-linux-gnu@",
+	  "r@(.*liblto_plugin.so.*)@mkdir -p $DESTDIR/usr/lib/bfd-plugins/\\n\\1@"
+]
+
+[ch-system-ncurses]
+regex = [ "s@make DESTDIR=$DESTDIR@make@",
+	  "r@(install .*/usr/lib)@mkdir -p $DESTDIR/usr/lib\\n\\1@",
+	  "r@(cp .*/usr/share/doc)@mkdir -p $DESTDIR/usr/share/doc\\n\\1@"
+]
+
+[ch-system-bash]
+regex = [ "r@(?s)set timeout.*?EOF\\n?@@" ]
+
+[ch-system-inetutils]
+regex = [ "r@(mv .*DESTDIR/usr/.*)@mkdir -p $DESTDIR/usr/sbin\\n\\1@" ]
+
+[ch-system-libelf]
+regex = [ "r@(install .*/usr/lib/pkgconfig)@mkdir -p $DESTDIR/usr/lib/pkgconfig\\n\\1@" ]
+
+[ch-system-Python]
+regex = [ "r@(cat .*/etc/)@mkdir -p $DESTDIR/etc\\n\\1@",
+	  "s@-C /usr/share/doc/python-3.13.2/html@-C $DESTDIR/usr/share/doc/python-3.13.2/html@" 
+]
+
+[ch-system-ninja]
+regex = [ "r@(python3 configure\\.py.*)@\\1\\nmkdir -p $DESTDIR/usr/bin\\nmkdir -p $DESTDIR/usr/share/bash-completions/completions\\nmkdir -p $DESTDIR/usr/share/zsh/site-functions@" ]
+
+[ch-system-coreutils]
+regex = [ "r@.*< /dev/null@@", "s@groupdel dummy@@",
+	  "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/sbin\\nmkdir -p $DESTDIR/usr/share/man/man8@",
+	  "r@(sed .*) (/usr.*)@\\1 $DESTDIR\\2@"
+]
+
+[ch-system-groff]
+regex = [ "r@<paper_size>@letter@" ]
+
+[ch-system-grub]
+regex = [ "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/share/bash-completion/completions" ]
+
+[ch-system-kbd]
+regex = [ "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/share/doc" ]
+
+[ch-system-vim]
+regex = [ "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/bin\\nmkdir -p $DESTDIR/usr/share/doc\\nmkdir -p $DESTDIR/etc",
+	  "s@for L in  /usr@for L in  $DESTDIR/usr@" 
+]
+
+[ch-system-dbus]
+regex = [ "r@(ninja install)@\\1\\nmkdir -p $DESTDIR/var/lib/dbus" ]
+
+[ch-system-util-linux]
+regex = [ "r@(make)\\n@\\1\\nmkdir -p $DESTDIR/etc\\n" ]
+
+[ch-system-e2fsprogs]
+regex = [ "s@gunzip -v /usr@gunzip -v $DESTDIR/usr" ]
+
+[ch-system-stripping]
+template = "chroot-nosrc.script"
+
+[ch-system-cleanup]
+template = "chroot-nosrc.script"
+
+
+# Chapter-specific filters
+# Example:
+# [<chapter>]
+# template = "chapter.script"
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [<section>]
+# template = "section.script"
+# regex = []
+
+# Package-specific filters
+# Example:
+# [<package>]
+# template = "package.script"
+# regex = []
+

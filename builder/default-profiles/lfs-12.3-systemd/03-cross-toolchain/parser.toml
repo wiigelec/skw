@@ -1,0 +1,49 @@
+# ================================================================
+# Parser Configuration
+# ================================================================
+
+[main]
+xml_path = "build/books/${book}/lfs-full.xml"
+output_file = "parser_output.json"
+
+[xpaths]
+source_book = ""
+chapter_id = "//chapter"
+section_id = "./sect1"
+package_name = "./sect1info/productname/text()"
+package_version = "./sect1info/productnumber/text()"
+source_titles = ""
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,substring-before('${package_name}','-')) and contains(@url,'.tar')]/@url"
+source_checksums = ".//listitem//literal/text()"
+dependencies = ""
+build_instructions = ".//screen[not(@role=\"nodump\")]/userinput"
+
+
+#------------------------------------------------------------------#
+# XPATH overrides
+#------------------------------------------------------------------#
+
+[ch-tools-linux-headers.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'kernel/') and contains(@url,'linux-')]/@url"
+
+[ch-tools-glibc.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'${package_name}') and contains(@url,'.tar')]/@url"
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = [ "chapter-cross-tools" ]
+exclude  = []
+
+[section_filters]
+include  = []
+exclude  = [ "ch-tools-introduction" ]
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+

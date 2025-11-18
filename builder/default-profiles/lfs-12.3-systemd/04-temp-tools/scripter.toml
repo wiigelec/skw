@@ -1,0 +1,30 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_json = "build/parser/<profile>/parser_output.json"
+default_template = "template.script"
+
+[global]
+regex = []
+
+
+# Chapter-specific filters
+# Example:
+# [<chapter>]
+# template = "chapter.script"
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [<section>]
+# template = "section.script"
+# regex = []
+
+# Package-specific filters
+# Example:
+# [<package>]
+# template = "package.script"
+# regex = []
+
