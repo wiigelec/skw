@@ -2,7 +2,7 @@
 import os
 import sys
 import glob
-import tomllib
+import toml
 import argparse
 import shutil
 import subprocess
@@ -14,10 +14,10 @@ from skw_executer import SKWExecuter
 class Builder:
     def __init__(self, config_path="builder.toml", skel_dir="src/config/skel"):
         if not os.path.exists(config_path):
-            sys.exit("Error: builder.toml not found. Run skw-build --configure first.")
+            sys.exit("FATAL ERROR: builder.toml not found.")
 
         with open(config_path, "rb") as f:
-            cfg = tomllib.load(f)
+            cfg = toml.load(f)
 
         self.build_dir = os.path.abspath(cfg["paths"]["build_dir"])
         self.package_dir = os.path.abspath(cfg["paths"]["package_dir"])
@@ -107,7 +107,7 @@ class Builder:
             sys.exit(f"book.toml not found for {book}. Did you run add-book?")
 
         with open(book_path, "rb") as f:
-            book_cfg = tomllib.load(f)["main"]
+            book_cfg = toml.load(f)["main"]
 
         repo_path = book_cfg["repo_path"]
         version = book_cfg["version"]
