@@ -30,7 +30,7 @@ checksum = ""
 
 
 [dependencies]
-required = ".//para[@role='required']//xref[not @role='runtime']/@linkend"
-recommended = ".//para[@role='recommended']//xref[not @role='runtime']/@linkend"
+required = ".//para[@role='required']//xref[@role != 'runtime' or not(@role)]/@linkend"
+recommended = ".//para[@role='recommended']//xref[@role != 'runtime' or not(@role)]/@linkend"
 optional = ".//para[@role='optional']//xref/@linkend"
 runtime = ".//para//xref[@role='runtime']/@linkend"
