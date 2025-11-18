@@ -50,6 +50,9 @@ class TomlXmlToYamlConverter:
         """Extract values relative to a node; supports {field}, {xpath_index}, and {xpath_index_padded} placeholders."""
         if not xpath_expr or not xpath_expr.strip():
             return ""
+            
+        if node is None:
+            return ""
     
         # Inject {xpath_index} placeholders (if present in context)
         index_val = context.get("__xpath_index__", "") if context else ""
