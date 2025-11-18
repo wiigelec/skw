@@ -2,10 +2,10 @@
 
 [paths]
 # Workspace for cloning and building book sources
-build_dir = "build"
+build_dir = "builder/build"
 
 # Directory for storing final packages (future use)
-package_dir = "packages/${book}/${profile}"
+package_dir = "builder/${book}/${profile}/packages"
 
 # Directory containing all book and profile configurations
-profiles_dir = "default-profiles"
+profiles_dir = "builder/default-profiles"
