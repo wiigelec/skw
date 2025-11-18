@@ -185,7 +185,6 @@ def main():
 
     p = sub.add_parser("parse")
     p.add_argument("--book", required=True)
-    p.add_argument("--profile", required=True)
 
     p = sub.add_parser("script")
     p.add_argument("--book", required=True)
