@@ -25,7 +25,7 @@ class SKWParser:
         # Resolve default paths
         self.xml_path = self.build_dir / "books" / book / "book.xml"
         self.toml_path = self.profiles_dir / book / "profile" / "parser_map.toml"
-        self.output_dir = self.build_dir / "parser" / book / profile
+        self.output_dir = self.build_dir / "parser" / book / "profile"
 
         # Validate environment
         if not self.xml_path.exists():
