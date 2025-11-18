@@ -73,7 +73,7 @@ class TomlXmlToYamlConverter:
             except (TypeError, ValueError):
                 formatted_index = "0000"
             xpath_expr = xpath_expr.replace("{xpath_index}", f"'{formatted_index}'")
-    
+                
         try:
             vals = node.xpath(xpath_expr)
         except etree.XPathEvalError:
@@ -145,6 +145,40 @@ class TomlXmlToYamlConverter:
                 val = self._extract_value(node, value, local_context) if node is not None else ""
                 result[key] = val
                 local_context[key] = val  # Make available for placeholder substitution
+                
+        # --- Post-process name_version splitting ---
+        if "name_version" in result and isinstance(result["name_version"], str):
+            nv_value = result["name_version"].strip()
+
+            # Split on the last dash to separate name and version
+            if "-" in nv_value:
+                n, v = nv_value.rsplit("-", 1)
+            else:
+                n, v = nv_value, ""
+
+            # Strip trailing spaces and comments from version
+            v = v.strip()
+            if " " in v:
+                v = v.split(" ", 1)[0]
+
+            # Clean name too (in case of trailing whitespace)
+            n = n.strip()
+
+            # Store values back
+            local_context["name"] = n
+            local_context["version"] = v
+            result["name_version"] = nv_value
+
+            
+            # --- Re-evaluate XPaths containing {name} or {version} now that context is ready ---
+            for field, xpath_expr in section.items():
+                if not isinstance(xpath_expr, str):
+                    continue
+                if "{" in xpath_expr and ("{name}" in xpath_expr or "{version}" in xpath_expr):
+                    new_val = self._extract_value(node, xpath_expr, local_context)
+                    if new_val is not None and new_val != "":
+                        result[field] = new_val
+
 
         return result
 
