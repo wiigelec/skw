@@ -211,7 +211,7 @@ def main():
     elif args.command == "install-book":
         builder.install_book(args.book)
     elif args.command == "parse":
-        builder.parse_book(args.book, args.profile)
+        builder.parse_book(args.book)
     elif args.command == "script":
         builder.script_book(args.book, args.profile)
     elif args.command == "execute":
