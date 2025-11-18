@@ -16,7 +16,7 @@ class Builder:
         if not os.path.exists(config_path):
             sys.exit("FATAL ERROR: builder.toml not found.")
 
-        with open(config_path, "rb") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
 
         self.build_dir = os.path.abspath(cfg["paths"]["build_dir"])
