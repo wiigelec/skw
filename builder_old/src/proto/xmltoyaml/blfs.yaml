@@ -1,0 +1,21 @@
+name: ''
+version: ''
+name_version: ''
+book_title: ''
+book_ver: ''
+book_rev: ''
+source:
+  url: ''
+  checksum: ''
+additional_downloads:
+  url: ''
+  checksum: ''
+patches:
+  url: ''
+  checksum: ''
+dependencies:
+  required: ''
+  recommended: ''
+  optional: ''
+  runtime: ''
+build_instructions: ''
