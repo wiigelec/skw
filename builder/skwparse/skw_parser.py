@@ -23,7 +23,8 @@ class SKWParser:
         self.book = book
 
         # Resolve default paths
-        self.xml_path = self.build_dir / "books" / book / "book.xml"
+        self.cfg = self.profiles_dir / book / "skwparser.cfg"
+        self.xml_path = self._substitute(self.cfg["main"]["xml_path"])
         self.toml_path = self.profiles_dir / book / "profile" / "parser_map.toml"
         self.output_dir = self.build_dir / "parser" / book / "profile"
 
