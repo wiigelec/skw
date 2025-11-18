@@ -17,11 +17,10 @@ class SKWParser:
     - Converts XML into multiple ordered YAML files according to TOML mappings.
     """
 
-    def __init__(self, build_dir, profiles_dir, book, profile):
+    def __init__(self, build_dir, profiles_dir, book):
         self.build_dir = Path(build_dir)
         self.profiles_dir = Path(profiles_dir)
         self.book = book
-        self.profile = profile
 
         # Resolve default paths
         self.xml_path = self.build_dir / "books" / book / "book.xml"
