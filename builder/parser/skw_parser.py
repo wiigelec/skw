@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+import os
 import toml
 import yaml
-import argparse
 from pathlib import Path
 from collections import OrderedDict
 from lxml import etree
@@ -9,33 +9,47 @@ from lxml import etree
 
 class SKWParser:
     """
-    SKWParser — modern TOML–XML–YAML parser engine for ScratchKit Builder.
+    SKWParser — Modern TOML–XML–YAML parser for ScratchKit Builder.
 
-    Converts Book XML + parser mapping TOML into multiple ordered YAML outputs.
-
-    Features:
-    - Follows TOML structure and order.
-    - Each [section] defines an XPath; child* keys define nested sections.
-    - Supports {field} placeholders and {xpath_index} (1-based iteration index).
-    - Inherits parent context for placeholder resolution.
-    - Generates one YAML file per match of the first section.
-    - File names derived from the first two resolved fields.
-    - Pretty prints multiline values using | blocks.
+    This parser replaces the legacy XML→JSON parser and automatically:
+    - Loads book XML (from build_dir/books/<book>/book.xml)
+    - Loads parser mapping TOML (from profiles/<book>/<profile>/parser_map.toml)
+    - Converts XML into multiple ordered YAML files according to TOML mappings.
     """
 
-    def __init__(self, xml_path: str, toml_path: str, output_dir: str):
-        self.xml_path = Path(xml_path)
-        self.toml_path = Path(toml_path)
-        self.output_dir = Path(output_dir)
+    def __init__(self, build_dir, profiles_dir, book, profile):
+        self.build_dir = Path(build_dir)
+        self.profiles_dir = Path(profiles_dir)
+        self.book = book
+        self.profile = profile
+
+        # Resolve default paths
+        self.xml_path = self.build_dir / "books" / book / "book.xml"
+        self.toml_path = self.profiles_dir / book / profile / "parser_map.toml"
+        self.output_dir = self.build_dir / "parser" / book / profile
+
+        # Validate environment
+        if not self.xml_path.exists():
+            raise FileNotFoundError(
+                f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
+            )
+        if not self.toml_path.exists():
+            raise FileNotFoundError(
+                f"[SKWParser] parser_map.toml not found for {book}/{profile}."
+            )
+
+        # Load configuration and XML
         self.toml_data = OrderedDict()
         self.xml_tree = None
 
-    # === MAIN ENTRYPOINT ===
-    def convert(self):
+    # === ENTRYPOINT ===
+    def run(self):
+        print(f"[SKWParser] Running parser for book '{self.book}', profile '{self.profile}'")
         self._load_toml()
         self._load_xml()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._generate_yaml_files()
+        print(f"[SKWParser] Completed. YAML outputs in {self.output_dir}")
 
     # === LOADERS ===
     def _load_toml(self):
@@ -49,19 +63,18 @@ class SKWParser:
 
     # === VALUE EXTRACTION ===
     def _extract_value(self, node, xpath_expr, context=None):
-        """Extract values relative to a node; supports {field}, {xpath_index}, and {xpath_index_padded} placeholders."""
+        """Extract values relative to a node; supports placeholders like {field} and {xpath_index}."""
         if not xpath_expr or not xpath_expr.strip():
             return ""
-            
+
         if node is None:
             return ""
-    
-        # Inject {xpath_index} placeholders (if present in context)
+
         index_val = context.get("__xpath_index__", "") if context else ""
         int_index = int(index_val) if str(index_val).isdigit() else 0
         padded_index = f"{int_index:04d}"
-    
-        # Substitute field placeholders
+
+        # Substitute placeholders
         if context:
             for key, val in context.items():
                 if key == "__xpath_index__":
@@ -70,56 +83,43 @@ class SKWParser:
                     val = val[0] if val else ""
                 safe_val = str(val).replace("'", "&apos;").replace('"', "&quot;")
                 xpath_expr = xpath_expr.replace(f"{{{key}}}", safe_val)
-    
-        # Replace {xpath_index} and {xpath_index_padded}
+
         if "{xpath_index}" in xpath_expr:
-            try:
-                formatted_index = f"{int(index_val):04d}"
-            except (TypeError, ValueError):
-                formatted_index = "0000"
-            xpath_expr = xpath_expr.replace("{xpath_index}", f"'{formatted_index}'")
-                
+            xpath_expr = xpath_expr.replace("{xpath_index}", f"'{padded_index}'")
+
         try:
             vals = node.xpath(xpath_expr)
         except etree.XPathEvalError:
             return ""
-    
-        # Normalize scalar return types
+
         if isinstance(vals, (str, int, float)):
             vals = [str(vals)]
         elif isinstance(vals, bool):
             vals = [str(vals).lower()]
-    
+
         results = []
         for v in vals:
             if isinstance(v, etree._Element):
                 results.append((v.text or "").strip())
             elif isinstance(v, (str, int, float)):
                 results.append(str(v).strip())
-    
+
         if not results:
             return ""
-    
-        # Collapse character lists (from substring or string() results)
         if len(results) > 1 and all(isinstance(x, str) and len(x) == 1 for x in results):
             return "".join(results)
-    
         return results if len(results) > 1 else results[0]
-
 
     # === SECTION RESOLUTION ===
     def _resolve_section(self, section_name, context_node=None, context=None, index=None):
-        """Recursively resolve a section, following TOML order and childN positioning."""
+        """Recursively resolve TOML-defined section into nested YAML data."""
         section = self.toml_data[section_name]
         result = OrderedDict()
 
-        # Merge parent context if any
-        if context is None:
-            context = {}
+        context = context or {}
         local_context = context.copy()
         local_context["__xpath_index__"] = int(index or context.get("__xpath_index__", 0))
 
-        # Determine which XML nodes to iterate over
         base_xpath = section.get("xpath", "")
         if context_node is not None:
             nodes = [context_node]
@@ -129,7 +129,6 @@ class SKWParser:
             except etree.XPathEvalError:
                 nodes = []
 
-        # Handle top-level multi-node logic with enumeration (1-based)
         if context_node is None and nodes and section_name == list(self.toml_data.keys())[0]:
             return [
                 self._resolve_section(section_name, node, context, idx + 1)
@@ -138,7 +137,6 @@ class SKWParser:
 
         node = nodes[0] if nodes else None
 
-        # Follow TOML-defined order
         for key, value in section.items():
             if key == "xpath":
                 continue
@@ -149,45 +147,27 @@ class SKWParser:
             else:
                 val = self._extract_value(node, value, local_context) if node is not None else ""
                 result[key] = val
-                local_context[key] = val  # Make available for placeholder substitution
-                
-        # --- Post-process name_version splitting ---
+                local_context[key] = val
+
+        # Postprocess name/version logic
         if "name_version" in result and isinstance(result["name_version"], str):
-            nv_value = result["name_version"].strip()
+            nv = result["name_version"].strip()
+            n, v = (nv.rsplit("-", 1) + [""])[:2] if "-" in nv else (nv, "")
+            n, v = n.strip(), v.strip().split(" ", 1)[0] if " " in v else v
+            local_context["name"], local_context["version"] = n, v
+            result["name_version"] = nv
 
-            # Split on the last dash to separate name and version
-            if "-" in nv_value:
-                n, v = nv_value.rsplit("-", 1)
-            else:
-                n, v = nv_value, ""
-
-            # Strip trailing spaces and comments from version
-            v = v.strip()
-            if " " in v:
-                v = v.split(" ", 1)[0]
-
-            # Clean name too (in case of trailing whitespace)
-            n = n.strip()
-
-            # Store values back
-            local_context["name"] = n
-            local_context["version"] = v
-            result["name_version"] = nv_value
-
-            
-            # --- Re-evaluate XPaths containing {name} or {version} now that context is ready ---
             for field, xpath_expr in section.items():
                 if not isinstance(xpath_expr, str):
                     continue
                 if "{" in xpath_expr and ("{name}" in xpath_expr or "{version}" in xpath_expr):
                     new_val = self._extract_value(node, xpath_expr, local_context)
-                    if new_val is not None and new_val != "":
+                    if new_val:
                         result[field] = new_val
-
 
         return result
 
-    # === OUTPUT GENERATION ===
+    # === YAML OUTPUT ===
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
         entries = self._resolve_section(top_section)
@@ -196,20 +176,14 @@ class SKWParser:
 
         for entry in entries:
             fields = list(entry.keys())
-            if len(fields) < 2:
-                filename = "entry.yaml"
-            else:
-                val1 = str(entry.get(fields[0], "") or "unknown")
-                val2 = str(entry.get(fields[1], "") or "unknown")
-                filename = f"{val1}-{val2}.yaml"
+            val1 = str(entry.get(fields[0], "") or "unknown")
+            val2 = str(entry.get(fields[1], "") or "unknown")
+            filename = f"{val1}-{val2}.yaml"
             filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
-
             filepath = self.output_dir / filename
             self._write_yaml(entry, filepath)
 
-    # === PRETTY YAML WRITER ===
     def _write_yaml(self, data, filepath):
-        """Pretty-print YAML with readable multiline block strings and clean lists."""
         def to_dict(obj):
             if isinstance(obj, OrderedDict):
                 return {k: to_dict(v) for k, v in obj.items()}
@@ -226,7 +200,6 @@ class SKWParser:
             return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
 
         def sequence_representer(dumper, data):
-            """Force block style for lists (avoid inline [a, b, c])"""
             return dumper.represent_sequence("tag:yaml.org,2002:seq", data, flow_style=False)
 
         yaml.add_representer(LiteralString, literal_representer)
@@ -242,18 +215,9 @@ class SKWParser:
             return obj
 
         clean_data = prepare_literals(to_dict(data))
-
         with filepath.open("w", encoding="utf-8") as f:
-            yaml.dump(
-                clean_data,
-                f,
-                sort_keys=False,
-                allow_unicode=True,
-                indent=2,
-                width=1000,
-                default_flow_style=False,
-            )
-        print(f"Wrote: {filepath}")
+            yaml.dump(clean_data, f, sort_keys=False, allow_unicode=True, indent=2, width=1000)
+        print(f"[SKWParser] Wrote: {filepath}")
 
 
 def main():
