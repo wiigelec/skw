@@ -145,8 +145,8 @@ class Builder:
     # -------------------
     # Parser / Scripter / Executer
     # -------------------
-    def parse_book(self, book, profile):
-        parser = SKWParser(self.build_dir, self.profiles_dir, book, profile)
+    def parse_book(self, book):
+        parser = SKWParser(self.build_dir, self.profiles_dir, book)
         parser.run()
 
     def script_book(self, book, profile):
