@@ -106,7 +106,7 @@ class Builder:
         if not os.path.exists(book_path):
             sys.exit(f"book.toml not found for {book}. Did you run add-book?")
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(book_path, "r", encoding="utf-8") as f:
             book_cfg = toml.load(f)["main"]
 
         repo_path = book_cfg["repo_path"]
