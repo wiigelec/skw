@@ -32,10 +32,10 @@ class Builder:
     def add_book(self, name):
         book_path = os.path.join(self.profiles_dir, name)
         if os.path.exists(book_path):
-            sys.exit(f"Book {name} already exists in profiles/")
+            sys.exit(f"Book {name} already exists in {self.profiles_dir}")
         os.makedirs(book_path, exist_ok=True)
 
-        src = os.path.join(profiles_dir, "book.toml.template")
+        src = os.path.join(self.profiles_dir, "book.toml.template")
         dst = os.path.join(book_path, "book.toml")
         shutil.copyfile(src, dst)
 
