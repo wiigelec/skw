@@ -9,28 +9,28 @@ xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indext
 name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 version = "translate('{version}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 name_version = "./title/text()"
-book_title = ""
-book_ver = ""
-book_rev = ""
-chapter_id = ""
-section_id = ""
-child1 = [ "source", "patches", "additional_downloads", "dependencies" ]
+book_title = "/book/bookinfo/title//text()"
+book_ver = "substring-after(/book/bookinfo/subtitle/text(),' ')"
+book_rev = "/book/bookinfo/title/phrase/@revision"
+child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
 build_instructions = ".//screen//userinput//text()"
 
+
 [source]
-url = ""
+url = ".//para[contains(.,'Download (HTTP):')]//ulink/@url"
+checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': ')"
+
+[additional_downloads]
+url = ".//para[contains(.,'Required file:')]//ulink/@url"
 checksum = ""
 
 [patches]
-url = ""
+url = ".//para[contains(.,'Required patch:')]//ulink/@url"
 checksum = ""
 
-[additional_downloads]
-urls = ""
-checksums = ""
 
 [dependencies]
-required = ""
-recommended = ""
-optional = ""
-runtime = ""
+required = ".//para[@role='required']//xref[not @role='runtime']/@linkend"
+recommended = ".//para[@role='recommended']//xref[not @role='runtime']/@linkend"
+optional = ".//para[@role='optional']//xref/@linkend"
+runtime = ".//para//xref[@role='runtime']/@linkend"
