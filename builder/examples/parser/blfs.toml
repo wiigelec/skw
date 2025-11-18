@@ -1,0 +1,36 @@
+####################################################################
+#
+#
+#
+####################################################################
+
+[package]
+xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indexterm]"
+name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+version = "translate('{version}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+name_version = "./title/text()"
+book_title = "/book/bookinfo/title//text()"
+book_ver = "substring-after(/book/bookinfo/subtitle/text(),' ')"
+book_rev = "/book/bookinfo/title/phrase/@revision"
+child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
+build_instructions = ".//screen//userinput//text()"
+
+
+[source]
+url = ".//para[contains(.,'Download (HTTP):')]//ulink/@url"
+checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': ')"
+
+[additional_downloads]
+url = ".//para[contains(.,'Required file:')]//ulink/@url"
+checksum = ""
+
+[patches]
+url = ".//para[contains(.,'Required patch:')]//ulink/@url"
+checksum = ""
+
+
+[dependencies]
+required = ".//para[@role='required']//xref[@role != 'runtime' or not(@role)]/@linkend"
+recommended = ".//para[@role='recommended']//xref[@role != 'runtime' or not(@role)]/@linkend"
+optional = ".//para[@role='optional']//xref/@linkend"
+runtime = ".//para//xref[@role='runtime']/@linkend"
