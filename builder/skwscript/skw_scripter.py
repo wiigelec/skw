@@ -37,6 +37,9 @@ class SKWScripter:
             sys.exit(f"Parser output dir not found: {self.parser_dir}. Did you run the parser?")
 
         # Get scripts dir
+        raw_scripts_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
+        self.scripts_dir = Path(raw_scripts_dir).expanduser().resolve()
+        os.makedirs(script_dir, exist_ok=True)
 
     # -------------------
     # Main Execution
@@ -45,9 +48,7 @@ class SKWScripter:
 
         # Get config paths
         parser_dir = self.parser_dir
-        script_dir = f"build/scripter/{self.book}/{self.profile}/scripts"
-
-        os.makedirs(script_dir, exist_ok=True)
+        script_dir = self.script_dir
 
         yaml_files = sorted(glob(os.path.join(parser_dir, "*.yaml")) + glob(os.path.join(parser_dir, "*.yml")))
         if not yaml_files:
