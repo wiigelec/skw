@@ -19,3 +19,21 @@ template = "chapter-temp-tools.script"
 [chapter-chroot-temporary-tools]
 template = "chapter-chroot-tools.script"
 
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = [ "chapter-cross-tools" ]
+exclude  = []
+
+[section_filters]
+include  = []
+exclude  = [ "ch-tools-introduction" ]
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+
