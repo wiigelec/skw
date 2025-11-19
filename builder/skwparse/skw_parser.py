@@ -5,6 +5,7 @@ import yaml
 from pathlib import Path
 from collections import OrderedDict
 from lxml import etree
+from pathlib import Path
 
 
 class SKWParser:
@@ -30,7 +31,7 @@ class SKWParser:
             )
         with open(self.config_path, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
-        self.xml_path = os.path.abspath(cfg["main"]["xml_path"])
+        self.xml_path = Path(cfg["main"]["xml_path"]).expanduser().resolve()
         if not self.xml_path.exists():
             raise FileNotFoundError(
                 f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
