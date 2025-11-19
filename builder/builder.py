@@ -8,7 +8,7 @@ import shutil
 import subprocess
 
 from skwparse.skw_parser import SKWParser
-from skwcript.skw_scripter import SKWScripter
+from skwscript.skw_scripter import SKWScripter
 #from skw_executer import SKWExecuter
 
 class Builder:
