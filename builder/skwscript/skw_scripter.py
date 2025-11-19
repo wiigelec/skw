@@ -69,7 +69,7 @@ class SKWScripter:
         for idx, entry in enumerate(entries, start=1):
             if not self._should_generate_script(entry):
                 continue
-                
+
             template_content = self._select_template(entry)
             script_content = self._expand_template(entry, template_content)
             script_content = self._apply_regex(entry, script_content)
@@ -91,18 +91,29 @@ class SKWScripter:
     # Script filtering
     # -------------------
     def _should_generate_script(self, entry):
-        """Only generate scripts for chapters explicitly listed in the TOML config."""
-        chapter_id = entry.get("chapter_id", "")
-        if not chapter_id:
-            return False
+        """Determine if the script should be generated based on TOML filter sections."""
+        filters = {
+            "chapter_id": self.cfg.get("chapter_filters", {}),
+            "section_id": self.cfg.get("section_filters", {}),
+            "package_name": self.cfg.get("package_filters", {}),
+        }
 
-        # Chapters defined in TOML (excluding main/global)
-        configured_chapters = [
-            k for k in self.cfg.keys()
-            if k not in ("main", "global")
-        ]
+        for key, section in filters.items():
+            ident = entry.get(key)
+            if not ident:
+                continue
 
-        return chapter_id in configured_chapters
+            include = section.get("include", [])
+            exclude = section.get("exclude", [])
+
+            # Inclusion filter
+            if include and ident not in include:
+                return False
+            # Exclusion filter
+            if exclude and ident in exclude:
+                return False
+
+        return True
 
     # -------------------
     # Normalization
