@@ -98,7 +98,7 @@ class Builder:
         make_command = book_cfg["make_command"]
         output_file = book_cfg["output_file"]
 
-        repo_dir = os.path.join(self.build_dir, "books", book, "src")
+        repo_dir = os.path.join(self.build_dir, book, "src")
         os.makedirs(repo_dir, exist_ok=True)
 
         if not os.listdir(repo_dir):
@@ -112,7 +112,7 @@ class Builder:
 
         # Expand vars in make command
         env = os.environ.copy()
-        env["book_dir"] = os.path.join(self.build_dir, "books", book)
+        env["book_dir"] = os.path.join(self.build_dir, book)
         env["rev"] = rev
         expanded_command = make_command.replace("${book_dir}", env["book_dir"]).replace("${rev}", rev)
 
