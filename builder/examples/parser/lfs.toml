@@ -4,6 +4,11 @@
 #
 ####################################################################
 
+[main]
+xml_path = "build/books/{book}/lfs-full.xml"
+output_dir = "build/books/{book}/parser/build_metadata"
+
+
 [package]
 xpath = "//chapter//sect1info[productname and productnumber]"
 name = "translate(./productname/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
