@@ -12,7 +12,7 @@ class SKWScripter:
         self.profile = profile
 
         # Load scripter.toml
-        self.config_path = os.path.join(profiles_dir, book, profile, "scripter.toml")
+        self.config_path = os.path.join(profiles_dir, book, profile, "skwscripter.toml")
         if not os.path.exists(self.config_path):
             sys.exit(f"skwscripter.toml not found for {self.config_path}. Did you copy an example config?")
 
