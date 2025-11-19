@@ -31,16 +31,17 @@ class SKWParser:
         with open(self.config_path, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
         self.xml_path = os.path.abspath(cfg["main"]["xml_path"])
+        if not self.xml_path.exists():
+            raise FileNotFoundError(
+                f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
+            )
 
         # Resolve default paths
         self.toml_path = self.profiles_dir / book / "profile" / "parser_map.toml"
         self.output_dir = self.build_dir / "parser" / book / "profile"
 
         # Validate environment
-        if not self.xml_path.exists():
-            raise FileNotFoundError(
-                f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
-            )
+        
         if not self.toml_path.exists():
             raise FileNotFoundError(
                 f"[SKWParser] parser_map.toml not found for {book}/{profile}."
