@@ -23,7 +23,7 @@ class SKWParser:
         self.book = book
 
         # Get xml path from config
-        self.cfg_path = self.profiles_dir / book / "skwparser.cfg"
+        self.config_path = self.profiles_dir / book / "skwparser.cfg"
         with open(config_path, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
         self.xml_path = os.path.abspath(cfg["main"]["xml_path"])
