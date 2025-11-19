@@ -3,7 +3,7 @@
 # ================================================================
 
 [main]
-parser_json = "build/parser/${profile}/parser_output.json"
+parser_output = "builder/build/books/{book}/parser/build_metadata/
 default_template = "template.script"
 
 [global]
