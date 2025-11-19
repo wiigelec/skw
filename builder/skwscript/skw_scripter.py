@@ -14,7 +14,7 @@ class SKWScripter:
         # Load scripter.toml
         self.config_path = os.path.join(profiles_dir, book, profile, "scripter.toml")
         if not os.path.exists(self.config_path):
-            sys.exit(f"skwscripter.toml not found for {book}/{profile}. Did you copy an example config?")
+            sys.exit(f"skwscripter.toml not found for {config_path}. Did you copy an example config?")
 
         with open(self.config_path, "r", encoding="utf-8") as f:
             self.cfg = toml.load(f)
