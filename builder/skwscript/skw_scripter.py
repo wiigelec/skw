@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-import tomllib
+import toml
 import re
 
 class SKWScripter:
@@ -16,8 +16,8 @@ class SKWScripter:
         if not os.path.exists(self.config_path):
             sys.exit(f"scripter.toml not found for {book}/{profile}")
 
-        with open(self.config_path, "rb") as f:
-            self.cfg = tomllib.load(f)
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            self.cfg = toml.load(f)
 
         # Load default template
         default_template = self.cfg.get("main", {}).get("default_template", "template.script")
