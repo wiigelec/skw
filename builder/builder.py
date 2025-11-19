@@ -53,22 +53,6 @@ class Builder:
 
         os.makedirs(profile_path, exist_ok=True)
 
-        src_dir = self.skel_dir
-        skeletons = ["parser.toml.skel", "scripter.toml.skel", "executer.toml.skel"]
-        scripts = glob.glob(os.path.join(src_dir, "*.script"))
-
-        # copy skeletons
-        for fname in skeletons:
-            src = os.path.join(src_dir, fname)
-            dst = os.path.join(profile_path, fname.replace(".skel", ""))
-            shutil.copyfile(src, dst)
-
-        # copy scripts
-        for src in scripts:
-            fname = os.path.basename(src)
-            dst = os.path.join(profile_path, fname.replace(".skel", ""))
-            shutil.copyfile(src, dst)
-
         print(f"Profile {profile} created at {profile_path}")
         print("Edit configs before parsing.")
 
