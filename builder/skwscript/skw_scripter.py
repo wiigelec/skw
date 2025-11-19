@@ -38,6 +38,8 @@ class SKWScripter:
 
         # Get scripts dir
         raw_script_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
+        if raw_script_dir == "UNDEFINED":
+            sys.exit("Error: 'scripts_dir' is not defined in [main] section of skwscripter.toml")
         self.script_dir = Path(raw_script_dir).expanduser().resolve()
         os.makedirs(self.script_dir, exist_ok=True)
 
