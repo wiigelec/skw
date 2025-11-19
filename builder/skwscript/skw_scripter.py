@@ -39,7 +39,7 @@ class SKWScripter:
         # Get scripts dir
         raw_scripts_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
         self.scripts_dir = Path(raw_scripts_dir).expanduser().resolve()
-        os.makedirs(script_dir, exist_ok=True)
+        os.makedirs(self.scripts_dir, exist_ok=True)
 
     # -------------------
     # Main Execution
