@@ -23,7 +23,7 @@ fi
 
 ### EXTRACT SOURCE TARBALL ###
 
-source_url="{{source.url}}"
+source_url="{{source.0.url}}"
 tarball=$(basename "$source_urls")
 dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
 tar -xf "$tarball"
