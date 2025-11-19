@@ -23,7 +23,7 @@ class SKWParser:
         self.book = book
 
         # Get xml path from config
-        self.config_path = self.profiles_dir / book / "skwparser.cfg"
+        self.config_path = self.profiles_dir / book / "skwparser.toml"
         if not self.config_path.exists():
             raise FileNotFoundError(
                 f"[SKWParser] {self.config_path} not found. Did you copy an example config?"
