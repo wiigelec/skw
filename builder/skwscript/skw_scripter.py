@@ -37,7 +37,7 @@ class SKWScripter:
             sys.exit(f"Parser output dir not found: {self.parser_dir}. Did you run the parser?")
 
         # Get scripts dir
-        raw_script_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
+        raw_script_dir = self.cfg.get("main", {}).get("script_dir", "UNDEFINED").format(book=self.book)
         if raw_script_dir == "UNDEFINED":
             sys.exit("Error: 'scripts_dir' is not defined in [main] section of skwscripter.toml")
         self.script_dir = Path(raw_script_dir).expanduser().resolve()
