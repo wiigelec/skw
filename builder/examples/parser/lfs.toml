@@ -5,8 +5,8 @@
 ####################################################################
 
 [main]
-xml_path = "build/books/{book}/lfs-full.xml"
-output_dir = "build/books/{book}/parser/build_metadata"
+xml_path = "builder/build/books/{book}/lfs-full.xml"
+output_dir = "builder/build/books/{book}/parser/build_metadata"
 
 
 [package]
