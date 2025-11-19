@@ -6,14 +6,14 @@
 
 [package]
 xpath = "//chapter//sect1"
+chapter_id = "./ancestor::chapter/@id"
+section_id = "translate(./@id,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
 name = "translate(.//productname/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
 version = ".//productnumber/text()"
 build_order = "{xpath_index}"
 book_title = "//bookinfo/title/text()"
 book_ver = "substring-before(substring-after(//bookinfo/subtitle[1]/text(),' '),'-')"
 book_rev = "substring-after(//bookinfo/subtitle[1]/text(),'-')"
-chapter_id = "./ancestor::chapter/@id"
-section_id = "translate(./@id,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
 child1 = [ "source", "patches" ]
 build_instructions = "./sect1//screen[not(@role=\"nodump\")]/userinput//text()"
 
