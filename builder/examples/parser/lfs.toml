@@ -63,5 +63,5 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 # MAIN CONFIG SECTION
 ####################################################################
 [main]
-xml_path = "builder/build/books/{book}/lfs-full.xml"
-output_dir = "builder/build/books/{book}/parser/build_metadata"
+xml_path = "builder/build/{book}/lfs-full.xml"
+output_dir = "builder/build/{book}/parser/build_metadata"
