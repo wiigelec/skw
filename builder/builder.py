@@ -54,7 +54,7 @@ class Builder:
         os.makedirs(profile_path, exist_ok=True)
 
         print(f"Profile {profile} created at {profile_path}")
-        print("Edit configs before parsing.")
+        print("Copy/edit example configs before scripting.")
 
     def list_books(self):
         if not os.path.exists(self.profiles_dir):
