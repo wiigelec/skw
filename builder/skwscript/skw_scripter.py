@@ -44,6 +44,7 @@ class SKWScripter:
     def run(self):
 
         # Get config paths
+        parser_dir = self.parser_dir
         script_dir = f"build/scripter/{self.book}/{self.profile}/scripts"
 
         os.makedirs(script_dir, exist_ok=True)
