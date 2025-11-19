@@ -44,11 +44,7 @@ class SKWScripter:
     def run(self):
 
         # Get config paths
-        parser_dir = f"build/parser/{self.book}/{self.profile}/parser_output"
         script_dir = f"build/scripter/{self.book}/{self.profile}/scripts"
-
-        if not os.path.exists(parser_dir):
-            sys.exit(f"Parser directory not found: {parser_dir}")
 
         os.makedirs(script_dir, exist_ok=True)
 
