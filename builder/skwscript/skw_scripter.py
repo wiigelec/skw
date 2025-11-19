@@ -4,6 +4,7 @@ import toml
 import yaml
 import re
 from glob import glob
+from pathlib import Path
 
 class SKWScripter:
     def __init__(self, build_dir, profiles_dir, book, profile):
