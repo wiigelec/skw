@@ -25,7 +25,7 @@ template = "chapter-chroot-tools.script"
 #------------------------------------------------------------------#
 
 [chapter_filters]
-include  = [ "chapter-cross-tools" ]
+include  = [ "chapter-cross-tools", "chapter-temporary-tools", "chapter-chroot-temporary-tools" ]
 exclude  = []
 
 [section_filters]
