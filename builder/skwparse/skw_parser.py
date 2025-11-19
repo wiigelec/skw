@@ -55,7 +55,7 @@ class SKWParser:
 
     # === ENTRYPOINT ===
     def run(self):
-        print(f"[SKWParser] Running parser for book '{self.book}', profile '{self.profile}'")
+        print(f"[SKWParser] Running parser for book '{self.book}'")
         self._load_toml()
         self._load_xml()
         self.output_dir.mkdir(parents=True, exist_ok=True)
