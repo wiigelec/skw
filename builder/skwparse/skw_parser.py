@@ -38,17 +38,17 @@ class SKWParser:
                 f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
             )
 
-        # Resolve default paths
-        self.toml_path = self.profiles_dir / book / "profile" / "parser_map.toml"
-        self.output_dir = self.build_dir / "parser" / book / "profile"
-
-        # Validate environment
-        
+        # Get parser config
+        self.toml_path = self.config_path
         if not self.toml_path.exists():
             raise FileNotFoundError(
                 f"[SKWParser] parser_map.toml not found for {book}/{profile}."
             )
 
+        # Get output dir
+        raw_out_dir = cfg["main"]["output_dir"].format(book=self.book)
+        self.output_dir = Path(raw_out_dir).expanduser().resolve()
+        
         # Load configuration and XML
         self.toml_data = OrderedDict()
         self.xml_tree = None
