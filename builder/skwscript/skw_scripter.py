@@ -23,7 +23,7 @@ class SKWScripter:
         default_template = self.cfg.get("main", {}).get("default_template", "template.script")
         self.template_path = os.path.join(profiles_dir, book, profile, default_template)
         if not os.path.exists(self.template_path):
-            sys.exit(f"Default template not found: {self.template_path}")
+            sys.exit(f"Default template not found: {self.template_path}. Did you copy/create script templates?")
 
         with open(self.template_path, "r") as f:
             self.default_template = f.read()
