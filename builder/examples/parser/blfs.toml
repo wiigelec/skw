@@ -34,3 +34,11 @@ required = ".//para[@role='required']//xref[@role != 'runtime' or not(@role)]/@l
 recommended = ".//para[@role='recommended']//xref[@role != 'runtime' or not(@role)]/@linkend"
 optional = ".//para[@role='optional']//xref/@linkend"
 runtime = ".//para//xref[@role='runtime']/@linkend"
+
+
+####################################################################
+# MAIN CONFIG SECTION
+####################################################################
+[main]
+xml_path = "builder/build/books/{book}/blfs-systemd-full.xml"
+output_dir = "builder/build/books/{book}/parser/build_metadata"
