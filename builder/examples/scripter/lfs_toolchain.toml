@@ -1,0 +1,21 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_output = "builder/build/books/{book}/parser/build_metadata/"
+script_dir = "builder/build/books/{book}/scripter/scripts/"
+default_template = "template.script"
+
+[global]
+regex = []
+
+[chapter-cross-tools]
+template = "chapter-temp-tools.script"
+
+[chapter-temporary-tools]
+template = "chapter-temp-tools.script"
+
+[chapter-chroot-temporary-tools]
+template = "chapter-chroot-tools.script"
+
