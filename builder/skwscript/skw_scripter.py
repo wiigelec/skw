@@ -37,9 +37,9 @@ class SKWScripter:
             sys.exit(f"Parser output dir not found: {self.parser_dir}. Did you run the parser?")
 
         # Get scripts dir
-        raw_scripts_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
-        self.scripts_dir = Path(raw_scripts_dir).expanduser().resolve()
-        os.makedirs(self.scripts_dir, exist_ok=True)
+        raw_script_dir = self.cfg.get("main", {}).get("scripts_dir", "UNDEFINED").format(book=self.book)
+        self.script_dir = Path(raw_script_dir).expanduser().resolve()
+        os.makedirs(self.script_dir, exist_ok=True)
 
     # -------------------
     # Main Execution
