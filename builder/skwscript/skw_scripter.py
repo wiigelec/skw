@@ -30,11 +30,10 @@ class SKWScripter:
             self.default_template = f.read()
 
         # Get parser output dir
-        self.parser_dir = self.cfg.get("main", {}).get("parser_output", "UNDEFINED")
+        raw_parser_dir = self.cfg.get("main", {}).get("parser_output", "UNDEFINED").format(book=self.book)
+        self.parser_dir = Path(raw_parser_dir).expanduser().resolve()
         if not os.path.exists(self.parser_dir):
             sys.exit(f"Parser output dir not found: {self.parser_dir}. Did you run the parser?")
-        
-
 
         # Get scripts dir
 
