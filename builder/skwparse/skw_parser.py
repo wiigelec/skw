@@ -31,7 +31,8 @@ class SKWParser:
             )
         with open(self.config_path, "r", encoding="utf-8") as f:
             cfg = toml.load(f)
-        self.xml_path = Path(cfg["main"]["xml_path"]).expanduser().resolve()
+        raw_xml_path = cfg["main"]["xml_path"].format(book=self.book)
+        self.xml_path = Path(raw_xml_path).expanduser().resolve()
         if not self.xml_path.exists():
             raise FileNotFoundError(
                 f"[SKWParser] XML not found at {self.xml_path}. Did you run install-book?"
