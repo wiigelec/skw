@@ -4,34 +4,13 @@ from pathlib import Path
 import networkx as nx
 
 class SKWDepSolver:
-    """
-    SKWDepSolver — Dependency graph builder and analyzer for BLFS YAML metadata.
-
-    Features:
-    - Builds a directed dependency graph from YAML build metadata.
-    - Recursively loads dependencies from referenced YAML files.
-    - Detects and reports circular dependencies.
-    - Resolves cycles by:
-        1. Injecting `-pass1` for required↔required cycles.
-        2. Dropping weaker edges (recommended/optional) in mixed cycles.
-    - Handles deterministic cycle resolution (sorted order) for reproducible runs.
-    - Allows filtering by package names and dependency classes (required, recommended, optional).
-    - Generates `.dep` files (optional) or a topologically sorted build list.
-    - Optional debug mode for inspecting loaded packages and edges.
-    - Supports versioned YAML filenames (matches by prefix, first found).
-    """
-
     def __init__(self, yaml_dir, output_dir="dependencies", packages=None, classes=None, debug=False):
         self.yaml_dir = Path(yaml_dir)
         self.output_dir = Path(output_dir)
         self.packages = set(packages or [])
         self.classes = set(classes or ["required", "recommended", "optional"])
         self.graph = nx.DiGraph()
-        self.weight_map = {
-            "required": 1,
-            "recommended": 2,
-            "optional": 3
-        }
+        self.weight_map = {"required": 1, "recommended": 2, "optional": 3}
         self.visited = set()
         self.debug = debug
 
@@ -80,18 +59,43 @@ class SKWDepSolver:
                     values = group.get(order, []) if isinstance(group, dict) else []
                     if isinstance(values, str):
                         values = [values]
-                    deps_iter.extend(values)
+                    deps_iter.extend([(v, order) for v in values])
 
-            for dep in deps_iter:
+            for item in deps_iter:
+                if isinstance(item, tuple):
+                    dep, qualifier = item
+                else:
+                    dep, qualifier = item, "before"
                 if dep:
                     weight = self.weight_map.get(dep_type, 3)
-                    self.graph.add_edge(pkg_name, dep, weight=weight)
-                    self._log(f"Edge added: {pkg_name} -> {dep} (weight={weight})")
+                    self.graph.add_edge(pkg_name, dep, weight=weight, qualifier=qualifier)
+                    self._log(f"Edge added: {pkg_name} -> {dep} ({qualifier}, weight={weight})")
                     self._load_package_yaml(dep)
 
     def load_yaml_files(self):
         for pkg in (self.packages or []):
             self._load_package_yaml(pkg)
+
+    def handle_after_edges(self):
+        after_edges = [(u, v) for u, v, d in self.graph.edges(data=True) if d.get("qualifier") == "after"]
+
+        for u, v in after_edges:
+            group_node = f"{v}-groupxx"
+
+            if group_node not in self.graph:
+                self.graph.add_node(group_node)
+
+            for pred in list(self.graph.predecessors(u)):
+                if pred != group_node:
+                    self.graph.add_edge(pred, group_node, weight=1)
+
+            self.graph.add_edge(group_node, v, weight=1)
+
+            for child in list(self.graph.successors(v)):
+                if child != group_node:
+                    self.graph.add_edge(group_node, child, weight=self.graph[v][child].get("weight", 1))
+
+            self.graph.remove_edge(u, v)
 
     def detect_and_resolve_cycles(self):
         cycles = list(nx.simple_cycles(self.graph))
@@ -156,9 +160,7 @@ class SKWDepSolver:
 
     @classmethod
     def cli(cls):
-        parser = argparse.ArgumentParser(
-            description="Dependency solver for BLFS YAML build metadata."
-        )
+        parser = argparse.ArgumentParser(description="Dependency solver for BLFS YAML build metadata.")
         parser.add_argument("yaml_dir", help="Directory containing YAML package metadata.")
         parser.add_argument("--packages", nargs="*", default=None, help="Specific packages to include.")
         parser.add_argument("--classes", nargs="*", choices=["required", "recommended", "optional"], default=["required", "recommended", "optional"], help="Dependency classes to include.")
@@ -169,6 +171,7 @@ class SKWDepSolver:
         args = parser.parse_args()
         solver = cls(args.yaml_dir, args.output, args.packages, args.classes, args.debug)
         solver.load_yaml_files()
+        solver.handle_after_edges()
         print(f"[INFO] Loaded YAML metadata from {solver.yaml_dir}")
 
         cycles = solver.detect_and_resolve_cycles()
