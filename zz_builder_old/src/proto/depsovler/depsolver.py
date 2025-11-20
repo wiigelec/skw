@@ -5,6 +5,9 @@ from pathlib import Path
 from collections import defaultdict, deque
 import sys
 
+# Dependency weight mapping
+WEIGHTS = {"required": 1, "recommended": 2, "optional": 3, "runtime": 4}
+
 
 def load_packages(path: Path):
     packages = {}
@@ -28,11 +31,13 @@ def load_packages(path: Path):
 
 
 def build_graph(packages, include):
+    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     graph = defaultdict(set)
+
     for pkg, deps in packages.items():
-        for cat in include:
-            for dep in deps.get(cat, []):
-                if dep:
+        for cat, deps_list in deps.items():
+            if WEIGHTS[cat] <= max_weight:
+                for dep in deps_list:
                     graph[pkg].add(dep)
         if pkg not in graph:
             graph[pkg] = set()
@@ -40,8 +45,10 @@ def build_graph(packages, include):
 
 
 def get_all_dependencies(root, packages, include):
+    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     visited = set()
     stack = [root]
+
     while stack:
         current = stack.pop()
         if current in visited:
@@ -49,97 +56,98 @@ def get_all_dependencies(root, packages, include):
         visited.add(current)
         if current not in packages:
             continue
-        for cat in include:
-            for dep in packages[current].get(cat, []):
-                if dep not in visited:
-                    stack.append(dep)
+        for cat, deps in packages[current].items():
+            if WEIGHTS[cat] <= max_weight:
+                for dep in deps:
+                    if dep not in visited:
+                        stack.append(dep)
     return visited
 
 
-def detect_cycle(graph):
+def detect_cycles_and_split(graph):
     visited = set()
+    stack = []
     rec_stack = set()
+    cycles = []
 
-    def dfs(node, path):
+    def dfs(node):
         visited.add(node)
         rec_stack.add(node)
         for dep in graph[node]:
             if dep not in visited:
-                if dfs(dep, path + [dep]):
-                    return True
+                dfs(dep)
             elif dep in rec_stack:
-                print("\n[Cycle Detected]: " + " -> ".join(path + [dep]))
-                return True
+                cycles.append((node, dep))
         rec_stack.remove(node)
-        return False
 
     for node in graph:
         if node not in visited:
-            if dfs(node, [node]):
-                return True
-    return False
+            dfs(node)
+
+    for a, b in cycles:
+        # Handle bootstrap cycles by creating synthetic -pass1 node
+        pass1_node = f"{a}-pass1"
+        if pass1_node not in graph:
+            graph[pass1_node] = set()
+        if b in graph[a]:
+            graph[a].remove(b)
+            graph[pass1_node].add(b)
+        graph[b].add(a)
+
+    return graph
 
 
 def topological_sort(graph):
     indegree = {n: 0 for n in graph}
     for n, edges in graph.items():
         for dep in edges:
-            indegree[dep] += 1
-    q = deque([n for n in graph if indegree[n] == 0])
+            indegree[dep] = indegree.get(dep, 0) + 1
+
+    queue = deque([n for n in indegree if indegree[n] == 0])
     order = []
-    while q:
-        n = q.popleft()
+
+    while queue:
+        n = queue.popleft()
         order.append(n)
-        for dep in graph[n]:
+        for dep in graph.get(n, []):
             indegree[dep] -= 1
             if indegree[dep] == 0:
-                q.append(dep)
-    if len(order) != len(graph):
-        if detect_cycle(graph):
-            raise RuntimeError("Cycle detected in dependencies")
-        else:
-            raise RuntimeError("Unresolved graph state")
+                queue.append(dep)
+
+    if len(order) != len(indegree):
+        raise RuntimeError("Cycle remains in dependency graph after multipass adjustment")
+
     return order
 
 
-def print_tree(pkg, packages, include, prefix="", seen=None, global_seen=None):
+def print_tree(pkg, packages, include, prefix="", seen=None):
     if seen is None:
         seen = set()
-    if global_seen is None:
-        global_seen = set()
-
-    if pkg in seen or pkg in global_seen:
+    if pkg in seen:
         print(prefix + f"└── (circular) {pkg}")
         return
-
     seen.add(pkg)
-    global_seen.add(pkg)
+
+    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     deps = packages.get(pkg, {})
-    for cat in include:
-        items = deps.get(cat, [])
-        if items:
+    for cat, items in deps.items():
+        if WEIGHTS[cat] <= max_weight and items:
             print(f"{prefix}├── {cat}:")
             for dep in items:
                 print(prefix + f"│   ├── {dep}")
-                print_tree(dep, packages, include, prefix + "│   ", seen, global_seen)
+                print_tree(dep, packages, include, prefix + "│   ", seen)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="YAML-based package dependency resolver")
-    parser.add_argument("--path", required=True, help="Path to directory with package YAML files")
-    parser.add_argument(
-        "--include",
-        type=str,
-        default="required",
-        help="Comma-separated dependency categories to include (e.g. required,recommended,optional,runtime)",
-    )
+    parser = argparse.ArgumentParser(description="BLFS-style multipass dependency resolver")
+    parser.add_argument("--path", required=True, help="Path to directory with YAML package definitions")
+    parser.add_argument("--include", type=str, default="required", help="Comma-separated dependency categories")
     parser.add_argument("--roots", nargs="+", required=True, help="Root package(s) or '*' for all")
     parser.add_argument("--tree", action="store_true", help="Display dependency tree")
-    parser.add_argument("--output", help="Write ordered build list to file")
+    parser.add_argument("--output", help="Write build order to file")
 
     args = parser.parse_args()
     path = Path(args.path)
-
     include = [x.strip() for x in args.include.replace(",", " ").split() if x.strip()]
 
     print("[Dependency Resolver]")
@@ -164,21 +172,14 @@ def main():
 
     subgraph = {n: {d for d in graph[n] if d in all_related} for n in all_related}
 
-    try:
-        build_order = topological_sort(subgraph)
-        print("\nResolved build order:")
-        for i, pkg in enumerate(build_order, 1):
-            label = pkg
-            if pkg not in packages:
-                label += " (missing)"
-            print(f"{i}. {label}")
-    except RuntimeError as e:
-        print(f"\nError: {e}")
-        print("\nDependency Tree (for debugging):")
-        for root in roots:
-            print(root)
-            print_tree(root, packages, include, prefix="  ")
-        sys.exit(1)
+    # Apply multipass cycle handling
+    subgraph = detect_cycles_and_split(subgraph)
+
+    build_order = topological_sort(subgraph)
+
+    print("\nResolved build order:")
+    for i, pkg in enumerate(build_order, 1):
+        print(f"{i}. {pkg}")
 
     if args.output:
         with open(args.output, "w") as f:
