@@ -1,196 +1,132 @@
-#!/usr/bin/env python3
 import argparse
 import yaml
 from pathlib import Path
-from collections import defaultdict, deque
-import sys
+import networkx as nx
 
-# Dependency weight mapping
-WEIGHTS = {"required": 1, "recommended": 2, "optional": 3, "runtime": 4}
+class SKWDepSolver:
+    """
+    SKWDepSolver — Dependency graph builder and analyzer for BLFS YAML metadata.
 
+    Features:
+    - Builds a directed dependency graph from YAML build metadata.
+    - Detects and reports circular dependencies.
+    - Resolves cycles by injecting `-pass1` packages for required↔required cycles.
+    - Allows filtering by package names and dependency classes (required, recommended, optional).
+    - Generates `.dep` files (optional) or a topologically sorted build list.
+    """
 
-def load_packages(path: Path):
-    packages = {}
-    for yaml_file in path.glob("*.yaml"):
-        with open(yaml_file, "r") as f:
-            data = yaml.safe_load(f)
+    def __init__(self, yaml_dir, output_dir="dependencies", packages=None, classes=None):
+        self.yaml_dir = Path(yaml_dir)
+        self.output_dir = Path(output_dir)
+        self.packages = set(packages or [])
+        self.classes = set(classes or ["required", "recommended", "optional"])
+        self.graph = nx.DiGraph()
+        self.weight_map = {
+            "required": 1,
+            "recommended": 2,
+            "optional": 3
+        }
 
-        name = data.get("name")
-        deps = data.get("dependencies", {})
+    def load_yaml_files(self):
+        for file in self.yaml_dir.glob("*.yaml"):
+            with open(file, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
 
-        normalized = {}
-        for cat in ["required", "recommended", "optional", "runtime"]:
-            val = deps.get(cat, [])
-            if isinstance(val, str):
-                val = [v.strip() for v in val.split(",") if v.strip()]
-            elif not isinstance(val, list):
-                val = []
-            normalized[cat] = val
-        packages[name] = normalized
-    return packages
+            pkg = data.get("name")
+            if not pkg:
+                continue
 
+            # Process only requested packages if provided
+            if self.packages and pkg not in self.packages:
+                continue
 
-def build_graph(packages, include):
-    graph = defaultdict(set)
+            deps = data.get("dependencies", {})
+            if not deps:
+                continue
 
-    for pkg, deps in packages.items():
-        for cat, deps_list in deps.items():
-            if cat in include:
-                for dep in deps_list:
-                    graph[pkg].add(dep)
-        if pkg not in graph:
-            graph[pkg] = set()
-    return graph
+            for dep_type in self.classes:
+                group = deps.get(dep_type, {})
+                for order in ["first", "before", "after"]:
+                    for dep in group.get(order, []) if group else []:
+                        weight = self.weight_map.get(dep_type, 3)
+                        self.graph.add_edge(pkg, dep, weight=weight, order=order)
 
+    def detect_and_resolve_cycles(self):
+        cycles = list(nx.simple_cycles(self.graph))
+        resolved = []
 
-def get_all_dependencies(root, packages, include):
-    visited = set()
-    stack = [root]
+        for cycle in cycles:
+            if len(cycle) < 2:
+                continue
 
-    while stack:
-        current = stack.pop()
-        if current in visited:
-            continue
-        visited.add(current)
-        if current not in packages:
-            continue
-        for cat, deps in packages[current].items():
-            if cat in include:
-                for dep in deps:
-                    if dep not in visited:
-                        stack.append(dep)
-    return visited
+            # Check if all edges are required (weight=1)
+            edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
+            all_required = all(
+                self.graph[u][v].get("weight", 3) == 1 for u, v in edges
+            )
 
+            if all_required:
+                first = cycle[0]
+                new_node = f"{first}-pass1"
+                print(f"[CYCLE] Breaking required cycle {cycle} by adding {new_node}")
 
-def detect_cycles_and_split(graph):
-    visited = set()
-    rec_stack = set()
-    cycles = []
+                self.graph.add_node(new_node)
+                # Redirect predecessors to the new pass1 node
+                for pred in list(self.graph.predecessors(first)):
+                    if pred not in cycle:
+                        self.graph.add_edge(pred, new_node, weight=1)
+                resolved.append((cycle, new_node))
 
-    def dfs(node):
-        visited.add(node)
-        rec_stack.add(node)
-        for dep in graph[node]:
-            if dep not in visited:
-                dfs(dep)
-            elif dep in rec_stack:
-                cycles.append((node, dep))
-        rec_stack.remove(node)
+                # Remove one edge to break the cycle
+                self.graph.remove_edge(first, cycle[1])
 
-    for node in graph:
-        if node not in visited:
-            dfs(node)
+        return resolved
 
-    for a, b in cycles:
-        pass1_node = f"{a}-pass1"
-        if pass1_node not in graph:
-            graph[pass1_node] = set()
-        if b in graph[a]:
-            graph[a].remove(b)
-            graph[pass1_node].add(b)
-        graph[b].add(a)
+    def topological_sort(self):
+        try:
+            order = list(nx.topological_sort(self.graph))
+            return order
+        except nx.NetworkXUnfeasible:
+            print("[ERROR] Graph still contains cycles!")
+            return []
 
-    return graph
+    def write_dep_files(self):
+        self.output_dir.mkdir(exist_ok=True)
+        for pkg in self.graph.nodes:
+            out_file = self.output_dir / f"{pkg}.dep"
+            with open(out_file, "w", encoding="utf-8") as f:
+                for dep in self.graph.successors(pkg):
+                    weight = self.graph[pkg][dep].get("weight", 3)
+                    f.write(f"{weight} b {dep}\n")
 
+    @classmethod
+    def cli(cls):
+        parser = argparse.ArgumentParser(
+            description="Dependency solver for BLFS YAML build metadata."
+        )
+        parser.add_argument("yaml_dir", help="Directory containing YAML package metadata.")
+        parser.add_argument("--packages", nargs="*", default=None, help="Specific packages to include.")
+        parser.add_argument("--classes", nargs="*", choices=["required", "recommended", "optional"], default=["required", "recommended", "optional"], help="Dependency classes to include.")
+        parser.add_argument("--output", default="dependencies", help="Output directory for .dep files.")
+        parser.add_argument("--show-order", action="store_true", help="Print topological build order.")
 
-def topological_sort(graph):
-    indegree = {n: 0 for n in graph}
-    for n, edges in graph.items():
-        for dep in edges:
-            indegree[dep] = indegree.get(dep, 0) + 1
+        args = parser.parse_args()
+        solver = cls(args.yaml_dir, args.output, args.packages, args.classes)
+        solver.load_yaml_files()
+        print(f"[INFO] Loaded YAML metadata from {solver.yaml_dir}")
 
-    queue = deque([n for n in indegree if indegree[n] == 0])
-    order = []
+        cycles = solver.detect_and_resolve_cycles()
+        if cycles:
+            print(f"[INFO] Resolved {len(cycles)} circular dependency cycles.")
 
-    while queue:
-        n = queue.popleft()
-        order.append(n)
-        for dep in graph.get(n, []):
-            indegree[dep] -= 1
-            if indegree[dep] == 0:
-                queue.append(dep)
+        order = solver.topological_sort()
+        solver.write_dep_files()
+        print(f"[INFO] .dep files written to {solver.output_dir}")
 
-    if len(order) != len(indegree):
-        raise RuntimeError("Cycle remains in dependency graph after multipass adjustment")
-
-    return order
-
-
-def print_tree(pkg, packages, include, prefix="", seen=None):
-    if seen is None:
-        seen = set()
-    if pkg in seen:
-        print(prefix + f"└── (circular) {pkg}")
-        return
-    seen.add(pkg)
-
-    deps = packages.get(pkg, {})
-    for cat, items in deps.items():
-        if cat in include and items:
-            print(f"{prefix}├── {cat}:")
-            for dep in items:
-                print(prefix + f"│   ├── {dep}")
-                print_tree(dep, packages, include, prefix + "│   ", seen)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="BLFS-style multipass dependency resolver")
-    parser.add_argument("--path", required=True, help="Path to directory with YAML package definitions")
-    parser.add_argument("--include", type=str, default="required", help="Comma-separated dependency categories")
-    parser.add_argument("--roots", nargs="+", required=True, help="Root package(s) or '*' for all")
-    parser.add_argument("--tree", action="store_true", help="Display dependency tree")
-    parser.add_argument("--output", help="Write build order to file")
-
-    args = parser.parse_args()
-    path = Path(args.path)
-    include = [x.strip() for x in args.include.replace(",", " ").split() if x.strip()]
-
-    print("[Dependency Resolver]")
-    print(f"Included dependency types: {', '.join(include)}")
-
-    packages = load_packages(path)
-    all_pkg_names = list(packages.keys())
-
-    if args.roots == ["*"]:
-        roots = all_pkg_names
-        print("Root packages: ALL")
-    else:
-        roots = args.roots
-        print(f"Root packages: {', '.join(roots)}")
-
-    graph = build_graph(packages, include)
-
-    all_related = set()
-    for root in roots:
-        all_related |= get_all_dependencies(root, packages, include)
-        all_related.add(root)
-
-    subgraph = {n: {d for d in graph[n] if d in all_related} for n in all_related}
-
-    subgraph = detect_cycles_and_split(subgraph)
-
-    build_order = topological_sort(subgraph)
-
-    print("\nResolved build order:")
-    for i, pkg in enumerate(build_order, 1):
-        print(f"{i}. {pkg}")
-
-    if args.output:
-        with open(args.output, "w") as f:
-            for pkg in build_order:
-                f.write(pkg + "\n")
-        print(f"\nBuild order written to: {args.output}")
-
-    if args.tree:
-        print("\nDependency Tree:")
-        for root in roots:
-            print(root)
-            print_tree(root, packages, include, prefix="  ")
-
+        if args.show_order and order:
+            print("\nTopological Build Order:")
+            for pkg in order:
+                print(pkg)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        sys.stderr.write(f"Error: {e}\n")
-        sys.exit(1)
+    SKWDepSolver.cli()
