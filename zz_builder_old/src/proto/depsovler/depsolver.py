@@ -134,9 +134,6 @@ def main():
     print("[Dependency Resolver]")
     print(f"Included dependency types: {', '.join(include)}")
 
-    print("[Dependency Resolver]")
-    print(f"Included dependency types: {', '.join(args.include)}")
-
     packages = load_packages(path)
     all_pkg_names = list(packages.keys())
 
