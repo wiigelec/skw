@@ -14,7 +14,7 @@ class SKWDepSolver:
     - Resolves cycles by:
         1. Injecting `-pass1` for required↔required cycles.
         2. Dropping weaker edges (recommended/optional) in mixed cycles.
-    - Safely handles edge removals between iterations.
+    - Handles deterministic cycle resolution (sorted order) for reproducible runs.
     - Allows filtering by package names and dependency classes (required, recommended, optional).
     - Generates `.dep` files (optional) or a topologically sorted build list.
     - Optional debug mode for inspecting loaded packages and edges.
@@ -97,13 +97,12 @@ class SKWDepSolver:
         cycles = list(nx.simple_cycles(self.graph))
         resolved = []
 
-        for cycle in cycles:
+        for cycle in sorted(cycles, key=lambda c: tuple(sorted(c))):
             if len(cycle) < 2:
                 continue
 
+            cycle = sorted(cycle)
             edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
-
-            # Filter only edges that still exist
             existing_edges = [(u, v) for (u, v) in edges if self.graph.has_edge(u, v)]
             if not existing_edges:
                 continue
@@ -122,10 +121,9 @@ class SKWDepSolver:
                         self.graph.add_edge(pred, new_node, weight=1)
                 resolved.append((cycle, new_node))
 
-                if len(existing_edges) > 0:
-                    u, v = existing_edges[0]
-                    if self.graph.has_edge(u, v):
-                        self.graph.remove_edge(u, v)
+                u, v = existing_edges[0]
+                if self.graph.has_edge(u, v):
+                    self.graph.remove_edge(u, v)
             else:
                 weakest = max(existing_edges, key=lambda e: self.graph[e[0]][e[1]].get("weight", 3))
                 u, v = weakest
