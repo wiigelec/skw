@@ -31,18 +31,18 @@ checksum = ""
 
 [dependencies]
 child1 = [ "required", "recommended" ]
-optional = ".//para[@role='optional']//xref/@linkend"
-external = ".//para[@role='optional']//ulink/@url"
+optional = "translate(.//para[@role='optional']//xref/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+external = "translate(.//para[@role='optional']//ulink/@url, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
 [required]
-first = ".//para[@role='required']//xref[@role='first']/@linkend"
-before = ".//para[@role='required']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend"
-after = ".//para[@role='required']//xref[@role='runtime']/@linkend"
+first = "translate(.//para[@role='required']//xref[@role='first']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+before = "translate(.//para[@role='required']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+after = "translate(.//para[@role='required']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
 [recommended]
-first = ".//para[@role='recommended']//xref[@role='first']/@linkend"
-before = ".//para[@role='recommended']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend"
-after = ".//para[@role='recommended']//xref[@role='runtime']/@linkend"
+first = "translate(.//para[@role='recommended']//xref[@role='first']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+before = "translate(.//para[@role='recommended']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+after = "translate(.//para[@role='recommended']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 
 
 ####################################################################
