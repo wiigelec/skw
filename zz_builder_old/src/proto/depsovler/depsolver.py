@@ -46,13 +46,21 @@ class SKWDepSolver:
 
             for dep_type in self.classes:
                 group = deps.get(dep_type, {})
-                for order in ["first", "before", "after"]:
-                    deps = group.get(order, [])
-                    if isinstance(deps, str):
-                        deps = [deps]
-                    for dep in deps:
+                # Handle either dict or list
+                if isinstance(group, list):
+                    deps_iter = group
+                else:
+                    deps_iter = []
+                    for order in ["first", "before", "after"]:
+                        values = group.get(order, []) if isinstance(group, dict) else []
+                        if isinstance(values, str):
+                            values = [values]
+                        deps_iter.extend(values)
+
+                for dep in deps_iter:
+                    if dep:
                         weight = self.weight_map.get(dep_type, 3)
-                        self.graph.add_edge(pkg, dep, weight=weight, order=order)
+                        self.graph.add_edge(pkg, dep, weight=weight)
 
     def detect_and_resolve_cycles(self):
         cycles = list(nx.simple_cycles(self.graph))
