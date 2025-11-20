@@ -14,9 +14,10 @@ class SKWDepSolver:
     - Resolves cycles by injecting `-pass1` packages for required↔required cycles.
     - Allows filtering by package names and dependency classes (required, recommended, optional).
     - Generates `.dep` files (optional) or a topologically sorted build list.
+    - Optional debug mode for inspecting loaded packages and edges.
     """
 
-    def __init__(self, yaml_dir, output_dir="dependencies", packages=None, classes=None):
+    def __init__(self, yaml_dir, output_dir="dependencies", packages=None, classes=None, debug=False):
         self.yaml_dir = Path(yaml_dir)
         self.output_dir = Path(output_dir)
         self.packages = set(packages or [])
@@ -28,18 +29,27 @@ class SKWDepSolver:
             "optional": 3
         }
         self.visited = set()
+        self.debug = debug
+
+    def _log(self, message):
+        if self.debug:
+            print(f"[DEBUG] {message}")
 
     def _load_package_yaml(self, pkg_name):
         yaml_file = self.yaml_dir / f"{pkg_name}.yaml"
         if not yaml_file.exists() or pkg_name in self.visited:
+            self._log(f"Skipping {pkg_name} (already visited or missing YAML)")
             return
 
         self.visited.add(pkg_name)
+        self._log(f"Loading {pkg_name} from {yaml_file}")
+
         with open(yaml_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         deps = data.get("dependencies", {})
         if not deps:
+            self._log(f"No dependencies for {pkg_name}")
             return
 
         for dep_type in self.classes:
@@ -60,6 +70,7 @@ class SKWDepSolver:
                 if dep:
                     weight = self.weight_map.get(dep_type, 3)
                     self.graph.add_edge(pkg_name, dep, weight=weight)
+                    self._log(f"Edge added: {pkg_name} -> {dep} (weight={weight})")
                     # Recursively load dependency YAML
                     self._load_package_yaml(dep)
 
@@ -121,9 +132,10 @@ class SKWDepSolver:
         parser.add_argument("--classes", nargs="*", choices=["required", "recommended", "optional"], default=["required", "recommended", "optional"], help="Dependency classes to include.")
         parser.add_argument("--output", default="dependencies", help="Output directory for .dep files.")
         parser.add_argument("--show-order", action="store_true", help="Print topological build order.")
+        parser.add_argument("--debug", action="store_true", help="Enable debug output for detailed graph building.")
 
         args = parser.parse_args()
-        solver = cls(args.yaml_dir, args.output, args.packages, args.classes)
+        solver = cls(args.yaml_dir, args.output, args.packages, args.classes, args.debug)
         solver.load_yaml_files()
         print(f"[INFO] Loaded YAML metadata from {solver.yaml_dir}")
 
