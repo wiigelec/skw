@@ -30,10 +30,13 @@ checksum = ""
 
 
 [dependencies]
-required = ".//para[@role='required']//xref[@role!='runtime' or not(@role)]/@linkend"
-recommended = ".//para[@role='recommended']//xref[@role!='nodep' or @role!='runtime' or not(@role)]/@linkend"
+required_first = ".//para[@role='required']//xref[@role='first']/@linkend"
+required_before = ".//para[@role='required']//xref[(@role!='runtime' and @role1='first') or not(@role)]/@linkend"
+required_after = ".//para[@role='required']//xref[@role='runtime']/@linkend"
+recommended_first = ".//para[@role='recommended']//xref[@role='first']/@linkend"
+recommended_before = ".//para[@role='recommended']//xref[(@role!='runtime' and @role1='first') or not(@role)]/@linkend"
+recommended_after = ".//para[@role='recommended']//xref[@role='runtime']/@linkend"
 optional = ".//para[@role='optional']//xref/@linkend"
-runtime = ".//para[@role!='optional']//xref[@role='runtime']/@linkend"
 
 
 ####################################################################
