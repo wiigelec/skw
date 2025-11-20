@@ -31,12 +31,11 @@ def load_packages(path: Path):
 
 
 def build_graph(packages, include):
-    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     graph = defaultdict(set)
 
     for pkg, deps in packages.items():
         for cat, deps_list in deps.items():
-            if WEIGHTS[cat] <= max_weight:
+            if cat in include:
                 for dep in deps_list:
                     graph[pkg].add(dep)
         if pkg not in graph:
@@ -45,7 +44,6 @@ def build_graph(packages, include):
 
 
 def get_all_dependencies(root, packages, include):
-    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     visited = set()
     stack = [root]
 
@@ -57,7 +55,7 @@ def get_all_dependencies(root, packages, include):
         if current not in packages:
             continue
         for cat, deps in packages[current].items():
-            if WEIGHTS[cat] <= max_weight:
+            if cat in include:
                 for dep in deps:
                     if dep not in visited:
                         stack.append(dep)
@@ -66,7 +64,6 @@ def get_all_dependencies(root, packages, include):
 
 def detect_cycles_and_split(graph):
     visited = set()
-    stack = []
     rec_stack = set()
     cycles = []
 
@@ -85,7 +82,6 @@ def detect_cycles_and_split(graph):
             dfs(node)
 
     for a, b in cycles:
-        # Handle bootstrap cycles by creating synthetic -pass1 node
         pass1_node = f"{a}-pass1"
         if pass1_node not in graph:
             graph[pass1_node] = set()
@@ -128,10 +124,9 @@ def print_tree(pkg, packages, include, prefix="", seen=None):
         return
     seen.add(pkg)
 
-    max_weight = max(WEIGHTS[d] for d in include if d in WEIGHTS)
     deps = packages.get(pkg, {})
     for cat, items in deps.items():
-        if WEIGHTS[cat] <= max_weight and items:
+        if cat in include and items:
             print(f"{prefix}├── {cat}:")
             for dep in items:
                 print(prefix + f"│   ├── {dep}")
@@ -172,7 +167,6 @@ def main():
 
     subgraph = {n: {d for d in graph[n] if d in all_related} for n in all_related}
 
-    # Apply multipass cycle handling
     subgraph = detect_cycles_and_split(subgraph)
 
     build_order = topological_sort(subgraph)
