@@ -127,6 +127,9 @@ class SKWDepSolver:
             return list(nx.topological_sort(self.graph))
         except nx.NetworkXUnfeasible:
             print("[ERROR] Graph still contains cycles!")
+            print("[DEBUG] Remaining cycles:")
+            for c in nx.simple_cycles(self.graph):
+                print("   ", " → ".join(c))
             return []
 
     def write_dep_files(self):
