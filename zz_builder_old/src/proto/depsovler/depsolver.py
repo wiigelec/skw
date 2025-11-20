@@ -5,9 +5,7 @@ from pathlib import Path
 from collections import defaultdict, deque
 import sys
 
-
 def load_packages(path: Path):
-    """Load all YAML package definitions from the given directory."""
     packages = {}
     for yaml_file in path.glob("*.yaml"):
         with open(yaml_file, "r") as f:
@@ -16,23 +14,18 @@ def load_packages(path: Path):
         name = data.get("name")
         deps = data.get("dependencies", {})
 
-        # Normalize dependency fields (ensure lists)
         normalized = {}
         for cat in ["required", "recommended", "optional", "runtime"]:
             val = deps.get(cat, [])
-            if isinstance(val, str) and val.strip():
-                normalized[cat] = [v.strip() for v in val.split(",")]
-            elif isinstance(val, list):
-                normalized[cat] = val
-            else:
-                normalized[cat] = []
-
+            if isinstance(val, str):
+                val = [v.strip() for v in val.split(",") if v.strip()]
+            elif not isinstance(val, list):
+                val = []
+            normalized[cat] = val
         packages[name] = normalized
     return packages
 
-
 def build_graph(packages, include):
-    """Build a dependency graph based on selected categories."""
     graph = defaultdict(set)
     for pkg, deps in packages.items():
         for cat in include:
@@ -43,18 +36,14 @@ def build_graph(packages, include):
             graph[pkg] = set()
     return graph
 
-
 def reverse_graph(graph):
-    """Reverse edges of the dependency graph."""
     rev = defaultdict(set)
-    for src, targets in graph.items():
-        for tgt in targets:
+    for src, tgts in graph.items():
+        for tgt in tgts:
             rev[tgt].add(src)
     return rev
 
-
 def get_all_dependencies(root, packages, include):
-    """Recursively collect all dependencies for a root package."""
     visited = set()
     stack = [root]
     while stack:
@@ -62,56 +51,47 @@ def get_all_dependencies(root, packages, include):
         if current in visited:
             continue
         visited.add(current)
+        if current not in packages:
+            continue
         for cat in include:
-            for dep in packages.get(current, {}).get(cat, []):
+            for dep in packages[current].get(cat, []):
                 if dep not in visited:
                     stack.append(dep)
     return visited
 
-
 def topological_sort(graph):
-    """Return a topological order of nodes in a directed acyclic graph."""
-    in_degree = {node: 0 for node in graph}
-    for node, edges in graph.items():
-        for neighbor in edges:
-            in_degree[neighbor] += 1
-
-    queue = deque([n for n in graph if in_degree[n] == 0])
+    indegree = {n: 0 for n in graph}
+    for n, edges in graph.items():
+        for e in edges:
+            indegree[e] += 1
+    q = deque([n for n in graph if indegree[n] == 0])
     order = []
-
-    while queue:
-        node = queue.popleft()
-        order.append(node)
-        for neighbor in graph[node]:
-            in_degree[neighbor] -= 1
-            if in_degree[neighbor] == 0:
-                queue.append(neighbor)
-
+    while q:
+        n = q.popleft()
+        order.append(n)
+        for e in graph[n]:
+            indegree[e] -= 1
+            if indegree[e] == 0:
+                q.append(e)
     if len(order) != len(graph):
-        raise RuntimeError("Cycle detected in dependency graph")
-
+        raise RuntimeError("Cycle detected in dependencies")
     return order
 
-
 def print_tree(pkg, packages, include, prefix="", seen=None):
-    """Recursively print dependency tree for a given package."""
     if seen is None:
         seen = set()
     if pkg in seen:
         print(prefix + f"└── (circular) {pkg}")
         return
     seen.add(pkg)
-
     deps = packages.get(pkg, {})
-    for i, cat in enumerate(include):
+    for cat in include:
         items = deps.get(cat, [])
-        if not items:
-            continue
-        print(f"{prefix}├── {cat}:")
-        for dep in items:
-            print(prefix + f"│   ├── {dep}")
-            print_tree(dep, packages, include, prefix + "│   ", seen.copy())
-
+        if items:
+            print(f"{prefix}├── {cat}:")
+            for dep in items:
+                print(prefix + f"│   ├── {dep}")
+                print_tree(dep, packages, include, prefix + "│   ", seen.copy())
 
 def main():
     parser = argparse.ArgumentParser(description="YAML-based package dependency resolver")
@@ -120,7 +100,7 @@ def main():
         "--include",
         type=str,
         default="required",
-        help="Comma-separated dependency categories to include (e.g. required,recommended,runtime)"
+        help="Comma-separated dependency categories to include (e.g. required,recommended,optional,runtime)",
     )
     parser.add_argument("--roots", nargs="+", required=True, help="Root package(s) or '*' for all")
     parser.add_argument("--tree", action="store_true", help="Display dependency tree")
@@ -137,7 +117,6 @@ def main():
     packages = load_packages(path)
     all_pkg_names = list(packages.keys())
 
-    # Determine root set
     if args.roots == ["*"]:
         roots = all_pkg_names
         print("Root packages: ALL")
@@ -145,14 +124,12 @@ def main():
         roots = args.roots
         print(f"Root packages: {', '.join(roots)}")
 
-    # Build dependency graph
-    graph = build_graph(packages, args.include)
-    rev_graph = reverse_graph(graph)
+    # Build dependency graph and resolve
+    graph = build_graph(packages, include)
 
-    # Restrict to dependencies reachable from roots
     all_related = set()
     for root in roots:
-        all_related |= get_all_dependencies(root, packages, args.include)
+        all_related |= get_all_dependencies(root, packages, include)
         all_related.add(root)
 
     subgraph = {n: {d for d in graph[n] if d in all_related} for n in all_related}
@@ -161,7 +138,10 @@ def main():
 
     print("\nResolved build order:")
     for i, pkg in enumerate(build_order, 1):
-        print(f"{i}. {pkg}")
+        label = pkg
+        if pkg not in packages:
+            label += " (missing)"
+        print(f"{i}. {label}")
 
     if args.output:
         with open(args.output, "w") as f:
@@ -173,8 +153,7 @@ def main():
         print("\nDependency Tree:")
         for root in roots:
             print(root)
-            print_tree(root, packages, args.include, prefix="  ")
-
+            print_tree(root, packages, include, prefix="  ")
 
 if __name__ == "__main__":
     try:
