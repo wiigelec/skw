@@ -11,7 +11,9 @@ class SKWDepSolver:
     - Builds a directed dependency graph from YAML build metadata.
     - Recursively loads dependencies from referenced YAML files.
     - Detects and reports circular dependencies.
-    - Resolves cycles by injecting `-pass1` packages for required↔required cycles.
+    - Resolves cycles by:
+        1. Injecting `-pass1` for required↔required cycles.
+        2. Dropping weaker edges (recommended/optional) in mixed cycles.
     - Allows filtering by package names and dependency classes (required, recommended, optional).
     - Generates `.dep` files (optional) or a topologically sorted build list.
     - Optional debug mode for inspecting loaded packages and edges.
@@ -37,12 +39,10 @@ class SKWDepSolver:
             print(f"[DEBUG] {message}")
 
     def _find_yaml_file(self, pkg_name):
-        # Try exact match first
         exact = self.yaml_dir / f"{pkg_name}.yaml"
         if exact.exists():
             return exact
 
-        # Try prefix match for versioned files (e.g., systemd-257.8.yaml)
         matches = sorted(self.yaml_dir.glob(f"{pkg_name}-*.yaml"))
         if matches:
             self._log(f"Matched versioned YAML for {pkg_name}: {matches[0].name}")
@@ -71,7 +71,6 @@ class SKWDepSolver:
         for dep_type in self.classes:
             group = deps.get(dep_type, {})
 
-            # Handle dict or list
             if isinstance(group, list):
                 deps_iter = group
             else:
@@ -87,7 +86,6 @@ class SKWDepSolver:
                     weight = self.weight_map.get(dep_type, 3)
                     self.graph.add_edge(pkg_name, dep, weight=weight)
                     self._log(f"Edge added: {pkg_name} -> {dep} (weight={weight})")
-                    # Recursively load dependency YAML
                     self._load_package_yaml(dep)
 
     def load_yaml_files(self):
@@ -103,9 +101,9 @@ class SKWDepSolver:
                 continue
 
             edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
-            all_required = all(
-                self.graph[u][v].get("weight", 3) == 1 for u, v in edges
-            )
+            weights = [self.graph[u][v].get("weight", 3) for u, v in edges]
+
+            all_required = all(w == 1 for w in weights)
 
             if all_required:
                 first = cycle[0]
@@ -119,6 +117,14 @@ class SKWDepSolver:
                 resolved.append((cycle, new_node))
 
                 self.graph.remove_edge(first, cycle[1])
+            else:
+                # Drop weakest (highest weight) edge
+                weakest = max(edges, key=lambda e: self.graph[e[0]][e[1]].get("weight", 3))
+                u, v = weakest
+                w = self.graph[u][v]["weight"]
+                print(f"[CYCLE] Dropping weaker edge {u} -> {v} (weight={w}) from cycle {cycle}")
+                self.graph.remove_edge(u, v)
+                resolved.append((cycle, f"dropped {u}->{v}"))
 
         return resolved
 
