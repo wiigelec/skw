@@ -5,6 +5,7 @@ from pathlib import Path
 from collections import defaultdict, deque
 import sys
 
+
 def load_packages(path: Path):
     packages = {}
     for yaml_file in path.glob("*.yaml"):
@@ -25,23 +26,18 @@ def load_packages(path: Path):
         packages[name] = normalized
     return packages
 
+
 def build_graph(packages, include):
     graph = defaultdict(set)
     for pkg, deps in packages.items():
         for cat in include:
             for dep in deps.get(cat, []):
                 if dep:
-                    graph[dep].add(pkg)
+                    graph[pkg].add(dep)
         if pkg not in graph:
             graph[pkg] = set()
     return graph
 
-def reverse_graph(graph):
-    rev = defaultdict(set)
-    for src, tgts in graph.items():
-        for tgt in tgts:
-            rev[tgt].add(src)
-    return rev
 
 def get_all_dependencies(root, packages, include):
     visited = set()
@@ -59,23 +55,49 @@ def get_all_dependencies(root, packages, include):
                     stack.append(dep)
     return visited
 
+
+def detect_cycle(graph):
+    visited = set()
+    rec_stack = set()
+
+    def dfs(node, path):
+        visited.add(node)
+        rec_stack.add(node)
+        for dep in graph[node]:
+            if dep not in visited:
+                if dfs(dep, path + [dep]):
+                    return True
+            elif dep in rec_stack:
+                print("\n[Cycle Detected]: " + " -> ".join(path + [dep]))
+                return True
+        rec_stack.remove(node)
+        return False
+
+    for node in graph:
+        if node not in visited:
+            if dfs(node, [node]):
+                raise RuntimeError("Circular dependency detected.")
+
+
 def topological_sort(graph):
     indegree = {n: 0 for n in graph}
     for n, edges in graph.items():
-        for e in edges:
-            indegree[e] += 1
+        for dep in edges:
+            indegree[dep] += 1
     q = deque([n for n in graph if indegree[n] == 0])
     order = []
     while q:
         n = q.popleft()
         order.append(n)
-        for e in graph[n]:
-            indegree[e] -= 1
-            if indegree[e] == 0:
-                q.append(e)
+        for dep in graph[n]:
+            indegree[dep] -= 1
+            if indegree[dep] == 0:
+                q.append(dep)
     if len(order) != len(graph):
+        detect_cycle(graph)
         raise RuntimeError("Cycle detected in dependencies")
     return order
+
 
 def print_tree(pkg, packages, include, prefix="", seen=None):
     if seen is None:
@@ -92,6 +114,7 @@ def print_tree(pkg, packages, include, prefix="", seen=None):
             for dep in items:
                 print(prefix + f"│   ├── {dep}")
                 print_tree(dep, packages, include, prefix + "│   ", seen.copy())
+
 
 def main():
     parser = argparse.ArgumentParser(description="YAML-based package dependency resolver")
@@ -124,7 +147,6 @@ def main():
         roots = args.roots
         print(f"Root packages: {', '.join(roots)}")
 
-    # Build dependency graph and resolve
     graph = build_graph(packages, include)
 
     all_related = set()
@@ -134,14 +156,21 @@ def main():
 
     subgraph = {n: {d for d in graph[n] if d in all_related} for n in all_related}
 
-    build_order = topological_sort(subgraph)
-
-    print("\nResolved build order:")
-    for i, pkg in enumerate(build_order, 1):
-        label = pkg
-        if pkg not in packages:
-            label += " (missing)"
-        print(f"{i}. {label}")
+    try:
+        build_order = topological_sort(subgraph)
+        print("\nResolved build order:")
+        for i, pkg in enumerate(build_order, 1):
+            label = pkg
+            if pkg not in packages:
+                label += " (missing)"
+            print(f"{i}. {label}")
+    except RuntimeError as e:
+        print(f"\nError: {e}")
+        print("\nDependency Tree (for debugging):")
+        for root in roots:
+            print(root)
+            print_tree(root, packages, include, prefix="  ")
+        sys.exit(1)
 
     if args.output:
         with open(args.output, "w") as f:
@@ -154,6 +183,7 @@ def main():
         for root in roots:
             print(root)
             print_tree(root, packages, include, prefix="  ")
+
 
 if __name__ == "__main__":
     try:
