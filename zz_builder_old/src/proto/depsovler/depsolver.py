@@ -76,7 +76,8 @@ def detect_cycle(graph):
     for node in graph:
         if node not in visited:
             if dfs(node, [node]):
-                raise RuntimeError("Circular dependency detected.")
+                return True
+    return False
 
 
 def topological_sort(graph):
@@ -94,18 +95,25 @@ def topological_sort(graph):
             if indegree[dep] == 0:
                 q.append(dep)
     if len(order) != len(graph):
-        detect_cycle(graph)
-        raise RuntimeError("Cycle detected in dependencies")
+        if detect_cycle(graph):
+            raise RuntimeError("Cycle detected in dependencies")
+        else:
+            raise RuntimeError("Unresolved graph state")
     return order
 
 
-def print_tree(pkg, packages, include, prefix="", seen=None):
+def print_tree(pkg, packages, include, prefix="", seen=None, global_seen=None):
     if seen is None:
         seen = set()
-    if pkg in seen:
+    if global_seen is None:
+        global_seen = set()
+
+    if pkg in seen or pkg in global_seen:
         print(prefix + f"└── (circular) {pkg}")
         return
+
     seen.add(pkg)
+    global_seen.add(pkg)
     deps = packages.get(pkg, {})
     for cat in include:
         items = deps.get(cat, [])
@@ -113,7 +121,7 @@ def print_tree(pkg, packages, include, prefix="", seen=None):
             print(f"{prefix}├── {cat}:")
             for dep in items:
                 print(prefix + f"│   ├── {dep}")
-                print_tree(dep, packages, include, prefix + "│   ", seen.copy())
+                print_tree(dep, packages, include, prefix + "│   ", seen, global_seen)
 
 
 def main():
