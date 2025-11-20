@@ -47,7 +47,10 @@ class SKWDepSolver:
             for dep_type in self.classes:
                 group = deps.get(dep_type, {})
                 for order in ["first", "before", "after"]:
-                    for dep in group.get(order, []) if group else []:
+                    deps = group.get(order, [])
+                    if isinstance(deps, str):
+                        deps = [deps]
+                    for dep in deps:
                         weight = self.weight_map.get(dep_type, 3)
                         self.graph.add_edge(pkg, dep, weight=weight, order=order)
 
