@@ -31,7 +31,7 @@ checksum = ""
 
 [dependencies]
 child1 = [ "required", "recommended" ]
-optional = ".//para[@role='optional']//xref/@linkend"
+optional = ".//para[@role='optional']//xref/@linkend | .//para[@role='optional']//ulink/@url"
 
 [required]
 first = ".//para[@role='required']//xref[@role='first']/@linkend"
