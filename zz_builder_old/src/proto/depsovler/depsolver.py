@@ -15,6 +15,7 @@ class SKWDepSolver:
     - Allows filtering by package names and dependency classes (required, recommended, optional).
     - Generates `.dep` files (optional) or a topologically sorted build list.
     - Optional debug mode for inspecting loaded packages and edges.
+    - Supports versioned YAML filenames (matches by prefix, first found).
     """
 
     def __init__(self, yaml_dir, output_dir="dependencies", packages=None, classes=None, debug=False):
@@ -35,9 +36,24 @@ class SKWDepSolver:
         if self.debug:
             print(f"[DEBUG] {message}")
 
+    def _find_yaml_file(self, pkg_name):
+        # Try exact match first
+        exact = self.yaml_dir / f"{pkg_name}.yaml"
+        if exact.exists():
+            return exact
+
+        # Try prefix match for versioned files (e.g., systemd-257.8.yaml)
+        matches = sorted(self.yaml_dir.glob(f"{pkg_name}-*.yaml"))
+        if matches:
+            self._log(f"Matched versioned YAML for {pkg_name}: {matches[0].name}")
+            return matches[0]
+
+        self._log(f"No YAML found for {pkg_name}")
+        return None
+
     def _load_package_yaml(self, pkg_name):
-        yaml_file = self.yaml_dir / f"{pkg_name}.yaml"
-        if not yaml_file.exists() or pkg_name in self.visited:
+        yaml_file = self._find_yaml_file(pkg_name)
+        if not yaml_file or pkg_name in self.visited:
             self._log(f"Skipping {pkg_name} (already visited or missing YAML)")
             return
 
