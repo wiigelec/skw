@@ -14,6 +14,7 @@ class SKWDepSolver:
     - Resolves cycles by:
         1. Injecting `-pass1` for required↔required cycles.
         2. Dropping weaker edges (recommended/optional) in mixed cycles.
+    - Safely handles edge removals between iterations.
     - Allows filtering by package names and dependency classes (required, recommended, optional).
     - Generates `.dep` files (optional) or a topologically sorted build list.
     - Optional debug mode for inspecting loaded packages and edges.
@@ -101,8 +102,13 @@ class SKWDepSolver:
                 continue
 
             edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
-            weights = [self.graph[u][v].get("weight", 3) for u, v in edges]
 
+            # Filter only edges that still exist
+            existing_edges = [(u, v) for (u, v) in edges if self.graph.has_edge(u, v)]
+            if not existing_edges:
+                continue
+
+            weights = [self.graph[u][v].get("weight", 3) for u, v in existing_edges]
             all_required = all(w == 1 for w in weights)
 
             if all_required:
@@ -116,15 +122,18 @@ class SKWDepSolver:
                         self.graph.add_edge(pred, new_node, weight=1)
                 resolved.append((cycle, new_node))
 
-                self.graph.remove_edge(first, cycle[1])
+                if len(existing_edges) > 0:
+                    u, v = existing_edges[0]
+                    if self.graph.has_edge(u, v):
+                        self.graph.remove_edge(u, v)
             else:
-                # Drop weakest (highest weight) edge
-                weakest = max(edges, key=lambda e: self.graph[e[0]][e[1]].get("weight", 3))
+                weakest = max(existing_edges, key=lambda e: self.graph[e[0]][e[1]].get("weight", 3))
                 u, v = weakest
-                w = self.graph[u][v]["weight"]
-                print(f"[CYCLE] Dropping weaker edge {u} -> {v} (weight={w}) from cycle {cycle}")
-                self.graph.remove_edge(u, v)
-                resolved.append((cycle, f"dropped {u}->{v}"))
+                if self.graph.has_edge(u, v):
+                    w = self.graph[u][v]["weight"]
+                    print(f"[CYCLE] Dropping weaker edge {u} -> {v} (weight={w}) from cycle {cycle}")
+                    self.graph.remove_edge(u, v)
+                    resolved.append((cycle, f"dropped {u}->{v}"))
 
         return resolved
 
