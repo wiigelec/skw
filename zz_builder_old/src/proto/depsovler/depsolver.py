@@ -9,6 +9,7 @@ class SKWDepSolver:
 
     Features:
     - Builds a directed dependency graph from YAML build metadata.
+    - Recursively loads dependencies from referenced YAML files.
     - Detects and reports circular dependencies.
     - Resolves cycles by injecting `-pass1` packages for required↔required cycles.
     - Allows filtering by package names and dependency classes (required, recommended, optional).
@@ -26,41 +27,45 @@ class SKWDepSolver:
             "recommended": 2,
             "optional": 3
         }
+        self.visited = set()
+
+    def _load_package_yaml(self, pkg_name):
+        yaml_file = self.yaml_dir / f"{pkg_name}.yaml"
+        if not yaml_file.exists() or pkg_name in self.visited:
+            return
+
+        self.visited.add(pkg_name)
+        with open(yaml_file, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        deps = data.get("dependencies", {})
+        if not deps:
+            return
+
+        for dep_type in self.classes:
+            group = deps.get(dep_type, {})
+
+            # Handle dict or list
+            if isinstance(group, list):
+                deps_iter = group
+            else:
+                deps_iter = []
+                for order in ["first", "before", "after"]:
+                    values = group.get(order, []) if isinstance(group, dict) else []
+                    if isinstance(values, str):
+                        values = [values]
+                    deps_iter.extend(values)
+
+            for dep in deps_iter:
+                if dep:
+                    weight = self.weight_map.get(dep_type, 3)
+                    self.graph.add_edge(pkg_name, dep, weight=weight)
+                    # Recursively load dependency YAML
+                    self._load_package_yaml(dep)
 
     def load_yaml_files(self):
-        for file in self.yaml_dir.glob("*.yaml"):
-            with open(file, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-
-            pkg = data.get("name")
-            if not pkg:
-                continue
-
-            # Process only requested packages if provided
-            if self.packages and pkg not in self.packages:
-                continue
-
-            deps = data.get("dependencies", {})
-            if not deps:
-                continue
-
-            for dep_type in self.classes:
-                group = deps.get(dep_type, {})
-                # Handle either dict or list
-                if isinstance(group, list):
-                    deps_iter = group
-                else:
-                    deps_iter = []
-                    for order in ["first", "before", "after"]:
-                        values = group.get(order, []) if isinstance(group, dict) else []
-                        if isinstance(values, str):
-                            values = [values]
-                        deps_iter.extend(values)
-
-                for dep in deps_iter:
-                    if dep:
-                        weight = self.weight_map.get(dep_type, 3)
-                        self.graph.add_edge(pkg, dep, weight=weight)
+        for pkg in (self.packages or []):
+            self._load_package_yaml(pkg)
 
     def detect_and_resolve_cycles(self):
         cycles = list(nx.simple_cycles(self.graph))
@@ -70,7 +75,6 @@ class SKWDepSolver:
             if len(cycle) < 2:
                 continue
 
-            # Check if all edges are required (weight=1)
             edges = [(cycle[i], cycle[(i + 1) % len(cycle)]) for i in range(len(cycle))]
             all_required = all(
                 self.graph[u][v].get("weight", 3) == 1 for u, v in edges
@@ -82,21 +86,18 @@ class SKWDepSolver:
                 print(f"[CYCLE] Breaking required cycle {cycle} by adding {new_node}")
 
                 self.graph.add_node(new_node)
-                # Redirect predecessors to the new pass1 node
                 for pred in list(self.graph.predecessors(first)):
                     if pred not in cycle:
                         self.graph.add_edge(pred, new_node, weight=1)
                 resolved.append((cycle, new_node))
 
-                # Remove one edge to break the cycle
                 self.graph.remove_edge(first, cycle[1])
 
         return resolved
 
     def topological_sort(self):
         try:
-            order = list(nx.topological_sort(self.graph))
-            return order
+            return list(nx.topological_sort(self.graph))
         except nx.NetworkXUnfeasible:
             print("[ERROR] Graph still contains cycles!")
             return []
