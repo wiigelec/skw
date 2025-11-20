@@ -120,7 +120,7 @@ def main():
         "--include",
         type=str,
         default="required",
-        help="Comma-separated dependency categories (e.g. 'required,recommended,optional,runtime')"
+        help="Comma-separated dependency categories to include (e.g. required,recommended,runtime)"
     )
     parser.add_argument("--roots", nargs="+", required=True, help="Root package(s) or '*' for all")
     parser.add_argument("--tree", action="store_true", help="Display dependency tree")
@@ -130,6 +130,9 @@ def main():
     path = Path(args.path)
 
     include = [x.strip() for x in args.include.replace(",", " ").split() if x.strip()]
+
+    print("[Dependency Resolver]")
+    print(f"Included dependency types: {', '.join(include)}")
 
     print("[Dependency Resolver]")
     print(f"Included dependency types: {', '.join(args.include)}")
