@@ -149,6 +149,17 @@ class SKWDepSolver:
                 print("   ", " → ".join(c))
             return []
 
+    def filter_synthetic_nodes(self, build_order):
+        """Remove groupxx and redundant -pass1 nodes from the final build list."""
+        filtered = []
+        for pkg in build_order:
+            if pkg.endswith("groupxx"):
+                continue
+            if pkg.endswith("-pass1") and pkg[:-6] in build_order:
+                continue
+            filtered.append(pkg)
+        return filtered
+
     def write_dep_files(self):
         self.output_dir.mkdir(exist_ok=True)
         for pkg in self.graph.nodes:
@@ -179,6 +190,7 @@ class SKWDepSolver:
             print(f"[INFO] Resolved {len(cycles)} circular dependency cycles.")
 
         order = solver.topological_sort()
+        order = solver.filter_synthetic_nodes(order)
         solver.write_dep_files()
         print(f"[INFO] .dep files written to {solver.output_dir}")
 
