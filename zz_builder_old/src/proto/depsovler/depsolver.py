@@ -28,15 +28,19 @@ def locate_yaml(pkg_name: str, version: Optional[str], yaml_dir: Path) -> Path:
     if len(matches) == 1:
         return matches[0]
     elif len(matches) > 1:
-        raise FileNotFoundError(
-            f"Multiple YAML files found for '{pkg_name}': {[m.name for m in matches]}. "
-            "Specify --root-version to disambiguate."
+        sys.stderr.write(
+            f"{YELLOW}ERROR:{OFF} Multiple YAML files found for '{pkg_name}': "
+            f"{[m.name for m in matches]}\nSpecify --root-version to disambiguate.\n"
         )
-    raise FileNotFoundError(f"No YAML file found for package '{pkg_name}' in {yaml_dir}")
+        sys.exit(1)
+
+    # Fatal: YAML not found
+    sys.stderr.write(f"{RED}FATAL:{OFF} No YAML file found for package '{pkg_name}' in {yaml_dir}\n")
+    sys.exit(1)
 
 
 # ==== Parse YAML dependencies ====
-def parse_yaml_dependencies(pkg_name: str, yaml_path: Path) -> list[dict]:
+def parse_yaml_dependencies(pkg_name: str, yaml_path: Path) -> list:
     with yaml_path.open("r") as f:
         data = yaml.safe_load(f)
 
@@ -77,17 +81,10 @@ def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, y
 
     pkg_name = dep_file.stem
     match = re.match(r"([A-Za-z0-9_.+-]+?)(?:-(\d.*))?$", pkg_name)
-    if match:
-        base_name, version = match.groups()
-    else:
-        base_name, version = pkg_name, None
+    base_name, version = (match.groups() if match else (pkg_name, None))
 
-    try:
-        yaml_path = locate_yaml(base_name, version, yaml_dir)
-        dependencies = parse_yaml_dependencies(pkg_name, yaml_path)
-    except FileNotFoundError as e:
-        print(f"{YELLOW}ERROR:{OFF} {e}")
-        return 1
+    yaml_path = locate_yaml(base_name, version, yaml_dir)
+    dependencies = parse_yaml_dependencies(pkg_name, yaml_path)
 
     with dep_file.open("w") as f:
         for dep in dependencies:
@@ -105,13 +102,8 @@ def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, y
                   f"{priostring} {buildstring}")
             continue
 
-        # recursively load YAML
-        try:
-            dep_yaml_path = locate_yaml(dep['target'], None, yaml_dir)
-            sub_deps = parse_yaml_dependencies(dep['target'], dep_yaml_path)
-        except FileNotFoundError:
-            print(f"{YELLOW}Missing dependency:{OFF} {dep['target']} (no YAML file)")
-            continue
+        dep_yaml_path = locate_yaml(dep['target'], None, yaml_dir)
+        sub_deps = parse_yaml_dependencies(dep['target'], dep_yaml_path)
 
         if not sub_deps:
             dep_path.touch()
@@ -130,49 +122,29 @@ def main():
         description="Generate dependency .dep files from versioned YAML package definitions."
     )
     parser.add_argument("root_package", help="Root package name (without .yaml extension)")
-    parser.add_argument(
-        "-v", "--root-version",
-        default=None,
-        help="Optional version of the root package (e.g., 257.8)"
-    )
-    parser.add_argument(
-        "-y", "--yaml-dir",
-        default="packages",
-        help="Directory containing package YAML files (default: ./packages)"
-    )
-    parser.add_argument(
-        "-o", "--output-dir",
-        default="deps",
-        help="Directory to store generated .dep files (default: ./deps)"
-    )
-    parser.add_argument(
-        "-l", "--level",
-        type=int,
-        choices=[1, 2, 3, 4],
-        default=DEP_LEVEL,
-        help="Dependency level: 1=required, 2=recommended, 3=optional, 4=external"
-    )
+    parser.add_argument("-v", "--root-version", default=None, help="Optional version (e.g., 257.8)")
+    parser.add_argument("-y", "--yaml-dir", default="packages", help="Directory of YAML package files")
+    parser.add_argument("-o", "--output-dir", default="deps", help="Directory for .dep output files")
+    parser.add_argument("-l", "--level", type=int, choices=[1, 2, 3, 4], default=DEP_LEVEL,
+                        help="Dependency level: 1=required, 2=recommended, 3=optional, 4=external")
 
     args = parser.parse_args()
     yaml_dir = Path(args.yaml_dir)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    try:
-        yaml_path = locate_yaml(args.root_package, args.root_version, yaml_dir)
-    except FileNotFoundError as e:
-        print(f"{YELLOW}ERROR:{OFF} {e}")
-        sys.exit(1)
-
+    yaml_path = locate_yaml(args.root_package, args.root_version, yaml_dir)
     root_name = yaml_path.stem
     root_dep_file = output_dir / f"{root_name}.dep"
+
     print(f"Generating dependency graph for: {root_name}")
     result = generate_subgraph(root_dep_file, 1, 1, "b", yaml_dir, args.level)
 
     if result == 0:
         print(f"\n{GREEN}Dependency graph generation completed successfully.{OFF}")
     else:
-        print(f"\n{YELLOW}Graph generation finished with warnings/errors.{OFF}")
+        sys.stderr.write(f"\n{RED}FATAL:{OFF} Dependency graph generation failed.\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
