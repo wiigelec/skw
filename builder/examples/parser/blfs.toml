@@ -30,32 +30,37 @@ checksum = ""
 
 
 [dependencies]
-child1 = [ "required_before", "required_after", "recommended_before", "recommended_after", "optional_before", "optional_after", "optional_external" ]
+child1 = [ "required_first", "required_before", "required_after", "recommended_first", "recommended_before", "recommended_after", "optional_first,", "optional_before", "optional_after", "optional_external" ]
+
+[required_first]
+name = ".//para[@role='required']//xref[@role='first']/@linkend"
 
 [required_before]
-name = ".//para[@role='required']//xref/@linkend"
+name = ".//para[@role='required']//xref[not(@role='first') and not (@role='runtime')]/@linkend"
 
 [required_after]
-name = ".//para[@role='required']//xref/@linkend"
+name = ".//para[@role='required']//xref[@role='runtime']/@linkend"
+
+[recommended_first]
+name = ".//para[@role='recommended']//xref[@role='first']/@linkend"
 
 [recommended_before]
-name = ".//para[@role='recommended']//xref/@linkend"
+name = ".//para[@role='recommended']//xref[not(@role='first') and not (@role='runtime')]/@linkend"
 
 [recommended_after]
-name = ".//para[@role='recommended']//xref/@linkend"
+name = ".//para[@role='recommended']//xref[@role='runtime']/@linkend"
+
+[optional_first]
+name = ".//para[@role='optional']//xref[@role='first']/@linkend"
 
 [optional_before]
-name = ".//para[@role='optional']//xref/@linkend"
+name = ".//para[@role='optional']//xref[not(@role='first') and not (@role='runtime')]/@linkend"
 
 [optional_after]
-name = ".//para[@role='optional']//xref/@linkend"
+name = ".//para[@role='optional']//xref[@role='runtime']/@linkend"
 
 [optional_external]
 name = ".//para[@role='optional'']//ulink/text()"
-
-
-
-
 
 
 ####################################################################
