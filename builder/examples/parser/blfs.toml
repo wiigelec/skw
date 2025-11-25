@@ -34,20 +34,23 @@ child1 = [ "required", "recommended", "optional" ]
 
 [required]
 name = ".//para[@role='required']//xref/@linkend | .//para[@role='required']//ulink/text()"
-status = ""
-build = ""
-type = ""
+child1 = [ "status", "build", "type" ]
 
 [recommended]
 name = ".//para[@role='recommended']//xref/@linkend | .//para[@role='recommended'']//ulink/text()"
-status = ""
-build = ""
-type = ""
+child1 = [ "status", "build", "type" ]
 
 [optional]
 name = ".//para[@role='optional']//xref/@linkend | .//para[@role='optional']//ulink/text()"
+child1 = [ "status", "build", "type" ]
+
+[status]
 status = ""
+
+[build]
 build = ""
+
+[type]
 type = ""
 
 
