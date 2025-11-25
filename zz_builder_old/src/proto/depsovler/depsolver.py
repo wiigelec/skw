@@ -198,7 +198,8 @@ def clean_subgraph(dep_dir: Path):
         group_file.write_text("\n".join(group_lines) + "\n")
 
         if not b_flag:
-            (dep_dir / "root.dep").write_text(f"1 b {group_name}\n", append=True)
+            with (dep_dir / "root.dep").open("a") as root_file:
+                root_file.write(f"1 b {group_name}\n")
 
         filtered = [l for l in lines if " a " not in l]
         node.write_text("\n".join(filtered) + "\n")
