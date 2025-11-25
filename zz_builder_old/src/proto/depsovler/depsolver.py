@@ -15,10 +15,13 @@ class SKWDepSolver:
             raise FileNotFoundError(f"YAML directory {self.yaml_dir} not found")
 
     def load_yaml(self, package_name: str) -> dict:
-        """Load YAML for a given package name (filename without .yaml)."""
-        file_path = self.yaml_dir / f"{package_name}.yaml"
-        if not file_path.exists():
-            raise FileNotFoundError(f"YAML file for {package_name} not found: {file_path}")
+        """Load YAML for a given package name, matching <name>-<version>.yaml."""
+        matches = list(self.yaml_dir.glob(f"{package_name}-*.yaml"))
+        if not matches:
+            raise FileNotFoundError(f"No YAML found for package '{package_name}' in {self.yaml_dir}")
+        if len(matches) > 1:
+            print(f"Warning: multiple YAML files for {package_name}, using {matches[0].name}")
+        file_path = matches[0]
         with open(file_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
