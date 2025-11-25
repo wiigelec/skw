@@ -1,10 +1,10 @@
 import yaml
 import toml
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Set
 
 class SKWDepSolver:
-    """Phase 1: Generate dependency subgraph (.dep files) based on YAML metadata, mirroring BLFS generate_subgraph."""
+    """Phase 2: Add path_exists() and clean_subgraph() to replicate BLFS graph cleaning and groupxx logic."""
 
     def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
         self.yaml_dir = Path(yaml_dir)
@@ -24,7 +24,6 @@ class SKWDepSolver:
             raise FileNotFoundError(f"YAML directory {self.yaml_dir} not found.")
 
     def load_yaml(self, package_name: str) -> dict:
-        """Load YAML data for a package name with alias resolution and versioned name detection."""
         if package_name in self.aliases:
             print(f"Alias applied: {package_name} → {self.aliases[package_name]}")
             package_name = self.aliases[package_name]
@@ -45,10 +44,8 @@ class SKWDepSolver:
             return yaml.safe_load(f)
 
     def generate_subgraph(self, pkg_name: str, weight: int = 1, depth: int = 1, qualifier: str = "b"):
-        """Equivalent to BLFS generate_subgraph: writes .dep file for pkg and recurses into dependencies."""
         dep_file = self.output_dir / f"{pkg_name}.dep"
 
-        # Skip if already processed
         if dep_file.exists():
             return
 
@@ -93,7 +90,6 @@ class SKWDepSolver:
 
                         f.write(f"{level_code} {build_char} {dep}\n")
 
-        # Recursively process dependencies
         with open(dep_file, "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.strip().split()
@@ -101,17 +97,71 @@ class SKWDepSolver:
                     continue
                 prio, qual, dep = parts
                 prio = int(prio)
-
                 if prio > self.dep_level:
                     continue
                 self.generate_subgraph(dep, prio, depth + 1, qual)
 
         print(f"Generated: {dep_file}")
 
+    def path_exists(self, start: str, target: str, visited: Optional[Set[str]] = None) -> bool:
+        """Check if a path exists between two nodes (start -> target) using DFS, replicating Bash path_to()."""
+        if visited is None:
+            visited = set()
+        if start in visited:
+            return False
+        visited.add(start)
+
+        dep_file = self.output_dir / f"{start}.dep"
+        if not dep_file.exists():
+            return False
+
+        with open(dep_file, "r", encoding="utf-8") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    _, _, dep = parts
+                    if dep == target:
+                        return True
+                    if self.path_exists(dep, target, visited):
+                        return True
+        return False
+
+    def clean_subgraph(self):
+        """Replicates BLFS clean_subgraph: fixes dangling edges, adds groupxx nodes, rewrites parent references."""
+        dep_files = list(self.output_dir.glob("*.dep"))
+        for dep_file in dep_files:
+            node_name = dep_file.stem
+            group_file = self.output_dir / f"{node_name}groupxx.dep"
+
+            if group_file.exists():
+                continue
+
+            with open(dep_file, "r", encoding="utf-8") as src:
+                lines = src.readlines()
+
+            after_deps = [ln for ln in lines if ' a ' in ln]
+            if after_deps:
+                print(f"Creating groupxx for {node_name} (after dependencies detected)")
+                with open(group_file, "w", encoding="utf-8") as gf:
+                    gf.write(f"1 b {node_name}\n")
+                    for ln in after_deps:
+                        prio, build, dep = ln.strip().split()
+                        gf.write(f"{prio} b {dep}\n")
+
+                for parent_file in dep_files:
+                    if parent_file == dep_file:
+                        continue
+                    txt = parent_file.read_text()
+                    new_txt = txt.replace(f" {node_name}\n", f" {node_name}groupxx\n")
+                    if new_txt != txt:
+                        parent_file.write_text(new_txt)
+
+        print("Subgraph cleaned: groupxx files generated and parent references updated.")
+
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Phase 1: Generate dependency subgraph (.dep files) from YAML metadata.")
+    parser = argparse.ArgumentParser(description="Phase 2: Clean subgraph (.dep files) and generate groupxx nodes.")
     parser.add_argument("package", help="Root package name (without .yaml extension).")
     parser.add_argument("--yaml-dir", required=True, help="Directory containing YAML package metadata.")
     parser.add_argument("--output", required=True, help="Directory for output .dep files.")
@@ -121,3 +171,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     solver = SKWDepSolver(args.yaml_dir, args.output, args.dep_level, args.config)
     solver.generate_subgraph(args.package)
+    solver.clean_subgraph()
