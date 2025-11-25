@@ -1,2 +1,2 @@
-[package_alias]
+[package_aliases]
 glib2 = "glib"
