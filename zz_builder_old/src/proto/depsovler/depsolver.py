@@ -47,14 +47,28 @@ class DepSolver:
                     return yaml.safe_load(f)
         raise FileNotFoundError(f"No YAML found for package: {pkg_name}")
 
-    def generate_subgraph(self, dep_file: str, weight: int, depth: int, qualifier: str, dep_level: int, visited: Set[str]):
+    def generate_subgraph(self, dep_file: str, weight: int, depth: int,
+                          qualifier: str, dep_level: int, visited: Set[str]):
+        """
+        Fully Bash-equivalent recursive graph generator.
+        - Builds the full reachable dependency subgraph (transitively).
+        - Merges all child dependencies into each parent .dep file.
+        - Mirrors func_dependencies.sh generate_subgraph() semantics.
+        """
         norm_name = self._normalize_name(Path(dep_file).stem)
         if norm_name in visited:
             return
 
         visited.add(norm_name)
-        pkg_data = self._load_package(norm_name)
 
+        try:
+            pkg_data = self._load_package(norm_name)
+        except FileNotFoundError:
+            # skip unknown nodes, like Bash does for high-weight/external deps
+            print(f"Skipping unknown package: {norm_name}")
+            return
+
+        # adjust dependency depth behavior (same as Bash)
         if dep_level == 3 and depth > 2:
             dep_level = 2
         elif dep_level > 3:
@@ -63,17 +77,36 @@ class DepSolver:
         deps = self._extract_dependencies(pkg_data, dep_level)
         dep_path = self.output_dir / f"{norm_name}.dep"
 
-        lines = []
+        aggregated: List[str] = []  # combined dependencies for this node
+
         for dep_weight, dep_qual, dep_name in deps:
+            # ignore weights above threshold
             if dep_weight > dep_level:
                 continue
-            lines.append(f"{dep_weight} {dep_qual} {dep_name}")
-            self.generate_subgraph(f"{dep_name}.dep", dep_weight, depth + 1, dep_qual, dep_level, visited)
 
+            # record the direct edge
+            entry = f"{dep_weight} {dep_qual} {dep_name}"
+            if entry not in aggregated:
+                aggregated.append(entry)
+
+            # recursively build subgraph for child
+            self.generate_subgraph(f"{dep_name}.dep", dep_weight,
+                                   depth + 1, dep_qual, dep_level, visited)
+
+            # now merge child's dependencies (transitive propagation)
+            child_path = self.output_dir / f"{dep_name}.dep"
+            if child_path.exists():
+                with open(child_path, 'r') as child_file:
+                    for cl in child_file:
+                        cl = cl.strip()
+                        if cl and cl not in aggregated:
+                            aggregated.append(cl)
+
+        # write the aggregated dependencies (like Bash)
         with open(dep_path, 'w') as f:
-            f.write('\n'.join(lines))
+            f.write('\n'.join(aggregated))
 
-        print(f"Created {dep_path} with {len(lines)} dependencies (depth={depth})")
+        print(f"Created {dep_path.name}: {len(aggregated)} deps (depth={depth})")
 
     def _extract_dependencies(self, pkg_data: Dict, dep_level: int) -> List[tuple]:
         deps = []
