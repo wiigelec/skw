@@ -7,8 +7,10 @@ from typing import Dict, List, Set
 
 
 class DepSolver:
-    def __init__(self, dep_dir: str, alias_file: str = None):
-        self.dep_dir = Path(dep_dir)
+    def __init__(self, yaml_dir: str, output_dir: str, alias_file: str = None):
+        self.yaml_dir = Path(yaml_dir).expanduser()
+        self.output_dir = Path(output_dir).expanduser()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.aliases = {}
         if alias_file and Path(alias_file).exists():
             cfg = toml.load(alias_file)
@@ -16,23 +18,20 @@ class DepSolver:
 
     def _normalize_name(self, filename: str) -> str:
         name = Path(filename).stem
-        # remove version suffix (after last '-')
         if '-' in name:
             name = name[:name.rfind('-')]
-        # apply alias mapping if any
         return self.aliases.get(name, name)
 
     def _load_package(self, pkg_name: str) -> Dict:
-        for yaml_file in self.dep_dir.glob(f"{pkg_name}-*.yaml"):
+        for yaml_file in self.yaml_dir.glob(f"{pkg_name}-*.yaml"):
             with open(yaml_file, 'r') as f:
                 return yaml.safe_load(f)
-        # try aliases if not found
         if pkg_name in self.aliases:
             alias = self.aliases[pkg_name]
-            for yaml_file in self.dep_dir.glob(f"{alias}-*.yaml"):
+            for yaml_file in self.yaml_dir.glob(f"{alias}-*.yaml"):
                 with open(yaml_file, 'r') as f:
                     return yaml.safe_load(f)
-        raise FileNotFoundError(f"No dependency YAML found for {pkg_name}")
+        raise FileNotFoundError(f"No YAML found for package: {pkg_name}")
 
     def generate_dep_files(self, root_pkg: str, dep_level: int = 3):
         visited: Set[str] = set()
@@ -46,8 +45,8 @@ class DepSolver:
 
         visited.add(norm_name)
         pkg_data = self._load_package(norm_name)
-        
-        dep_path = self.dep_dir / f"{norm_name}.dep"
+
+        dep_path = self.output_dir / f"{norm_name}.dep"
         deps = pkg_data.get('dependencies', [])
 
         lines = []
@@ -65,21 +64,22 @@ class DepSolver:
         with open(dep_path, 'w') as f:
             f.write('\n'.join(lines))
 
-        print(f"Created {dep_path} with {len(lines)} deps")
+        print(f"Created {dep_path} with {len(lines)} dependencies")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Dependency graph .dep generator (YAML-based)")
-    parser.add_argument("dep_dir", help="Directory containing YAML package definitions")
-    parser.add_argument("root_pkg", help="Root package to start dependency generation from")
-    parser.add_argument("--aliases", help="Optional TOML alias mapping file", default=None)
-    parser.add_argument("--level", type=int, help="Max dependency weight level (1-4)", default=3)
+    parser.add_argument('-y', '--yaml-path', required=True, help='Path to YAML package files')
+    parser.add_argument('-o', '--output', required=True, help='Output directory for .dep files')
+    parser.add_argument('-l', '--level', type=int, default=3, help='Max dependency weight level (1-4)')
+    parser.add_argument('-c', '--config', help='TOML alias configuration file', default=None)
+    parser.add_argument('root_pkg', help='Root package name to process')
 
     args = parser.parse_args()
 
-    solver = DepSolver(args.dep_dir, args.aliases)
+    solver = DepSolver(args.yaml_path, args.output, args.config)
     solver.generate_dep_files(args.root_pkg, args.level)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
