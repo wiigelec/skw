@@ -241,37 +241,30 @@ def clean_subgraph(dep_dir: Path):
 #  PASS 3: DEPENDENCY TREE CONSTRUCTION
 # ───────────────────────────────────────────────
 def generate_dependency_tree(dep_file: Path, dep_dir: Path, visited: set, depth: int = 0):
-    """Recursively expand .dep into .tree"""
+    """
+    Generate .tree file matching original Bash format:
+    - Write '1 1 1' markers
+    - List only direct dependencies (non-recursive)
+    """
     tree_file = dep_dir / f"{dep_file.stem}.tree"
-    indent = " " * (depth * 2)
-
-    if dep_file.stem in visited:
-        print(f"{YELLOW}Cycle detected:{OFF} {' -> '.join(list(visited) + [dep_file.stem])}")
-        return
-
-    visited.add(dep_file.stem)
     if not dep_file.exists():
-        print(f"{YELLOW}WARN:{OFF} Missing {dep_file.name}, skipping...")
+        print(f"{YELLOW}WARN:{OFF} Missing {dep_file.name}")
         return
 
-    lines = dep_file.read_text().splitlines()
-    if not lines:
-        return
+    # ─ Header markers ─
+    tree_lines = ["1 1 1", "1 1 1"]
 
-    tree_lines = []
-    for line in lines:
-        parts = line.strip().split()
-        if len(parts) != 3:
-            continue
-        weight, qualifier, target = parts
-        tree_lines.append(f"{indent}{weight} {qualifier} {target}")
-
-        target_file = dep_dir / f"{target}.dep"
-        if not target_file.exists():
-            continue
-        generate_dependency_tree(target_file, dep_dir, visited.copy(), depth + 1)
+    # ─ Direct dependencies only ─
+    with dep_file.open() as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) != 3:
+                continue
+            weight, qualifier, target = parts
+            tree_lines.append(f"{weight} {qualifier} {target}")
 
     tree_file.write_text("\n".join(tree_lines) + "\n")
+
 
 
 # ───────────────────────────────────────────────
