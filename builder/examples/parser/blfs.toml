@@ -30,7 +30,7 @@ checksum = ""
 
 
 [dependencies]
-child1 = [ "required_before", "required_after", "recommended_before", "recommended_after", "optional_before", "optional_after", "optional_external" ]  ]
+child1 = [ "required_before", "required_after", "recommended_before", "recommended_after", "optional_before", "optional_after", "optional_external" ]
 
 [required_before]
 name = ".//para[@role='required']//xref/@linkend"
