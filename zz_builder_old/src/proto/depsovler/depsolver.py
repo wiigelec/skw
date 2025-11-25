@@ -154,10 +154,8 @@ class DepSolver:
             with open(node_file, 'w') as f:
                 f.write('\n'.join(lines_to_keep))
 
-        # Re-scan after cleanup
+        # Step 2: Transform 'after' edges (exact Bash behavior)
         all_dep_files = list(self.output_dir.glob('*.dep'))
-
-        # Step 2: Transform 'after' edges
         for node_file in all_dep_files:
             with open(node_file, 'r') as f:
                 lines = [l.strip() for l in f if l.strip()]
@@ -174,6 +172,7 @@ class DepSolver:
                 else:
                     new_lines.append(line)
 
+            # Only trigger if actual 'a' edges exist
             if after_deps:
                 group_file = self.output_dir / f"{node_file.stem}groupxx.dep"
                 group_lines = [f"1 b {node_file.stem}"]
@@ -186,9 +185,18 @@ class DepSolver:
                     else:
                         print(f"Cycle detected between {node_file.stem} and {dep}, keeping edge safe.")
 
-                with open(group_file, 'a') as gf:
+                with open(group_file, 'w') as gf:
                     gf.write('\n'.join(group_lines))
 
+                # Add group node reference at the end of existing file
+                with open(node_file, 'r') as f:
+                    current_lines = [l.strip() for l in f if l.strip()]
+                if not any(line.endswith(f"{node_file.stem}groupxx") for line in current_lines):
+                    current_lines.append(f"1 b {node_file.stem}groupxx")
+                with open(node_file, 'w') as f:
+                    f.write('\n'.join(current_lines))
+
+                # If node has no parent, append to root
                 root_dep = self.output_dir / "root.dep"
                 has_parent = any(
                     group_file.stem in open(f).read() for f in self.output_dir.glob('*.dep') if f != group_file
@@ -197,13 +205,7 @@ class DepSolver:
                     with open(root_dep, 'a') as rf:
                         rf.write(f"1 b {group_file.stem}\n")
 
-                if not any(line.endswith(f"{node_file.stem}groupxx") for line in new_lines):
-                    new_lines.append(f"1 b {node_file.stem}groupxx")
-
-            with open(node_file, 'w') as f:
-                f.write('\n'.join(new_lines))
-
-        # Step 3: Handle 'first' edges
+        # Step 3: Handle 'first' edges (unchanged from Bash)
         all_dep_files = list(self.output_dir.glob('*.dep'))
         for node_file in all_dep_files:
             with open(node_file, 'r') as f:
