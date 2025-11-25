@@ -5,7 +5,7 @@ from typing import Optional
 from pathlib import Path
 
 class SKWDepSolver:
-    """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and alias mapping via TOML."""
+    """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support, alias mapping via TOML, and root.dep generation."""
 
     def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
         self.yaml_dir = Path(yaml_dir)
@@ -25,7 +25,6 @@ class SKWDepSolver:
                 print(f"Loaded {len(self.aliases)} alias mappings from {cfg_path}")
 
     def load_yaml(self, package_name: str) -> dict:
-        """Load YAML for a given package name, matching versioned files carefully and applying aliases."""
         if package_name in self.aliases:
             print(f"Alias applied: {package_name} → {self.aliases[package_name]}")
             package_name = self.aliases[package_name]
@@ -125,10 +124,38 @@ class SKWDepSolver:
                         parent_file.write_text(new_txt)
         print("Subgraph cleanup complete. Groupxx files generated.")
 
+    def generate_root_dep(self):
+        """Generate a root.dep file containing all packages without parents."""
+        dep_files = list(self.output_dir.glob("*.dep"))
+        all_deps = set()
+        all_nodes = set()
+
+        for dep_file in dep_files:
+            node = dep_file.stem
+            all_nodes.add(node)
+            with open(dep_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) == 3:
+                        _, _, dep = parts
+                        all_deps.add(dep)
+
+        roots = sorted(all_nodes - all_deps)
+        if not roots:
+            print("⚠️ No root nodes detected.")
+            return
+
+        root_file = self.output_dir / "root.dep"
+        with open(root_file, "w", encoding="utf-8") as rf:
+            for pkg in roots:
+                rf.write(f"1 b {pkg}\n")
+
+        print(f"Generated root.dep with {len(roots)} entries: {', '.join(roots)}")
+
     @classmethod
     def cli(cls):
         parser = argparse.ArgumentParser(
-            description="Generate .dep dependency files from YAML package metadata with alias + groupxx support."
+            description="Generate .dep dependency files from YAML package metadata with alias + groupxx + root.dep support."
         )
         parser.add_argument("package", help="Root package name (without .yaml extension).")
         parser.add_argument("--yaml-dir", required=True, help="Directory containing package YAML files.")
@@ -148,6 +175,8 @@ class SKWDepSolver:
 
         if args.clean_subgraph:
             solver.clean_subgraph()
+
+        solver.generate_root_dep()
 
 if __name__ == "__main__":
     SKWDepSolver.cli()
