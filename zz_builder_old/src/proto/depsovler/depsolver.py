@@ -5,7 +5,7 @@ import re
 import sys
 import argparse
 import toml
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Set
 
 # ───────────────────────────────────────────────
 #  GLOBALS
@@ -42,7 +42,6 @@ def locate_yaml(pkg_name: str, yaml_dir: Path, aliases: dict) -> Path:
         print(f"{RED}FATAL:{OFF} Alias '{pkg_name}={alias_target}' not found in {yaml_dir}")
         sys.exit(1)
 
-    # Try exact name and versioned variants
     matches = list(yaml_dir.glob(f"{pkg_name}.yaml")) + list(yaml_dir.glob(f"{pkg_name}-*.yaml"))
     if len(matches) == 1:
         return matches[0]
@@ -58,7 +57,7 @@ def locate_yaml(pkg_name: str, yaml_dir: Path, aliases: dict) -> Path:
 # ───────────────────────────────────────────────
 #  PASS 1: YAML → .DEP GENERATION
 # ───────────────────────────────────────────────
-def parse_yaml_dependencies(yaml_path: Path) -> list[dict]:
+def parse_yaml_dependencies(yaml_path: Path) -> List[dict]:
     with yaml_path.open("r") as f:
         data = yaml.safe_load(f)
 
@@ -238,33 +237,98 @@ def clean_subgraph(dep_dir: Path):
 
 
 # ───────────────────────────────────────────────
-#  PASS 3: DEPENDENCY TREE CONSTRUCTION
+#  PASS 3: TREE GENERATION
 # ───────────────────────────────────────────────
-def generate_dependency_tree(dep_file: Path, dep_dir: Path, visited: set, depth: int = 0):
-    """
-    Generate .tree file matching original Bash format:
-    - Write '1 1 1' markers
-    - List only direct dependencies (non-recursive)
-    """
+def generate_dependency_tree(dep_file: Path, dep_dir: Path):
+    """Match Bash .tree format using cleaned deps"""
     tree_file = dep_dir / f"{dep_file.stem}.tree"
     if not dep_file.exists():
-        print(f"{YELLOW}WARN:{OFF} Missing {dep_file.name}")
         return
+    lines = ["1 1 1", "1 1 1"]
 
-    # ─ Header markers ─
-    tree_lines = ["1 1 1", "1 1 1"]
+    # group nodes shadow lower dependencies
+    group_nodes = {f.stem.replace("groupxx", "") for f in dep_dir.glob("*groupxx.dep")}
 
-    # ─ Direct dependencies only ─
     with dep_file.open() as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) != 3:
                 continue
             weight, qualifier, target = parts
-            tree_lines.append(f"{weight} {qualifier} {target}")
+            if any(target == g or target.startswith(g) for g in group_nodes):
+                continue
+            lines.append(f"{weight} {qualifier} {target}")
 
-    tree_file.write_text("\n".join(tree_lines) + "\n")
+    tree_file.write_text("\n".join(lines) + "\n")
 
+
+def generate_all_trees(dep_dir: Path):
+    for dep_file in sorted(dep_dir.glob("*.dep")):
+        generate_dependency_tree(dep_file, dep_dir)
+
+
+def generate_root_tree(dep_dir: Path):
+    """Create root.tree file with top-level nodes"""
+    all_nodes = {f.stem for f in dep_dir.glob("*.dep")}
+    referenced = set()
+    for dep_file in dep_dir.glob("*.dep"):
+        with dep_file.open() as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    _, _, target = parts
+                    referenced.add(target)
+
+    top_level = sorted(all_nodes - referenced)
+    root_tree = dep_dir / "root.tree"
+    lines = ["1 1 1", "1 1 1"]
+    for node in top_level:
+        if node.endswith("groupxx") or node.endswith("-pass1"):
+            continue
+        lines.append(f"1 b {node}")
+    root_tree.write_text("\n".join(lines) + "\n")
+    print(f"{GREEN}root.tree generated with {len(top_level)} top-level nodes.{OFF}")
+
+
+# ───────────────────────────────────────────────
+#  PASS 4: BUILD ORDER GENERATION
+# ───────────────────────────────────────────────
+def generate_build_order(dep_dir: Path):
+    """Topological ordering based on .dep graph"""
+    deps = {}
+    for dep_file in dep_dir.glob("*.dep"):
+        name = dep_file.stem
+        edges = []
+        with dep_file.open() as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    _, _, target = parts
+                    edges.append(target)
+        deps[name] = edges
+
+    visited, order = set(), []
+
+    def visit(node: str, stack: Set[str]):
+        if node in visited:
+            return
+        if node in stack:
+            print(f"{YELLOW}Cycle detected:{OFF} {' -> '.join(stack)} -> {node}")
+            return
+        stack.add(node)
+        for dep in deps.get(node, []):
+            if dep in deps:
+                visit(dep, stack)
+        stack.remove(node)
+        visited.add(node)
+        order.append(node)
+
+    for node in deps:
+        visit(node, set())
+
+    build_order = dep_dir / "build_order.txt"
+    build_order.write_text("\n".join(order[::-1]) + "\n")
+    print(f"{GREEN}build_order.txt generated with {len(order)} entries.{OFF}")
 
 
 # ───────────────────────────────────────────────
@@ -274,13 +338,21 @@ def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
                            dep_level: int, aliases: dict):
     output_dir.mkdir(exist_ok=True)
     root_dep = output_dir / f"{root_pkg}.dep"
-    print(f"{CYAN}Building dependency graph for {root_pkg}{OFF}")
 
+    print(f"{CYAN}PASS 1: Generating dependency graph from YAML...{OFF}")
     generate_subgraph(root_dep, 1, 1, "b", yaml_dir, dep_level, aliases)
+
+    print(f"{CYAN}PASS 2: Cleaning and transforming graph...{OFF}")
     clean_subgraph(output_dir)
-    print(f"{CYAN}Generating dependency tree for {root_pkg}{OFF}")
-    generate_dependency_tree(root_dep, output_dir, set())
-    print(f"{GREEN}Dependency graph + tree generation complete.{OFF}")
+
+    print(f"{CYAN}PASS 3: Generating .tree files...{OFF}")
+    generate_all_trees(output_dir)
+    generate_root_tree(output_dir)
+
+    print(f"{CYAN}PASS 4: Computing build order...{OFF}")
+    generate_build_order(output_dir)
+
+    print(f"{GREEN}All passes complete successfully!{OFF}")
 
 
 # ───────────────────────────────────────────────
@@ -288,15 +360,15 @@ def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
 # ───────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate full dependency graph (.dep + .tree) from YAML definitions with TOML aliasing."
+        description="Full BLFS dependency resolver: YAML → DEP → TREE → BUILD ORDER"
     )
-    parser.add_argument("root_package", help="Root package (without extension)")
-    parser.add_argument("-y", "--yaml-dir", required=True, help="Directory containing YAML package files")
-    parser.add_argument("-o", "--output-dir", default="dependencies", help="Directory for generated .dep files")
+    parser.add_argument("root_package", help="Root package name (without extension)")
+    parser.add_argument("-y", "--yaml-dir", required=True, help="Directory containing YAML files")
+    parser.add_argument("-o", "--output-dir", default="dependencies", help="Output directory")
     parser.add_argument("-l", "--level", type=int, choices=[1, 2, 3, 4], default=DEP_LEVEL,
-                        help="Dependency depth level (1=required, 4=external)")
+                        help="Dependency level depth (1=required ... 4=external)")
     parser.add_argument("-c", "--config", type=Path, default=Path("depsolver.toml"),
-                        help="TOML alias config file path")
+                        help="Path to TOML alias configuration")
 
     args = parser.parse_args()
     yaml_dir = Path(args.yaml_dir)
