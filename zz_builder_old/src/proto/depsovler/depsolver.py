@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, os, re, sys, yaml, shutil
+import argparse, os, re, sys, yaml, toml, shutil
 from pathlib import Path
 from typing import Dict, List, Set, Optional
 
@@ -12,6 +12,36 @@ DEP_LEVEL = 3
 # ───────────────────────────────
 # Utility functions
 # ───────────────────────────────
+def load_aliases(config_path: Optional[Path]) -> Dict[str, str]:
+    if not config_path or not config_path.exists():
+        return {}
+    data = toml.load(config_path)
+    return data.get("package_aliases", {})
+
+
+def find_yaml_file(package: str, yaml_dir: Path, aliases: Dict[str, str]) -> Optional[Path]:
+    """Find a YAML file matching <package>-<version>.yaml, or by alias mapping."""
+    files = list(yaml_dir.glob("*.yaml"))
+    # First try direct matches
+    for f in files:
+        base = f.stem.rsplit('-', 1)[0]
+        if base == package:
+            return f
+
+    # Try alias mapping if not found
+    if package in aliases:
+        alias_name = aliases[package]
+        for f in files:
+            base = f.stem.rsplit('-', 1)[0]
+            if base == alias_name:
+                print(f"{MAGENTA}Alias:{OFF} {package} → {alias_name}")
+                return f
+
+    # No match found
+    print(f"{YELLOW}Warning:{OFF} No YAML found for {package} in {yaml_dir}")
+    return None
+
+
 def parse_yaml_dependencies(yaml_path: Path) -> List[dict]:
     with yaml_path.open() as f:
         data = yaml.safe_load(f)
@@ -54,14 +84,13 @@ def path_to(start: Path, target: str, dep_dir: Path, max_weight: int, seen: Opti
     return False
 
 
-def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, yaml_dir: Path, dep_level: int):
+def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, yaml_dir: Path, dep_level: int, aliases: Dict[str, str]):
     spacing = 1 if depth < 10 else 0
     priostring = {1: "required", 2: "recommended", 3: "optional"}.get(weight, "")
     print(f"\nNode: {depth}{SPACE_STR[:depth+spacing]}{RED}{dep_file.stem}{OFF} {priostring}")
 
-    yaml_file = yaml_dir / f"{dep_file.stem}.yaml"
-    if not yaml_file.exists():
-        print(f"{YELLOW}Warning:{OFF} Missing YAML for {dep_file.stem}")
+    yaml_file = find_yaml_file(dep_file.stem, yaml_dir, aliases)
+    if not yaml_file:
         return
 
     deps = parse_yaml_dependencies(yaml_file)
@@ -76,12 +105,12 @@ def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, y
         if dep_path.exists():
             print(f" Seen: {depth+1}{SPACE_STR[:depth]}{CYAN}{d['target']}{OFF}")
             continue
-        sub_yaml = yaml_dir / f"{d['target']}.yaml"
-        if not sub_yaml.exists():
+        sub_yaml = find_yaml_file(d["target"], yaml_dir, aliases)
+        if not sub_yaml:
             dep_path.touch()
             print(f"Leaf: {depth+1}{SPACE_STR[:depth]}{GREEN}{d['target']}{OFF}")
         else:
-            generate_subgraph(dep_path, d["weight"], depth + 1, d["qualifier"], yaml_dir, dep_level)
+            generate_subgraph(dep_path, d["weight"], depth + 1, d["qualifier"], yaml_dir, dep_level, aliases)
     print(f" End: {depth}{SPACE_STR[:depth]}{GREEN}{dep_file.stem}{OFF}")
 
 
@@ -203,6 +232,7 @@ def topological_sort(dep_dir: Path):
 def main():
     parser = argparse.ArgumentParser(description="Dependency graph generator matching BLFS Bash logic.")
     parser.add_argument('-l', '--level', type=int, default=DEP_LEVEL, help='Dependency level (1-4)')
+    parser.add_argument('-c', '--config', type=Path, default=None, help='TOML file with package alias mappings')
     parser.add_argument('yaml_dir', type=Path, help='Directory containing YAML dependency files')
     parser.add_argument('output_dir', type=Path, help='Directory to write .dep, .tree, and build_order.txt')
     parser.add_argument('root', nargs='?', default=None, help='Root package to start dependency graph (optional)')
@@ -212,11 +242,12 @@ def main():
     dep_dir = args.output_dir
     dep_dir.mkdir(exist_ok=True)
 
+    aliases = load_aliases(args.config)
     root_pkg = args.root if args.root else 'root'
     root_dep = dep_dir / f'{root_pkg}.dep'
     root_dep.write_text(f'1 b {root_pkg}\n')
 
-    generate_subgraph(root_dep, 1, 1, 'b', yaml_dir, args.level)
+    generate_subgraph(root_dep, 1, 1, 'b', yaml_dir, args.level, aliases)
     clean_subgraph(dep_dir)
     generate_dependency_tree(dep_dir)
     topological_sort(dep_dir)
