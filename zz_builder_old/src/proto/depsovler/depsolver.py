@@ -265,13 +265,21 @@ def build_group_mapping(dep_dir: Path) -> dict[str, str]:
 # ───────────────────────────────────────────────
 #  PASS 3: TREE GENERATION
 # ───────────────────────────────────────────────
-def generate_dependency_tree(dep_file: Path, dep_dir: Path, group_map: dict[str, str]):
-    """Generate .tree identical to Bash format using group mapping"""
+def generate_dependency_tree(dep_file: Path, dep_dir: Path, group_map: dict[str, str], depth: int = 1, parent_weight: int = 1):
+    """
+    Generate .tree identical to Bash format:
+    - Includes dynamic headers derived from recursion depth and dependency weight.
+    - Replaces grouped members with their group node.
+    """
     tree_file = dep_dir / f"{dep_file.stem}.tree"
     if not dep_file.exists():
         return
 
-    lines = ["1 1 1", "1 1 1"]
+    # Derive header from depth and weight (matching Bash rootlink/priolink)
+    header_1 = f"1 {depth} {depth}"
+    header_2 = f"1 {parent_weight} {parent_weight}"
+    lines = [header_1, header_2]
+
     seen = set()
 
     with dep_file.open() as f:
@@ -288,11 +296,20 @@ def generate_dependency_tree(dep_file: Path, dep_dir: Path, group_map: dict[str,
 
     tree_file.write_text("\n".join(lines) + "\n")
 
+    # Recursively generate trees for dependencies
+    for line in lines[2:]:
+        parts = line.split()
+        if len(parts) != 3:
+            continue
+        weight, _, target = parts
+        dep_target = dep_dir / f"{target}.dep"
+        if dep_target.exists():
+            generate_dependency_tree(dep_target, dep_dir, group_map, depth + 1, int(weight))
 
 def generate_all_trees(dep_dir: Path):
     group_map = build_group_mapping(dep_dir)
     for dep_file in sorted(dep_dir.glob("*.dep")):
-        generate_dependency_tree(dep_file, dep_dir, group_map)
+        generate_dependency_tree(dep_file, dep_dir, group_map, depth=1, parent_weight=1)
 
 
 def generate_root_tree(dep_dir: Path):
