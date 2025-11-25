@@ -1,208 +1,132 @@
-import yaml
-import toml
+#!/usr/bin/env python3
 from pathlib import Path
-from typing import Optional, Set
+import yaml
+import sys
+import argparse
 
-class SKWDepSolver:
-    """Phase 3 Revised: Corrected root.dep detection logic to match Bash clean_subgraph behavior exactly."""
+# ==== Global settings ====
+SPACE_STR = " " * 70
+DEP_LEVEL = 3
+MAIL_SERVER = "postfix"
+RED, GREEN, YELLOW, MAGENTA, CYAN, OFF = "\033[31m", "\033[32m", "\033[33m", "\033[35m", "\033[36m", "\033[0m"
 
-    def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
-        self.yaml_dir = Path(yaml_dir)
-        self.output_dir = Path(output_dir)
-        self.dep_level = int(dep_level)
-        self.aliases = {}
+# ==== Parse YAML dependencies ====
+def parse_yaml_dependencies(pkg_name: str, yaml_dir: Path) -> list[dict]:
+    yaml_path = yaml_dir / f"{pkg_name}.yaml"
+    if not yaml_path.exists():
+        raise FileNotFoundError(f"YAML file not found for package: {pkg_name} ({yaml_path})")
 
-        if config_file:
-            cfg_path = Path(config_file)
-            if cfg_path.exists():
-                cfg = toml.load(cfg_path)
-                self.aliases = cfg.get("package_aliases", {})
-                print(f"Loaded {len(self.aliases)} alias mappings from {cfg_path}")
+    with yaml_path.open("r") as f:
+        data = yaml.safe_load(f)
 
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        if not self.yaml_dir.is_dir():
-            raise FileNotFoundError(f"YAML directory {self.yaml_dir} not found.")
+    deps = []
+    dep_tree = data.get("dependencies", {})
+    if not dep_tree:
+        return deps
 
-    def load_yaml(self, package_name: str) -> dict:
-        if package_name in self.aliases:
-            print(f"Alias applied: {package_name} → {self.aliases[package_name]}")
-            package_name = self.aliases[package_name]
+    mapping = {
+        "required": 1,
+        "recommended": 2,
+        "optional": 3,
+        "external": 4,
+    }
 
-        matches = list(self.yaml_dir.glob(f"{package_name}-*.yaml"))
-        if not matches and any(ch.isdigit() for ch in package_name):
-            base = package_name.rstrip("0123456789")
-            matches = list(self.yaml_dir.glob(f"{base}-*.yaml"))
-
-        if not matches:
-            raise FileNotFoundError(f"YAML file for '{package_name}' not found in {self.yaml_dir}")
-
-        if len(matches) > 1:
-            matches.sort(key=lambda p: len(p.stem))
-            print(f"⚠️  Multiple YAMLs for '{package_name}', using {matches[0].name}")
-
-        with open(matches[0], "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-
-    def generate_subgraph(self, pkg_name: str, weight: int = 1, depth: int = 1, qualifier: str = "b"):
-        dep_file = self.output_dir / f"{pkg_name}.dep"
-
-        if dep_file.exists():
-            return
-
-        print(f"Generating subgraph for {pkg_name} (weight={weight}, depth={depth}, qualifier={qualifier})")
-        try:
-            data = self.load_yaml(pkg_name)
-        except FileNotFoundError as e:
-            print(f"❌ {e}")
-            return
-
-        deps = data.get("dependencies", {})
-        dep_map = {"required": 1, "recommended": 2, "optional": 3}
-
-        with open(dep_file, "w", encoding="utf-8") as f:
-            for level_name, level_code in dep_map.items():
-                if level_code > self.dep_level:
-                    continue
-
-                for phase in ("first", "before", "after", "external"):
-                    key = f"{level_name}_{phase}"
-                    if key not in deps:
-                        continue
-
-                    names = deps[key].get("name")
-                    if not names:
-                        continue
-
-                    if isinstance(names, str):
-                        names = [names]
-
-                    for dep in names:
-                        dep = dep.strip()
-                        if not dep:
-                            continue
-
-                        build_char = {
-                            "first": "f",
-                            "before": "b",
-                            "after": "a",
-                            "external": "l",
-                        }.get(phase, "b")
-
-                        f.write(f"{level_code} {build_char} {dep}\n")
-
-        with open(dep_file, "r", encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) != 3:
-                    continue
-                prio, qual, dep = parts
-                prio = int(prio)
-                if prio > self.dep_level:
-                    continue
-                self.generate_subgraph(dep, prio, depth + 1, qual)
-
-        print(f"Generated: {dep_file}")
-
-    def path_exists(self, start: str, target: str, visited: Optional[Set[str]] = None) -> bool:
-        if visited is None:
-            visited = set()
-        if start in visited:
-            return False
-        visited.add(start)
-
-        dep_file = self.output_dir / f"{start}.dep"
-        if not dep_file.exists():
-            return False
-
-        with open(dep_file, "r", encoding="utf-8") as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) == 3:
-                    _, _, dep = parts
-                    if dep == target:
-                        return True
-                    if self.path_exists(dep, target, visited):
-                        return True
-        return False
-
-    def clean_subgraph(self):
-        """Replicates BLFS clean_subgraph and generates root.dep inline when orphan groupxx nodes are found."""
-        dep_files = list(self.output_dir.glob("*.dep"))
-        root_file = self.output_dir / "root.dep"
-        if root_file.exists():
-            root_file.unlink()
-
-        for dep_file in dep_files:
-            node_name = dep_file.stem
-            group_file = self.output_dir / f"{node_name}groupxx.dep"
-
-            if group_file.exists():
+    for level, weight in mapping.items():
+        for qualifier in ["first", "before", "after", "external"]:
+            key = f"{level}_{qualifier}"
+            if key not in dep_tree:
                 continue
+            names = dep_tree[key].get("name", [])
+            if not names:
+                continue
+            if isinstance(names, str):
+                names = [names]
+            q = qualifier[0] if qualifier != "external" else "b"
+            for n in names:
+                deps.append({"weight": weight, "qualifier": q, "target": n})
+    return deps
 
-            with open(dep_file, "r", encoding="utf-8") as src:
-                lines = src.readlines()
 
-            after_deps = [ln for ln in lines if ' a ' in ln]
-            if after_deps:
-                print(f"Creating groupxx for {node_name} (after dependencies detected)")
-                with open(group_file, "w", encoding="utf-8") as gf:
-                    gf.write(f"1 b {node_name}\n")
-                    for ln in after_deps:
-                        prio, build, dep = ln.strip().split()
-                        gf.write(f"{prio} b {dep}\n")
+# ==== Recursive dependency generator ====
+def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str, yaml_dir: Path, dep_level: int):
+    spacing = 1 if depth < 10 else 0
+    priostring = {1: "required", 2: "recommended", 3: "optional"}.get(weight, "")
+    buildstring = "runtime" if qualifier == "a" else ""
+    print(f"\nNode: {depth}{SPACE_STR[:depth+spacing]}{RED}{dep_file.stem}{OFF} {priostring} {buildstring}")
 
-                for parent_file in dep_files:
-                    if parent_file == dep_file:
-                        continue
-                    txt = parent_file.read_text()
-                    new_txt = txt.replace(f" {node_name}\n", f" {node_name}groupxx\n")
-                    if new_txt != txt:
-                        parent_file.write_text(new_txt)
+    pkg_name = dep_file.stem
+    try:
+        dependencies = parse_yaml_dependencies(pkg_name, yaml_dir)
+    except FileNotFoundError as e:
+        print(f"{YELLOW}ERROR:{OFF} {e}")
+        return 1
 
-        # Identify orphan groupxx nodes (no parents) correctly
-        dep_files = list(self.output_dir.glob("*.dep"))
-        all_deps = set()
-        group_nodes = set()
+    with dep_file.open("w") as f:
+        for dep in dependencies:
+            f.write(f"{dep['weight']} {dep['qualifier']} {dep['target']}\n")
 
-        for dep_file in dep_files:
-            with open(dep_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    parts = line.strip().split()
-                    if len(parts) == 3:
-                        _, _, dep = parts
-                        all_deps.add(dep)
+    for dep in dependencies:
+        if dep["weight"] > dep_level:
+            print(f"\n Out: {depth}{SPACE_STR[:depth+spacing]}{YELLOW}{dep['target']}{OFF} "
+                  f"{priostring} {buildstring}")
+            continue
 
-        for dep_file in dep_files:
-            if dep_file.name.endswith("groupxx.dep"):
-                group_nodes.add(dep_file.stem)
+        dep_path = dep_file.parent / f"{dep['target']}.dep"
+        if dep_path.exists():
+            print(f"\nEdge: {depth}{SPACE_STR[:depth+spacing]}{MAGENTA}{dep['target']}{OFF} "
+                  f"{priostring} {buildstring}")
+            continue
 
-        root_nodes = []
-        for node in group_nodes:
-            if f"{node}" not in all_deps and f"{node}groupxx" not in all_deps:
-                root_nodes.append(node)
-
-        root_nodes = sorted(root_nodes)
-        if not root_nodes:
-            print("⚠️ No root nodes detected.")
+        sub_deps = parse_yaml_dependencies(dep["target"], yaml_dir)
+        if not sub_deps:
+            dep_path.touch()
+            print(f"\nLeaf: {depth}{SPACE_STR[:depth+spacing]}{CYAN}{dep['target']}{OFF} "
+                  f"{priostring} {buildstring}")
         else:
-            with open(root_file, "w", encoding="utf-8") as rf:
-                for pkg in root_nodes:
-                    rf.write(f"1 b {pkg}\n")
-            print(f"Generated root.dep with {len(root_nodes)} entries: {', '.join(root_nodes)}")
+            generate_subgraph(dep_path, dep["weight"], depth + 1, dep["qualifier"], yaml_dir, dep_level)
 
-        print("Subgraph cleaned: groupxx files generated, root.dep created, parent references updated.")
+    print(f"\n End: {depth}{SPACE_STR[:depth+spacing]}{GREEN}{dep_file.stem}{OFF}")
+    return 0
 
-if __name__ == "__main__":
-    import argparse
 
-    parser = argparse.ArgumentParser(description="Generate subgraph, clean it, and produce root.dep (Bash-equivalent).")
-    parser.add_argument("package", help="Root package name (without .yaml extension).")
-    parser.add_argument("--yaml-dir", required=True, help="Directory containing YAML package metadata.")
-    parser.add_argument("--output", required=True, help="Directory for output .dep files.")
-    parser.add_argument("--dep-level", type=int, default=3, choices=[1, 2, 3], help="Dependency depth level.")
-    parser.add_argument("--config", help="Path to TOML alias config file.")
+# ==== Command Line Interface ====
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate dependency .dep files from a directory of YAML package definitions."
+    )
+    parser.add_argument("root_package", help="Name of the root package (without .yaml extension)")
+    parser.add_argument(
+        "-y", "--yaml-dir",
+        default="packages",
+        help="Directory containing package YAML files (default: ./packages)"
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        default="deps",
+        help="Directory to store generated .dep files (default: ./deps)"
+    )
+    parser.add_argument(
+        "-l", "--level",
+        type=int,
+        choices=[1, 2, 3, 4],
+        default=DEP_LEVEL,
+        help="Dependency level: 1=required, 2=recommended, 3=optional, 4=external"
+    )
 
     args = parser.parse_args()
-    solver = SKWDepSolver(args.yaml_dir, args.output, args.dep_level, args.config)
-    solver.generate_subgraph(args.package)
-    solver.clean_subgraph()
+    yaml_dir = Path(args.yaml_dir)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(exist_ok=True)
+
+    root_dep_file = output_dir / f"{args.root_package}.dep"
+    print(f"Generating subgraph for root package: {args.root_package}")
+    result = generate_subgraph(root_dep_file, 1, 1, "b", yaml_dir, args.level)
+
+    if result == 0:
+        print(f"\n{GREEN}Dependency graph generation completed successfully.{OFF}")
+    else:
+        print(f"\n{YELLOW}Graph generation finished with warnings/errors.{OFF}")
+
+
+if __name__ == "__main__":
+    main()
