@@ -172,8 +172,11 @@ class DepSolver:
                 else:
                     new_lines.append(line)
 
-            # Only trigger if actual 'a' edges exist
+            # Remove 'after' edges from current file
             if after_deps:
+                original_lines = [l for l in lines if not any(l.split()[2] == dep for _, dep in after_deps)]
+                new_lines = [l for l in original_lines if l.strip()]
+
                 group_file = self.output_dir / f"{node_file.stem}groupxx.dep"
                 group_lines = [f"1 b {node_file.stem}"]
 
@@ -189,12 +192,11 @@ class DepSolver:
                     gf.write('\n'.join(group_lines))
 
                 # Add group node reference at the end of existing file
-                with open(node_file, 'r') as f:
-                    current_lines = [l.strip() for l in f if l.strip()]
-                if not any(line.endswith(f"{node_file.stem}groupxx") for line in current_lines):
-                    current_lines.append(f"1 b {node_file.stem}groupxx")
+                if not any(line.endswith(f"{node_file.stem}groupxx") for line in new_lines):
+                    new_lines.append(f"1 b {node_file.stem}groupxx")
+
                 with open(node_file, 'w') as f:
-                    f.write('\n'.join(current_lines))
+                    f.write('\n'.join(new_lines))
 
                 # If node has no parent, append to root
                 root_dep = self.output_dir / "root.dep"
