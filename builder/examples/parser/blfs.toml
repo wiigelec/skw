@@ -30,7 +30,7 @@ checksum = ""
 
 
 [dependencies]
-name = ".//para[@role='required' or @role='recommended' or @role='optional']//xref | .//para[@role='required' or @role='recommended' or @role='optional']//ulink"
+name = ".//para[@role='required' or @role='recommended' or @role='optional']//xref/@linkend | .//para[@role='required' or @role='recommended' or @role='optional']//ulink/text()"
 status = ""
 build = ""
 type = ""
