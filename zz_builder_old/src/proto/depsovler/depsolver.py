@@ -136,10 +136,9 @@ class DepSolver:
     # ---------- PASS 2 ----------
     def pass2_clean(self):
         print("Starting Pass 2: Cleaning subgraph...")
-        all_dep_files = list(self.output_dir.glob('*.dep'))
 
         # Step 1: Remove dangling edges
-        for node_file in all_dep_files:
+        for node_file in list(self.output_dir.glob('*.dep')):
             lines_to_keep = []
             with open(node_file, 'r') as f:
                 for line in f:
@@ -154,6 +153,9 @@ class DepSolver:
                         print(f"Removing dead edge {target} from {node_file.name}")
             with open(node_file, 'w') as f:
                 f.write('\n'.join(lines_to_keep))
+
+        # Re-scan after cleanup
+        all_dep_files = list(self.output_dir.glob('*.dep'))
 
         # Step 2: Transform 'after' edges
         for node_file in all_dep_files:
@@ -184,7 +186,7 @@ class DepSolver:
                     else:
                         print(f"Cycle detected between {node_file.stem} and {dep}, keeping edge safe.")
 
-                with open(group_file, 'w') as gf:
+                with open(group_file, 'a') as gf:
                     gf.write('\n'.join(group_lines))
 
                 root_dep = self.output_dir / "root.dep"
@@ -195,15 +197,14 @@ class DepSolver:
                     with open(root_dep, 'a') as rf:
                         rf.write(f"1 b {group_file.stem}\n")
 
-                # Keep existing before-dependencies and add groupxx
                 if not any(line.endswith(f"{node_file.stem}groupxx") for line in new_lines):
                     new_lines.append(f"1 b {node_file.stem}groupxx")
 
-            # Preserve all lines (before + groupxx addition)
             with open(node_file, 'w') as f:
                 f.write('\n'.join(new_lines))
 
         # Step 3: Handle 'first' edges
+        all_dep_files = list(self.output_dir.glob('*.dep'))
         for node_file in all_dep_files:
             with open(node_file, 'r') as f:
                 lines = [l.strip() for l in f if l.strip()]
