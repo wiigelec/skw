@@ -204,6 +204,18 @@ def clean_subgraph(dep_dir: Path):
         filtered = [l for l in lines if " a " not in l]
         node.write_text("\n".join(filtered) + "\n")
 
+    # After creating groupxx.dep
+    for parent in dep_files:
+        text = parent.read_text()
+        # Replace direct "after" targets with the new group name
+        for line in after_edges:
+            _, _, dep = line.split()
+            pattern = rf"\b{dep}\b"
+            if re.search(pattern, text):
+                text = re.sub(pattern, group_name, text)
+        parent.write_text(text)
+        
+
     # Step 3: Handle "first" edges
     for node in dep_files:
         lines = node.read_text().splitlines()
