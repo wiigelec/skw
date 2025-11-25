@@ -238,16 +238,56 @@ def clean_subgraph(dep_dir: Path):
 
 
 # ───────────────────────────────────────────────
-#  INTEGRATED DRIVER
+#  PASS 3: DEPENDENCY TREE CONSTRUCTION
+# ───────────────────────────────────────────────
+def generate_dependency_tree(dep_file: Path, dep_dir: Path, visited: set, depth: int = 0):
+    """Recursively expand .dep into .tree"""
+    tree_file = dep_dir / f"{dep_file.stem}.tree"
+    indent = " " * (depth * 2)
+
+    if dep_file.stem in visited:
+        print(f"{YELLOW}Cycle detected:{OFF} {' -> '.join(list(visited) + [dep_file.stem])}")
+        return
+
+    visited.add(dep_file.stem)
+    if not dep_file.exists():
+        print(f"{YELLOW}WARN:{OFF} Missing {dep_file.name}, skipping...")
+        return
+
+    lines = dep_file.read_text().splitlines()
+    if not lines:
+        return
+
+    tree_lines = []
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) != 3:
+            continue
+        weight, qualifier, target = parts
+        tree_lines.append(f"{indent}{weight} {qualifier} {target}")
+
+        target_file = dep_dir / f"{target}.dep"
+        if not target_file.exists():
+            continue
+        generate_dependency_tree(target_file, dep_dir, visited.copy(), depth + 1)
+
+    tree_file.write_text("\n".join(tree_lines) + "\n")
+
+
+# ───────────────────────────────────────────────
+#  FULL PIPELINE
 # ───────────────────────────────────────────────
 def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
                            dep_level: int, aliases: dict):
     output_dir.mkdir(exist_ok=True)
     root_dep = output_dir / f"{root_pkg}.dep"
     print(f"{CYAN}Building dependency graph for {root_pkg}{OFF}")
+
     generate_subgraph(root_dep, 1, 1, "b", yaml_dir, dep_level, aliases)
     clean_subgraph(output_dir)
-    print(f"{GREEN}Dependency graph generation complete.{OFF}")
+    print(f"{CYAN}Generating dependency tree for {root_pkg}{OFF}")
+    generate_dependency_tree(root_dep, output_dir, set())
+    print(f"{GREEN}Dependency graph + tree generation complete.{OFF}")
 
 
 # ───────────────────────────────────────────────
@@ -255,7 +295,7 @@ def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
 # ───────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate and clean BLFS dependency graph from YAML definitions with TOML aliasing."
+        description="Generate full dependency graph (.dep + .tree) from YAML definitions with TOML aliasing."
     )
     parser.add_argument("root_package", help="Root package (without extension)")
     parser.add_argument("-y", "--yaml-dir", required=True, help="Directory containing YAML package files")
