@@ -1,8 +1,8 @@
 import argparse
 import yaml
 import toml
-from pathlib import Path
 from typing import Optional
+from pathlib import Path
 
 class SKWDepSolver:
     """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and alias mapping via TOML."""
@@ -37,7 +37,11 @@ class SKWDepSolver:
             matches = list(self.yaml_dir.glob(f"{base}-*.yaml"))
 
         if not matches:
-            raise FileNotFoundError(f"No YAML found for package '{package_name}' in {self.yaml_dir}")
+            raise FileNotFoundError(
+                f"Error: YAML file for '{package_name}' not found in {self.yaml_dir}.\n"
+                f"Ensure a file named '{package_name}-<version>.yaml' exists."
+            )
+
         if len(matches) > 1:
             matches.sort(key=lambda p: len(p.stem))
             print(f"⚠️  Multiple YAMLs for '{package_name}', using: {matches[0].name}")
@@ -89,10 +93,7 @@ class SKWDepSolver:
                             continue
                         f.write(f"{level_code} {build_char} {dep}\n")
                         if phase != "external":
-                            try:
-                                self.generate_dep_file(dep, depth + 1, visited)
-                            except FileNotFoundError:
-                                pass
+                            self.generate_dep_file(dep, depth + 1, visited)
         print(f"Generated: {out_file}")
 
     def clean_subgraph(self):
