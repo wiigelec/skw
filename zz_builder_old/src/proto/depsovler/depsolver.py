@@ -1,11 +1,12 @@
 import argparse
 import yaml
+import tomllib
 from pathlib import Path
 
 class SKWDepSolver:
-    """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and CLI."""
+    """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and alias mapping via TOML."""
 
-    def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3):
+    def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: str | None = None):
         self.yaml_dir = Path(yaml_dir)
         self.output_dir = Path(output_dir)
         self.dep_level = int(dep_level)
@@ -13,8 +14,22 @@ class SKWDepSolver:
         if not self.yaml_dir.is_dir():
             raise FileNotFoundError(f"YAML directory {self.yaml_dir} not found")
 
+        # Load config.toml aliases if provided
+        self.aliases = {}
+        if config_file:
+            cfg_path = Path(config_file)
+            if cfg_path.exists():
+                with open(cfg_path, "rb") as f:
+                    cfg = tomllib.load(f)
+                    self.aliases = cfg.get("package_aliases", {})
+                    print(f"Loaded {len(self.aliases)} alias mappings from {cfg_path}")
+
     def load_yaml(self, package_name: str) -> dict:
-        """Load YAML for a given package name, matching versioned files carefully."""
+        """Load YAML for a given package name, matching versioned files carefully and applying aliases."""
+        if package_name in self.aliases:
+            print(f"Alias applied: {package_name} → {self.aliases[package_name]}")
+            package_name = self.aliases[package_name]
+
         matches = list(self.yaml_dir.glob(f"{package_name}-*.yaml"))
 
         if not matches and any(ch.isdigit() for ch in package_name):
@@ -112,17 +127,18 @@ class SKWDepSolver:
     @classmethod
     def cli(cls):
         parser = argparse.ArgumentParser(
-            description="Generate .dep dependency files from YAML package metadata with optional groupxx cleanup."
+            description="Generate .dep dependency files from YAML package metadata with alias + groupxx support."
         )
         parser.add_argument("package", help="Root package name (without .yaml extension).")
         parser.add_argument("--yaml-dir", required=True, help="Directory containing package YAML files.")
         parser.add_argument("--output", required=True, help="Directory where .dep files will be written.")
         parser.add_argument("--dep-level", type=int, default=3, choices=[1, 2, 3], help="Dependency level.")
+        parser.add_argument("--config", help="Path to TOML configuration file with alias mappings.")
         parser.add_argument("--clean", action="store_true", help="Clean existing .dep files.")
         parser.add_argument("--clean-subgraph", action="store_true", help="Perform groupxx cleanup after generation.")
 
         args = parser.parse_args()
-        solver = cls(args.yaml_dir, args.output, args.dep_level)
+        solver = cls(args.yaml_dir, args.output, args.dep_level, args.config)
 
         if args.clean:
             solver.clean_deps()
