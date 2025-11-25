@@ -3,7 +3,7 @@ import yaml
 import toml
 import argparse
 from pathlib import Path
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set
 
 
 class DepSolver:
@@ -46,10 +46,36 @@ class DepSolver:
                     return yaml.safe_load(f)
         raise FileNotFoundError(f"No YAML found for package: {pkg_name}")
 
-    def generate_dep_files(self, root_pkg: str, dep_level: int = 3):
-        visited: Set[str] = set()
-        print(f"Generating .dep files from root: {root_pkg} (level {dep_level})")
-        self._generate_subgraph(root_pkg, dep_level, visited)
+    def generate_subgraph(self, dep_file: str, weight: int, depth: int, qualifier: str, dep_level: int, visited: Set[str]):
+        norm_name = self._normalize_name(Path(dep_file).stem)
+        if norm_name in visited:
+            return
+
+        visited.add(norm_name)
+        pkg_data = self._load_package(norm_name)
+        
+        # Adjust dependency level similar to original bash logic
+        if dep_level == 3 and depth > 2:
+            dep_level = 2
+        elif dep_level > 3:
+            dep_level = 3
+
+        deps = self._extract_dependencies(pkg_data, dep_level)
+        dep_path = self.output_dir / f"{norm_name}.dep"
+
+        lines = []
+        for dep_weight, dep_qual, dep_name in deps:
+            if dep_weight > dep_level:
+                continue
+            lines.append(f"{dep_weight} {dep_qual} {dep_name}")
+
+            # Recurse if dependency not yet seen
+            self.generate_subgraph(f"{dep_name}.dep", dep_weight, depth + 1, dep_qual, dep_level, visited)
+
+        with open(dep_path, 'w') as f:
+            f.write('\n'.join(lines))
+
+        print(f"Created {dep_path} with {len(lines)} dependencies (depth={depth})")
 
     def _extract_dependencies(self, pkg_data: Dict, dep_level: int) -> List[tuple]:
         deps = []
@@ -76,30 +102,17 @@ class DepSolver:
                     deps.append((weight, qualifier, n))
         return deps
 
-    def _generate_subgraph(self, pkg_name: str, dep_level: int, visited: Set[str]):
-        norm_name = self._normalize_name(pkg_name)
-        if norm_name in visited:
-            return
-
-        visited.add(norm_name)
-        pkg_data = self._load_package(norm_name)
-        dep_path = self.output_dir / f"{norm_name}.dep"
-
-        deps = self._extract_dependencies(pkg_data, dep_level)
-        lines = []
-
-        for weight, qualifier, dep_name in deps:
-            lines.append(f"{weight} {qualifier} {dep_name}")
-            self._generate_subgraph(dep_name, dep_level, visited)
-
-        with open(dep_path, 'w') as f:
-            f.write('\n'.join(lines))
-
-        print(f"Created {dep_path} with {len(lines)} dependencies")
+    def pass1_generate(self, root_pkg: str, dep_level: int = 3):
+        visited: Set[str] = set()
+        root_path = self.output_dir / "root.dep"
+        with open(root_path, 'w') as f:
+            f.write(f"1 b {root_pkg}\n")
+        print(f"Starting Pass 1: Generating subgraph from root '{root_pkg}' (level={dep_level})")
+        self.generate_subgraph(f"{root_pkg}.dep", 1, 1, 'b', dep_level, visited)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Dependency graph .dep generator (YAML-based)")
+    parser = argparse.ArgumentParser(description="Pass 1: Dependency subgraph generator (YAML-based)")
     parser.add_argument('-y', '--yaml-path', required=True, help='Path to YAML package files')
     parser.add_argument('-o', '--output', required=True, help='Output directory for .dep files')
     parser.add_argument('-l', '--level', type=int, default=3, help='Max dependency weight level (1-4)')
@@ -109,7 +122,7 @@ def main():
     args = parser.parse_args()
 
     solver = DepSolver(args.yaml_path, args.output, args.config)
-    solver.generate_dep_files(args.root_pkg, args.level)
+    solver.pass1_generate(args.root_pkg, args.level)
 
 
 if __name__ == '__main__':
