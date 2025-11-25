@@ -30,9 +30,7 @@ checksum = ""
 
 
 [dependencies]
-child1 = "required"
-child2 = "recommended"
-child3 = "optional"
+child1 = [ "required", "recommended", "optional" ]
 
 [required]
 name = ".//para[@role='required']//xref/@linkend | .//para[@role='required' or @role='recommended' or @role='optional']//ulink/text()"
