@@ -1,6 +1,6 @@
 import argparse
 import yaml
-import tomllib
+import toml
 from pathlib import Path
 
 class SKWDepSolver:
@@ -19,10 +19,9 @@ class SKWDepSolver:
         if config_file:
             cfg_path = Path(config_file)
             if cfg_path.exists():
-                with open(cfg_path, "rb") as f:
-                    cfg = tomllib.load(f)
-                    self.aliases = cfg.get("package_aliases", {})
-                    print(f"Loaded {len(self.aliases)} alias mappings from {cfg_path}")
+                cfg = toml.load(cfg_path)
+                self.aliases = cfg.get("package_aliases", {})
+                print(f"Loaded {len(self.aliases)} alias mappings from {cfg_path}")
 
     def load_yaml(self, package_name: str) -> dict:
         """Load YAML for a given package name, matching versioned files carefully and applying aliases."""
