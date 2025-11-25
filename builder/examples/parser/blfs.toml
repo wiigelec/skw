@@ -30,13 +30,29 @@ checksum = ""
 
 
 [dependencies]
-child1 = [ "dep" ]
+child1 = [ "required_before", "required_after", "recommended_before", "recommended_after", "optional_before", "optional_after", "optional_external" ]  ]
 
-[dep]
-name = ""
-status = ""
-build = "" 
-type = ""
+[required_before]
+name = ".//para[@role='required']//xref/@linkend"
+
+[required_after]
+name = ".//para[@role='required']//xref/@linkend"
+
+[recommended_before]
+name = ".//para[@role='recommended']//xref/@linkend"
+
+[recommended_after]
+name = ".//para[@role='recommended']//xref/@linkend"
+
+[optional_before]
+name = ".//para[@role='optional']//xref/@linkend"
+
+[optional_after]
+name = ".//para[@role='optional']//xref/@linkend"
+
+[optional_external]
+name = ".//para[@role='optional'']//ulink/text()"
+
 
 
 
