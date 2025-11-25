@@ -15,22 +15,21 @@ class SKWDepSolver:
             raise FileNotFoundError(f"YAML directory {self.yaml_dir} not found")
 
     def load_yaml(self, package_name: str) -> dict:
-        """Load YAML for a given package name, matching versioned or close variants."""
-        # Exact match first (e.g. glib2-*.yaml)
+        """Load YAML for a given package name, matching versioned files carefully."""
+        # First: exact prefix match (e.g., glib2-*.yaml)
         matches = list(self.yaml_dir.glob(f"{package_name}-*.yaml"))
-        
-        # If not found, try a relaxed match (ignore digits and dashes)
-        if not matches:
-            simplified = "".join(filter(str.isalpha, package_name))
-            relaxed = [p for p in self.yaml_dir.glob("*.yaml")
-                    if simplified.lower() in p.stem.replace("-", "").lower()]
-            matches = relaxed
 
+        # Fallback: try removing trailing digits (glib2 → glib)
+        if not matches and any(ch.isdigit() for ch in package_name):
+            base = package_name.rstrip("0123456789")
+            matches = list(self.yaml_dir.glob(f"{base}-*.yaml"))
+
+        # If still multiple matches, choose the shortest (most direct) one
         if not matches:
             raise FileNotFoundError(f"No YAML found for package '{package_name}' in {self.yaml_dir}")
-
         if len(matches) > 1:
-            print(f"Warning: multiple YAML files for {package_name}, using {matches[0].name}")
+            matches.sort(key=lambda p: len(p.stem))
+            print(f"Multiple YAMLs for '{package_name}', using: {matches[0].name}")
 
         file_path = matches[0]
         with open(file_path, "r", encoding="utf-8") as f:
