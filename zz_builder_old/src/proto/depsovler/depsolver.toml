@@ -1,4 +1,4 @@
-[package_aliases]
+[package_alias]
 polkit = "polkit"
 glib2 = "glib"
 DocBook = "docbook-xml"
