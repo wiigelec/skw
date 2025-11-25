@@ -242,11 +242,23 @@ def clean_subgraph(dep_dir: Path):
 # ───────────────────────────────────────────────
 def build_group_mapping(dep_dir: Path) -> dict[str, str]:
     """
-    Build and save mapping of {member_pkg: groupxx_node} from all groupxx.dep files.
+    Build accurate mapping of {member_pkg: groupxx_node}, scoped only to groups
+    actually referenced by other .dep files (mirrors Bash's after-edge rewiring).
     """
     mapping = {}
+    referenced_groups = set()
+
+    # Identify which groupxx nodes are actually referenced
+    for dep_file in dep_dir.glob("*.dep"):
+        text = dep_file.read_text()
+        for match in re.findall(r"([A-Za-z0-9._+-]+groupxx)", text):
+            referenced_groups.add(match)
+
+    # Map members only for referenced groupxx nodes
     for group_file in dep_dir.glob("*groupxx.dep"):
         group_name = group_file.stem
+        if group_name not in referenced_groups:
+            continue
         with group_file.open() as f:
             for line in f:
                 parts = line.strip().split()
@@ -257,7 +269,7 @@ def build_group_mapping(dep_dir: Path) -> dict[str, str]:
     json_path = dep_dir / "group_mapping.json"
     with json_path.open("w") as jf:
         json.dump(mapping, jf, indent=2)
-    print(f"{GREEN}Saved group mapping → {json_path}{OFF}")
+    print(f"{GREEN}Saved refined group mapping → {json_path}{OFF}")
 
     return mapping
 
