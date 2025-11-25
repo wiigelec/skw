@@ -1,2 +1,3 @@
 [package_aliases]
 glib2 = "glib"
+DocBook = "docbook-xml"
