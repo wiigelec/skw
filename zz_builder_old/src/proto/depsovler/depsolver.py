@@ -2,11 +2,12 @@ import argparse
 import yaml
 import toml
 from pathlib import Path
+from typing import Optional
 
 class SKWDepSolver:
     """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and alias mapping via TOML."""
 
-    def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: str | None = None):
+    def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
         self.yaml_dir = Path(yaml_dir)
         self.output_dir = Path(output_dir)
         self.dep_level = int(dep_level)
