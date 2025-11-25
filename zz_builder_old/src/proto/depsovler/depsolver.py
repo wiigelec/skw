@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Set
 
 class SKWDepSolver:
-    """Phase 2: Add path_exists() and clean_subgraph() to replicate BLFS graph cleaning and groupxx logic."""
+    """Phase 3: Add root.dep generation replicating Bash BLFS root logic."""
 
     def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
         self.yaml_dir = Path(yaml_dir)
@@ -104,7 +104,6 @@ class SKWDepSolver:
         print(f"Generated: {dep_file}")
 
     def path_exists(self, start: str, target: str, visited: Optional[Set[str]] = None) -> bool:
-        """Check if a path exists between two nodes (start -> target) using DFS, replicating Bash path_to()."""
         if visited is None:
             visited = set()
         if start in visited:
@@ -127,7 +126,6 @@ class SKWDepSolver:
         return False
 
     def clean_subgraph(self):
-        """Replicates BLFS clean_subgraph: fixes dangling edges, adds groupxx nodes, rewrites parent references."""
         dep_files = list(self.output_dir.glob("*.dep"))
         for dep_file in dep_files:
             node_name = dep_file.stem
@@ -158,10 +156,44 @@ class SKWDepSolver:
 
         print("Subgraph cleaned: groupxx files generated and parent references updated.")
 
+    def generate_root_dep(self):
+        """Create root.dep listing all top-level groupxx nodes not referenced elsewhere, matching Bash behavior."""
+        dep_files = list(self.output_dir.glob("*.dep"))
+        all_deps = set()
+        group_nodes = set()
+
+        # Collect all dependencies referenced in other dep files
+        for dep_file in dep_files:
+            with open(dep_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) == 3:
+                        _, _, dep = parts
+                        all_deps.add(dep)
+
+        # Identify all nodes that have a groupxx.dep file
+        for dep_file in dep_files:
+            if dep_file.name.endswith("groupxx.dep"):
+                group_nodes.add(dep_file.stem)
+
+        # Roots = groupxx nodes that are not dependencies anywhere else
+        root_nodes = sorted(group_nodes - all_deps)
+
+        if not root_nodes:
+            print("⚠️ No root nodes detected.")
+            return
+
+        root_file = self.output_dir / "root.dep"
+        with open(root_file, "w", encoding="utf-8") as rf:
+            for pkg in root_nodes:
+                rf.write(f"1 b {pkg}\n")
+
+        print(f"Generated root.dep with {len(root_nodes)} entries: {', '.join(root_nodes)}")
+
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Phase 2: Clean subgraph (.dep files) and generate groupxx nodes.")
+    parser = argparse.ArgumentParser(description="Phase 3: Generate root.dep from cleaned subgraph.")
     parser.add_argument("package", help="Root package name (without .yaml extension).")
     parser.add_argument("--yaml-dir", required=True, help="Directory containing YAML package metadata.")
     parser.add_argument("--output", required=True, help="Directory for output .dep files.")
@@ -172,3 +204,4 @@ if __name__ == "__main__":
     solver = SKWDepSolver(args.yaml_dir, args.output, args.dep_level, args.config)
     solver.generate_subgraph(args.package)
     solver.clean_subgraph()
+    solver.generate_root_dep()
