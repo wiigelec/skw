@@ -1,4 +1,4 @@
 [package_alias]
 polkit = "polkit-126"
-glib2 = "glib"
+glib2 = "glib-2.84.4"
 DocBook = "docbook-xml"
