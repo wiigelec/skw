@@ -33,7 +33,12 @@ checksum = ""
 child1 = [ "dep" ]
 
 [dep]
-child1 = [ "name" ,"status", "build", "type" ]
+name = ""
+status = ""
+build = "" 
+type = ""
+
+
 
 
 
