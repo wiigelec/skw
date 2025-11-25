@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, re, sys, yaml, shutil
+import argparse, os, re, sys, yaml, shutil
 from pathlib import Path
 from typing import Dict, List, Set, Optional
 
@@ -201,13 +201,20 @@ def topological_sort(dep_dir: Path):
 
 
 def main():
-    yaml_dir = Path(sys.argv[1])
-    dep_dir = Path(sys.argv[2])
+    parser = argparse.ArgumentParser(description="Dependency graph generator matching BLFS Bash logic.")
+    parser.add_argument('yaml_dir', type=Path, help='Directory containing YAML dependency files')
+    parser.add_argument('output_dir', type=Path, help='Directory to write .dep, .tree, and build_order.txt')
+    parser.add_argument('-l', '--level', type=int, default=DEP_LEVEL, help='Dependency level (1-4)')
+    args = parser.parse_args()
+
+    yaml_dir = args.yaml_dir
+    dep_dir = args.output_dir
     dep_dir.mkdir(exist_ok=True)
+
     root_dep = dep_dir / 'root.dep'
     root_dep.write_text('1 b root\n')
 
-    generate_subgraph(root_dep, 1, 1, 'b', yaml_dir, DEP_LEVEL)
+    generate_subgraph(root_dep, 1, 1, 'b', yaml_dir, args.level)
     clean_subgraph(dep_dir)
     generate_dependency_tree(dep_dir)
     topological_sort(dep_dir)
