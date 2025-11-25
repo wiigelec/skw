@@ -5,6 +5,7 @@ import re
 import sys
 import argparse
 import toml
+import json
 from typing import Optional, Dict, List, Set
 
 # ───────────────────────────────────────────────
@@ -237,17 +238,41 @@ def clean_subgraph(dep_dir: Path):
 
 
 # ───────────────────────────────────────────────
+#  BUILD GROUP MAPPING (NEW)
+# ───────────────────────────────────────────────
+def build_group_mapping(dep_dir: Path) -> dict[str, str]:
+    """
+    Build and save mapping of {member_pkg: groupxx_node} from all groupxx.dep files.
+    """
+    mapping = {}
+    for group_file in dep_dir.glob("*groupxx.dep"):
+        group_name = group_file.stem
+        with group_file.open() as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3:
+                    _, _, target = parts
+                    mapping[target] = group_name
+
+    json_path = dep_dir / "group_mapping.json"
+    with json_path.open("w") as jf:
+        json.dump(mapping, jf, indent=2)
+    print(f"{GREEN}Saved group mapping → {json_path}{OFF}")
+
+    return mapping
+
+
+# ───────────────────────────────────────────────
 #  PASS 3: TREE GENERATION
 # ───────────────────────────────────────────────
-def generate_dependency_tree(dep_file: Path, dep_dir: Path):
-    """Match Bash .tree format using cleaned deps"""
+def generate_dependency_tree(dep_file: Path, dep_dir: Path, group_map: dict[str, str]):
+    """Generate .tree identical to Bash format using group mapping"""
     tree_file = dep_dir / f"{dep_file.stem}.tree"
     if not dep_file.exists():
         return
-    lines = ["1 1 1", "1 1 1"]
 
-    # group nodes shadow lower dependencies
-    group_nodes = {f.stem.replace("groupxx", "") for f in dep_dir.glob("*groupxx.dep")}
+    lines = ["1 1 1", "1 1 1"]
+    seen = set()
 
     with dep_file.open() as f:
         for line in f:
@@ -255,16 +280,19 @@ def generate_dependency_tree(dep_file: Path, dep_dir: Path):
             if len(parts) != 3:
                 continue
             weight, qualifier, target = parts
-            if any(target == g or target.startswith(g) for g in group_nodes):
+            target = group_map.get(target, target)
+            if target in seen:
                 continue
+            seen.add(target)
             lines.append(f"{weight} {qualifier} {target}")
 
     tree_file.write_text("\n".join(lines) + "\n")
 
 
 def generate_all_trees(dep_dir: Path):
+    group_map = build_group_mapping(dep_dir)
     for dep_file in sorted(dep_dir.glob("*.dep")):
-        generate_dependency_tree(dep_file, dep_dir)
+        generate_dependency_tree(dep_file, dep_dir, group_map)
 
 
 def generate_root_tree(dep_dir: Path):
