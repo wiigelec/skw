@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Set
 
 class SKWDepSolver:
-    """Phase 3 Revised: Integrate root.dep generation directly inside clean_subgraph() to match BLFS Bash behavior."""
+    """Phase 3 Revised: Corrected root.dep detection logic to match Bash clean_subgraph behavior exactly."""
 
     def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3, config_file: Optional[str] = None):
         self.yaml_dir = Path(yaml_dir)
@@ -159,7 +159,7 @@ class SKWDepSolver:
                     if new_txt != txt:
                         parent_file.write_text(new_txt)
 
-        # Identify orphan groupxx nodes (no parents)
+        # Identify orphan groupxx nodes (no parents) correctly
         dep_files = list(self.output_dir.glob("*.dep"))
         all_deps = set()
         group_nodes = set()
@@ -176,7 +176,12 @@ class SKWDepSolver:
             if dep_file.name.endswith("groupxx.dep"):
                 group_nodes.add(dep_file.stem)
 
-        root_nodes = sorted(group_nodes - all_deps)
+        root_nodes = []
+        for node in group_nodes:
+            if f"{node}" not in all_deps and f"{node}groupxx" not in all_deps:
+                root_nodes.append(node)
+
+        root_nodes = sorted(root_nodes)
         if not root_nodes:
             print("⚠️ No root nodes detected.")
         else:
