@@ -195,8 +195,11 @@ class DepSolver:
                     with open(root_dep, 'a') as rf:
                         rf.write(f"1 b {group_file.stem}\n")
 
-                new_lines.append(f"1 b {node_file.stem}groupxx")
+                # Keep existing before-dependencies and add groupxx
+                if not any(line.endswith(f"{node_file.stem}groupxx") for line in new_lines):
+                    new_lines.append(f"1 b {node_file.stem}groupxx")
 
+            # Preserve all lines (before + groupxx addition)
             with open(node_file, 'w') as f:
                 f.write('\n'.join(new_lines))
 
