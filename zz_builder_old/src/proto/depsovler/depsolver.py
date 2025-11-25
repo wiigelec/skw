@@ -108,6 +108,31 @@ class DepSolver:
         print(f"Starting Pass 1: Generating subgraph from root '{root_pkg}' (level={dep_level})")
         self.generate_subgraph(f"{root_pkg}.dep", 1, 1, 'b', dep_level, visited)
 
+    # ---------- PATH DETECTION ----------
+    def _path_to(self, start: str, target: str, max_weight: int, seen: Set[str]) -> bool:
+        if start == target:
+            return True
+        if start in seen:
+            return False
+        seen.add(start)
+
+        start_path = self.output_dir / f"{start}.dep"
+        if not start_path.exists():
+            return False
+
+        with open(start_path, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) != 3:
+                    continue
+                weight, _, dep = parts
+                weight = int(weight)
+                if weight > max_weight:
+                    continue
+                if self._path_to(dep, target, max_weight, seen):
+                    return True
+        return False
+
     # ---------- PASS 2 ----------
     def pass2_clean(self):
         print("Starting Pass 2: Cleaning subgraph...")
@@ -143,19 +168,34 @@ class DepSolver:
                     continue
                 weight, qualifier, dep = parts
                 if qualifier == 'a':
-                    after_deps.append((weight, dep))
+                    after_deps.append((int(weight), dep))
                 else:
                     new_lines.append(line)
 
             if after_deps:
                 group_file = self.output_dir / f"{node_file.stem}groupxx.dep"
                 group_lines = [f"1 b {node_file.stem}"]
+
                 for w, dep in after_deps:
-                    group_lines.append(f"{w} b {dep}")
-                    print(f"Transforming 'after' -> 'before' for {dep} in {node_file.name}")
+                    seen = set()
+                    if not self._path_to(dep, node_file.stem, 3, seen):
+                        group_lines.append(f"{w} b {dep}")
+                        print(f"Transforming 'after' -> 'before' for {dep} in {node_file.name}")
+                    else:
+                        print(f"Cycle detected between {node_file.stem} and {dep}, keeping edge safe.")
+
                 with open(group_file, 'w') as gf:
                     gf.write('\n'.join(group_lines))
-                new_lines.extend([f"1 b {node_file.stem}groupxx"])
+
+                root_dep = self.output_dir / "root.dep"
+                has_parent = any(
+                    group_file.stem in open(f).read() for f in self.output_dir.glob('*.dep') if f != group_file
+                )
+                if not has_parent:
+                    with open(root_dep, 'a') as rf:
+                        rf.write(f"1 b {group_file.stem}\n")
+
+                new_lines.append(f"1 b {node_file.stem}groupxx")
 
             with open(node_file, 'w') as f:
                 f.write('\n'.join(new_lines))
@@ -176,11 +216,31 @@ class DepSolver:
                     dst_path = self.output_dir / f"{dep}-pass1.dep"
                     if src_path.exists() and not dst_path.exists():
                         with open(src_path, 'r') as src, open(dst_path, 'w') as dst:
-                            dst.write(src.read())
+                            dep_lines = src.readlines()
+                            pruned = []
+                            for dline in dep_lines:
+                                dparts = dline.strip().split()
+                                if len(dparts) == 3:
+                                    w, _, dtarget = dparts
+                                    seen = set()
+                                    if self._path_to(dtarget, node_file.stem, int(w), seen):
+                                        continue
+                                pruned.append(dline.strip())
+                            dst.write('\n'.join(pruned))
                         print(f"Created pass1 node: {dst_path.name}")
                     new_lines.append(f"1 b {dep}-pass1")
                 else:
                     new_lines.append(line)
+
+            for line in new_lines:
+                if '-pass1' in line:
+                    dep_name = line.split()[-1]
+                    has_parent = any(
+                        dep_name in open(f).read() for f in self.output_dir.glob('*.dep') if f != node_file
+                    )
+                    if not has_parent:
+                        with open(self.output_dir / "root.dep", 'a') as rf:
+                            rf.write(f"1 b {dep_name}\n")
 
             with open(node_file, 'w') as f:
                 f.write('\n'.join(new_lines))
