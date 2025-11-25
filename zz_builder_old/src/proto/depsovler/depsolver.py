@@ -4,6 +4,7 @@ import yaml
 import sys
 import argparse
 import re
+from typing import Optional
 
 SPACE_STR = " " * 70
 DEP_LEVEL = 3
@@ -11,7 +12,7 @@ MAIL_SERVER = "postfix"
 RED, GREEN, YELLOW, MAGENTA, CYAN, OFF = "\033[31m", "\033[32m", "\033[33m", "\033[35m", "\033[36m", "\033[0m"
 
 # ==== Helper: locate YAML file ====
-def locate_yaml(pkg_name: str, version: str | None, yaml_dir: Path) -> Path:
+def locate_yaml(pkg_name: str, version: Optional[str], yaml_dir: Path) -> Path:
     """Find a YAML file named <pkg>.yaml or <pkg>-<version>.yaml"""
     candidates = []
     if version:
