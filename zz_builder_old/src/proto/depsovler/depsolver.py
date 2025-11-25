@@ -1,39 +1,33 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import yaml
-import re
-import sys
-import argparse
-import toml
-import json
-from typing import Optional, Dict, List, Set
+import yaml, toml, json, re, sys, argparse
+from typing import Dict, List, Set, Optional
 
-# ───────────────────────────────────────────────
-#  GLOBALS
-# ───────────────────────────────────────────────
-SPACE_STR = " " * 70
-DEP_LEVEL = 3
+# ───────────────────────────────
+# Terminal colors
+# ───────────────────────────────
 RED, GREEN, YELLOW, MAGENTA, CYAN, OFF = (
     "\033[31m", "\033[32m", "\033[33m", "\033[35m", "\033[36m", "\033[0m"
 )
+SPACE_STR = " " * 70
+DEP_LEVEL = 3
 
 
-# ───────────────────────────────────────────────
-#  CONFIG HANDLING
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# Config loader
+# ───────────────────────────────
 def load_aliases(config_path: Optional[Path]) -> Dict[str, str]:
-    """Load TOML alias mapping from [package_alias] section."""
-    if not config_path:
-        return {}
-    if not config_path.exists():
-        print(f"{YELLOW}WARNING:{OFF} Config file not found: {config_path}")
+    """Load aliases from TOML config."""
+    if not config_path or not config_path.exists():
         return {}
     data = toml.load(config_path)
     return data.get("package_alias", {})
 
 
+# ───────────────────────────────
+# Locate YAML
+# ───────────────────────────────
 def locate_yaml(pkg_name: str, yaml_dir: Path, aliases: dict) -> Path:
-    """Find YAML file, honoring alias mapping and version variants."""
     alias_target = aliases.get(pkg_name)
     if alias_target:
         alias_file = yaml_dir / f"{alias_target}.yaml"
@@ -48,34 +42,28 @@ def locate_yaml(pkg_name: str, yaml_dir: Path, aliases: dict) -> Path:
         return matches[0]
     elif len(matches) > 1:
         print(f"{YELLOW}ERROR:{OFF} Multiple YAML files found for '{pkg_name}': {[m.name for m in matches]}")
-        print(f"Specify alias in config.toml to disambiguate.")
         sys.exit(1)
 
     print(f"{RED}FATAL:{OFF} No YAML found for {pkg_name} in {yaml_dir}")
     sys.exit(1)
 
 
-# ───────────────────────────────────────────────
-#  PASS 1: YAML → .DEP GENERATION
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# PASS 1 — YAML → .dep
+# ───────────────────────────────
 def parse_yaml_dependencies(yaml_path: Path) -> List[dict]:
-    with yaml_path.open("r") as f:
+    with yaml_path.open() as f:
         data = yaml.safe_load(f)
 
-    deps = []
-    dep_tree = data.get("dependencies", {})
-    if not dep_tree:
-        return deps
-
+    deps, dep_tree = [], data.get("dependencies", {})
     mapping = {"required": 1, "recommended": 2, "optional": 3, "external": 4}
+
     for level, weight in mapping.items():
         for qualifier in ["first", "before", "after", "external"]:
             key = f"{level}_{qualifier}"
             if key not in dep_tree:
                 continue
             names = dep_tree[key].get("name", [])
-            if not names:
-                continue
             if isinstance(names, str):
                 names = [names]
             q = qualifier[0] if qualifier != "external" else "b"
@@ -99,34 +87,23 @@ def generate_subgraph(dep_file: Path, weight: int, depth: int, qualifier: str,
 
     for dep in dependencies:
         if dep["weight"] > dep_level:
-            print(f" Out: {YELLOW}{dep['target']}{OFF}")
             continue
-
         dep_path = dep_file.parent / f"{dep['target']}.dep"
         if dep_path.exists():
-            print(f" Edge: {MAGENTA}{dep['target']}{OFF}")
             continue
 
-        try:
-            sub_yaml = locate_yaml(dep["target"], yaml_dir, aliases)
-        except SystemExit:
-            print(f"{YELLOW}WARN:{OFF} Missing dependency YAML for {dep['target']}")
-            continue
-
+        sub_yaml = locate_yaml(dep["target"], yaml_dir, aliases)
         sub_deps = parse_yaml_dependencies(sub_yaml)
         if not sub_deps:
             dep_path.touch()
-            print(f" Leaf: {CYAN}{dep['target']}{OFF}")
         else:
             generate_subgraph(dep_path, dep["weight"], depth + 1, dep["qualifier"], yaml_dir, dep_level, aliases)
-
-    print(f" End: {depth}{GREEN}{dep_file.stem}{OFF}")
     return 0
 
 
-# ───────────────────────────────────────────────
-#  PASS 2: CLEAN & TRANSFORM GRAPH
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# PASS 2 — Clean / Transform Graph
+# ───────────────────────────────
 def path_to(start_file: Path, target: str, max_weight: int, seen: set, dep_dir: Path) -> bool:
     if start_file.stem == target:
         return True
@@ -156,7 +133,7 @@ def clean_subgraph(dep_dir: Path):
     for node in dep_files:
         if node.name == "root.dep":
             continue
-        valid_lines = []
+        lines = []
         with node.open() as f:
             for line in f:
                 parts = line.strip().split()
@@ -164,13 +141,11 @@ def clean_subgraph(dep_dir: Path):
                     continue
                 _, _, dep = parts
                 if (dep_dir / f"{dep}.dep").exists():
-                    valid_lines.append(line.strip())
-        node.write_text("\n".join(valid_lines) + ("\n" if valid_lines else ""))
+                    lines.append(line.strip())
+        node.write_text("\n".join(lines) + ("\n" if lines else ""))
 
     # Step 2: Handle "after" edges
     for node in dep_files:
-        if node.name == "root.dep":
-            continue
         lines = node.read_text().splitlines()
         after_edges = [l for l in lines if " a " in l]
         if not after_edges:
@@ -179,94 +154,37 @@ def clean_subgraph(dep_dir: Path):
         group_file = dep_dir / f"{group_name}.dep"
         print(f"Processing runtime deps in {node.name}")
 
-        parents = [p for p in dep_files if p != node and f" {node.stem}" in p.read_text()]
-        b_flag = False
-        for parent in parents:
-            p_flag = False
-            for line in after_edges:
-                _, _, dep = line.split()
-                if path_to(dep_dir / f"{dep}.dep", parent.stem, 3, set(), dep_dir):
-                    p_flag = True
-                    break
-            if not p_flag:
-                b_flag = True
-                text = parent.read_text()
-                text = re.sub(rf"\s{node.stem}$", f" {group_name}", text, flags=re.MULTILINE)
-                parent.write_text(text)
-
         group_lines = [f"1 b {node.stem}"] + [re.sub(r" a ", " b ", l) for l in after_edges]
         group_file.write_text("\n".join(group_lines) + "\n")
 
-        if not b_flag:
-            with (dep_dir / "root.dep").open("a") as root_file:
-                root_file.write(f"1 b {group_name}\n")
-
-        filtered = [l for l in lines if " a " not in l]
-        node.write_text("\n".join(filtered) + "\n")
-
-        # After creating groupxx.dep
+        # ⬇ Rewrite parents to reference groupxx (critical Bash behavior)
         for parent in dep_files:
             text = parent.read_text()
-            # Replace direct "after" targets with the new group name
             for line in after_edges:
                 _, _, dep = line.split()
                 pattern = rf"\b{dep}\b"
-                if re.search(pattern, text):
-                    text = re.sub(pattern, group_name, text)
+                text = re.sub(pattern, group_name, text)
             parent.write_text(text)
-        
 
-    # Step 3: Handle "first" edges
-    for node in dep_files:
-        lines = node.read_text().splitlines()
-        first_edges = [l for l in lines if " f " in l]
-        if not first_edges:
-            continue
-        print(f"Processing 'first' deps in {node.name}")
-
-        for line in first_edges:
-            w, _, dep = line.split()
-            dep_file = dep_dir / f"{dep}.dep"
-            dep_pass1 = dep_dir / f"{dep}-pass1.dep"
-            if dep_file.exists():
-                dep_pass1.write_text(dep_file.read_text())
-            else:
-                continue
-            pruned = []
-            with dep_pass1.open() as f:
-                for l2 in f:
-                    parts = l2.strip().split()
-                    if len(parts) != 3:
-                        continue
-                    _, _, start = parts
-                    if not path_to(dep_dir / f"{start}.dep", node.stem, int(w), set(), dep_dir):
-                        pruned.append(l2.strip())
-            dep_pass1.write_text("\n".join(pruned) + "\n")
-            text = node.read_text()
-            text = re.sub(rf"{w} f {dep}$", f"1 b {dep}-pass1", text, flags=re.MULTILINE)
-            node.write_text(text)
+        # Filter 'after' edges from node
+        filtered = [l for l in lines if " a " not in l]
+        node.write_text("\n".join(filtered) + "\n")
 
     print(f"{GREEN}Pass 2 complete.{OFF}")
 
 
-# ───────────────────────────────────────────────
-#  BUILD GROUP MAPPING (NEW)
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# Build Group Mapping
+# ───────────────────────────────
 def build_group_mapping(dep_dir: Path) -> dict[str, str]:
-    """
-    Build accurate mapping of {member_pkg: groupxx_node}, scoped only to groups
-    actually referenced by other .dep files (mirrors Bash's after-edge rewiring).
-    """
     mapping = {}
     referenced_groups = set()
 
-    # Identify which groupxx nodes are actually referenced
     for dep_file in dep_dir.glob("*.dep"):
         text = dep_file.read_text()
         for match in re.findall(r"([A-Za-z0-9._+-]+groupxx)", text):
             referenced_groups.add(match)
 
-    # Map members only for referenced groupxx nodes
     for group_file in dep_dir.glob("*groupxx.dep"):
         group_name = group_file.stem
         if group_name not in referenced_groups:
@@ -286,44 +204,27 @@ def build_group_mapping(dep_dir: Path) -> dict[str, str]:
     return mapping
 
 
-# ───────────────────────────────────────────────
-#  PASS 3: TREE GENERATION
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# PASS 3 — Generate .tree files
+# ───────────────────────────────
 def generate_dependency_tree(
     dep_file: Path, dep_dir: Path, group_map: dict[str, str],
     depth: int = 1, parent_weight: int = 1, visited: Set[str] = None, max_depth: int = 100
 ):
-    """
-    Generate .tree identical to Bash format:
-    - Includes dynamic headers from recursion depth and weight
-    - Replaces grouped members with group node
-    - Prevents infinite recursion and cyclic references
-    """
     if visited is None:
         visited = set()
-
     tree_file = dep_dir / f"{dep_file.stem}.tree"
     node_name = dep_file.stem
-
-    # Stop recursion if already visited or too deep
-    if node_name in visited:
-        print(f"{YELLOW}Cycle detected:{OFF} {node_name} (skipping deeper recursion)")
+    if node_name in visited or depth > max_depth:
         return
-    if depth > max_depth:
-        print(f"{YELLOW}Max depth reached:{OFF} {node_name}")
-        return
-
     visited.add(node_name)
     if not dep_file.exists():
         return
 
-    # ─ Dynamic headers (match Bash rootlink/priolink logic) ─
     header_1 = f"1 {depth} {depth}"
     header_2 = f"1 {parent_weight} {parent_weight}"
-    lines = [header_1, header_2]
-    seen = set()
+    lines, seen = [header_1, header_2], set()
 
-    # ─ Replace members with group nodes ─
     with dep_file.open() as f:
         for line in f:
             parts = line.strip().split()
@@ -338,7 +239,6 @@ def generate_dependency_tree(
 
     tree_file.write_text("\n".join(lines) + "\n")
 
-    # ─ Recurse safely into children ─
     for line in lines[2:]:
         parts = line.split()
         if len(parts) != 3:
@@ -346,29 +246,24 @@ def generate_dependency_tree(
         weight, _, target = parts
         dep_target = dep_dir / f"{target}.dep"
         if dep_target.exists():
-            generate_dependency_tree(
-                dep_target, dep_dir, group_map,
-                depth + 1, int(weight), visited.copy(), max_depth
-            )
+            generate_dependency_tree(dep_target, dep_dir, group_map, depth + 1, int(weight), visited.copy(), max_depth)
+
 
 def generate_all_trees(dep_dir: Path):
     group_map = build_group_mapping(dep_dir)
     for dep_file in sorted(dep_dir.glob("*.dep")):
-        generate_dependency_tree(dep_file, dep_dir, group_map, depth=1, parent_weight=1)
+        generate_dependency_tree(dep_file, dep_dir, group_map, 1, 1)
 
 
 def generate_root_tree(dep_dir: Path):
-    """Create root.tree file with top-level nodes"""
     all_nodes = {f.stem for f in dep_dir.glob("*.dep")}
     referenced = set()
     for dep_file in dep_dir.glob("*.dep"):
-        with dep_file.open() as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) == 3:
-                    _, _, target = parts
-                    referenced.add(target)
-
+        for line in dep_file.read_text().splitlines():
+            parts = line.split()
+            if len(parts) == 3:
+                _, _, target = parts
+                referenced.add(target)
     top_level = sorted(all_nodes - referenced)
     root_tree = dep_dir / "root.tree"
     lines = ["1 1 1", "1 1 1"]
@@ -380,11 +275,10 @@ def generate_root_tree(dep_dir: Path):
     print(f"{GREEN}root.tree generated with {len(top_level)} top-level nodes.{OFF}")
 
 
-# ───────────────────────────────────────────────
-#  PASS 4: BUILD ORDER GENERATION
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# PASS 4 — Build Order
+# ───────────────────────────────
 def generate_build_order(dep_dir: Path):
-    """Topological ordering based on .dep graph"""
     deps = {}
     for dep_file in dep_dir.glob("*.dep"):
         name = dep_file.stem
@@ -400,7 +294,7 @@ def generate_build_order(dep_dir: Path):
     visited, order = set(), []
 
     def visit(node: str, stack: Set[str]):
-        if node in visited:
+        if node in visited or node not in deps:
             return
         if node in stack:
             print(f"{YELLOW}Cycle detected:{OFF} {' -> '.join(stack)} -> {node}")
@@ -421,15 +315,15 @@ def generate_build_order(dep_dir: Path):
     print(f"{GREEN}build_order.txt generated with {len(order)} entries.{OFF}")
 
 
-# ───────────────────────────────────────────────
-#  FULL PIPELINE
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# Pipeline
+# ───────────────────────────────
 def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
                            dep_level: int, aliases: dict):
     output_dir.mkdir(exist_ok=True)
     root_dep = output_dir / f"{root_pkg}.dep"
 
-    print(f"{CYAN}PASS 1: Generating dependency graph from YAML...{OFF}")
+    print(f"{CYAN}PASS 1: Generating dependency graph...{OFF}")
     generate_subgraph(root_dep, 1, 1, "b", yaml_dir, dep_level, aliases)
 
     print(f"{CYAN}PASS 2: Cleaning and transforming graph...{OFF}")
@@ -445,22 +339,20 @@ def build_dependency_graph(root_pkg: str, yaml_dir: Path, output_dir: Path,
     print(f"{GREEN}All passes complete successfully!{OFF}")
 
 
-# ───────────────────────────────────────────────
-#  CLI
-# ───────────────────────────────────────────────
+# ───────────────────────────────
+# CLI
+# ───────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
         description="Full BLFS dependency resolver: YAML → DEP → TREE → BUILD ORDER"
     )
-    parser.add_argument("root_package", help="Root package name (without extension)")
-    parser.add_argument("-y", "--yaml-dir", required=True, help="Directory containing YAML files")
+    parser.add_argument("root_package", help="Root package name (no extension)")
+    parser.add_argument("-y", "--yaml-dir", required=True, help="YAML metadata directory")
     parser.add_argument("-o", "--output-dir", default="dependencies", help="Output directory")
-    parser.add_argument("-l", "--level", type=int, choices=[1, 2, 3, 4], default=DEP_LEVEL,
-                        help="Dependency level depth (1=required ... 4=external)")
-    parser.add_argument("-c", "--config", type=Path, default=Path("depsolver.toml"),
-                        help="Path to TOML alias configuration")
-
+    parser.add_argument("-l", "--level", type=int, default=DEP_LEVEL, help="Dependency level (1–4)")
+    parser.add_argument("-c", "--config", type=Path, default=Path("depsolver.toml"), help="Alias config (TOML)")
     args = parser.parse_args()
+
     yaml_dir = Path(args.yaml_dir)
     output_dir = Path(args.output_dir)
     aliases = load_aliases(args.config)
