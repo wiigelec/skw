@@ -30,8 +30,7 @@ checksum = ""
 
 
 [dependencies]
-xpath = ".//para[@role='required' or @role='recommended' or @role='optional']"
-name = "string(if (@linkend) then @linkend else normalize-space(.))"
+name = ".//para[@role='required' or @role='recommended' or @role='optional']//string(if (@linkend) then @linkend else normalize-space(.))"
 status = ""
 build = ""
 type = ""
