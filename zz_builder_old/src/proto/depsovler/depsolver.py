@@ -2,9 +2,8 @@ import argparse
 import yaml
 from pathlib import Path
 
-
 class SKWDepSolver:
-    """Dependency graph builder converting YAML package metadata into .dep files."""
+    """Dependency graph builder converting YAML package metadata into .dep files, including groupxx support and CLI."""
 
     def __init__(self, yaml_dir: str, output_dir: str, dep_level: int = 3):
         self.yaml_dir = Path(yaml_dir)
@@ -16,46 +15,37 @@ class SKWDepSolver:
 
     def load_yaml(self, package_name: str) -> dict:
         """Load YAML for a given package name, matching versioned files carefully."""
-        # First: exact prefix match (e.g., glib2-*.yaml)
         matches = list(self.yaml_dir.glob(f"{package_name}-*.yaml"))
 
-        # Fallback: try removing trailing digits (glib2 → glib)
         if not matches and any(ch.isdigit() for ch in package_name):
             base = package_name.rstrip("0123456789")
             matches = list(self.yaml_dir.glob(f"{base}-*.yaml"))
 
-        # If still multiple matches, choose the shortest (most direct) one
         if not matches:
             raise FileNotFoundError(f"No YAML found for package '{package_name}' in {self.yaml_dir}")
         if len(matches) > 1:
             matches.sort(key=lambda p: len(p.stem))
-            print(f"Multiple YAMLs for '{package_name}', using: {matches[0].name}")
+            print(f"⚠️  Multiple YAMLs for '{package_name}', using: {matches[0].name}")
 
         file_path = matches[0]
         with open(file_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def clean_deps(self):
-        """Remove all .dep files from output directory."""
         for f in self.output_dir.glob("*.dep"):
             f.unlink()
         print(f"Cleaned existing .dep files in {self.output_dir}")
 
     def generate_dep_file(self, package_name: str, depth: int = 1, visited=None):
-        """Generate .dep file recursively for a given package."""
         visited = visited or set()
         if package_name in visited:
-            return  # Prevent circular recursion
+            return
         visited.add(package_name)
 
         data = self.load_yaml(package_name)
         deps = data.get("dependencies", {})
 
-        dep_map = {
-            "required": 1,
-            "recommended": 2,
-            "optional": 3,
-        }
+        dep_map = {"required": 1, "recommended": 2, "optional": 3}
 
         out_file = self.output_dir / f"{package_name}.dep"
         with open(out_file, "w", encoding="utf-8") as f:
@@ -83,40 +73,53 @@ class SKWDepSolver:
                         if not dep:
                             continue
                         f.write(f"{level_code} {build_char} {dep}\n")
-                        # Recurse only for non-external deps
                         if phase != "external":
                             try:
                                 self.generate_dep_file(dep, depth + 1, visited)
                             except FileNotFoundError:
-                                pass  # Skip missing YAMLs
-
+                                pass
         print(f"Generated: {out_file}")
+
+    def clean_subgraph(self):
+        dep_files = list(self.output_dir.glob("*.dep"))
+        for dep_file in dep_files:
+            node_name = dep_file.stem
+            group_file = self.output_dir / f"{node_name}groupxx.dep"
+
+            if group_file.exists():
+                continue
+
+            with open(dep_file, "r", encoding="utf-8") as src:
+                lines = src.readlines()
+
+            after_deps = [ln for ln in lines if ' a ' in ln]
+            if after_deps:
+                print(f"Creating groupxx for {node_name} (after dependencies detected)")
+                with open(group_file, "w", encoding="utf-8") as gf:
+                    gf.write(f"1 b {node_name}\n")
+                    for ln in after_deps:
+                        prio, build, dep = ln.strip().split()
+                        gf.write(f"{prio} b {dep}\n")
+                for parent_file in dep_files:
+                    if parent_file == dep_file:
+                        continue
+                    txt = parent_file.read_text()
+                    new_txt = txt.replace(f" {node_name}\n", f" {node_name}groupxx\n")
+                    if new_txt != txt:
+                        parent_file.write_text(new_txt)
+        print("Subgraph cleanup complete. Groupxx files generated.")
 
     @classmethod
     def cli(cls):
         parser = argparse.ArgumentParser(
-            description="Generate .dep dependency files from YAML package metadata."
+            description="Generate .dep dependency files from YAML package metadata with optional groupxx cleanup."
         )
-        parser.add_argument(
-            "package",
-            help="Root package name (without .yaml extension) to generate deps for."
-        )
-        parser.add_argument(
-            "--yaml-dir", required=True,
-            help="Directory containing package YAML files."
-        )
-        parser.add_argument(
-            "--output", required=True,
-            help="Directory where .dep files will be written."
-        )
-        parser.add_argument(
-            "--dep-level", type=int, default=3, choices=[1, 2, 3],
-            help="Dependency level: 1=required, 2=required+recommended, 3=all."
-        )
-        parser.add_argument(
-            "--clean", action="store_true",
-            help="Clean existing .dep files before generating new ones."
-        )
+        parser.add_argument("package", help="Root package name (without .yaml extension).")
+        parser.add_argument("--yaml-dir", required=True, help="Directory containing package YAML files.")
+        parser.add_argument("--output", required=True, help="Directory where .dep files will be written.")
+        parser.add_argument("--dep-level", type=int, default=3, choices=[1, 2, 3], help="Dependency level.")
+        parser.add_argument("--clean", action="store_true", help="Clean existing .dep files.")
+        parser.add_argument("--clean-subgraph", action="store_true", help="Perform groupxx cleanup after generation.")
 
         args = parser.parse_args()
         solver = cls(args.yaml_dir, args.output, args.dep_level)
@@ -126,6 +129,8 @@ class SKWDepSolver:
 
         solver.generate_dep_file(args.package)
 
+        if args.clean_subgraph:
+            solver.clean_subgraph()
 
 if __name__ == "__main__":
     SKWDepSolver.cli()
