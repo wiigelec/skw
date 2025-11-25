@@ -30,19 +30,11 @@ checksum = ""
 
 
 [dependencies]
-child1 = [ "required", "recommended" ]
-optional = "translate(.//para[@role='optional']//xref/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-external = "translate(.//para[@role='optional']//ulink/@url, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-
-[required]
-first = "translate(.//para[@role='required']//xref[@role='first']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-before = "translate(.//para[@role='required']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-after = "translate(.//para[@role='required']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-
-[recommended]
-first = "translate(.//para[@role='recommended']//xref[@role='first']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-before = "translate(.//para[@role='recommended']//xref[(@role!='runtime' and @role1!='first') or not(@role)]/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-after = "translate(.//para[@role='recommended']//xref[@role='runtime']/@linkend, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+xpath = ".//para[@role='required' or @role='recommended' or @role='optional']"
+name = "string(if (@linkend) then @linkend else normalize-space(.))"
+status = ""
+build = ""
+type = ""
 
 
 ####################################################################
