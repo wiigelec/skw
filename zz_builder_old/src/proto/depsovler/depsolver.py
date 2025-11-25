@@ -68,6 +68,8 @@ def parse_yaml_dependencies(yaml_path: Path) -> List[dict]:
                 names = [names]
             q = qualifier[0] if qualifier != "external" else "b"
             for n in names:
+                if not n or str(n).strip() == "":
+                    continue
                 deps.append({"weight": weight, "qualifier": q, "target": n})
     return deps
 
