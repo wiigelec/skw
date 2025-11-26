@@ -2,6 +2,7 @@
 bind-utils = "bind_utilities"
 DocBook = "docbook-xml"
 freetype2 = "freetype"
+glib2 = "glib"
 hatch-vcs = "hatch_vcs"
 java-bin = "java"
 mitkrb = "mit_kerberos_v5"
