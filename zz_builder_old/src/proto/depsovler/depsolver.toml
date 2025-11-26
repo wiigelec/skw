@@ -1,5 +1,6 @@
 [package_aliases]
 bind-utils = "bind_utilities"
+freetype2 = "freetype"
 hatch-vcs = "hatch_vcs"
 mitkrb = "mit_kerberos_v5"
 pypa-build = "build"
