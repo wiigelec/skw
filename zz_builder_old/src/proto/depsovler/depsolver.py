@@ -48,12 +48,16 @@ class DepSolver:
     def _find_yaml_for_package(self, package: str):
         """
         Find YAML file whose name matches the given package.
-        The match is based on the portion before the last '-' in the filename.
-        Example:
-          systemd -> matches systemd-257.8.yaml
-          glib2   -> matches glib2-2.78.1.yaml
+        Strips name at the last '-' and matches base package.
+        Skips packages with blank aliases.
         """
         pkg_alias = self._resolve_package_name(package)
+
+        # --- NEW: skip if alias is blank ---
+        if not pkg_alias.strip():
+            print(f"[SKIP] Package '{package}' has a blank alias, skipping.")
+            return None
+
         candidates = glob.glob(os.path.join(self.package_dir, "*.yaml"))
         matched_files = []
 
@@ -74,7 +78,7 @@ class DepSolver:
             print(f"[ERROR] No YAML file found for package '{package}' (alias: '{pkg_alias}')")
             sys.exit(1)
 
-        # If multiple versions exist, pick the lexicographically latest
+        # Choose lexicographically latest version if multiple found
         matched_files.sort()
         return matched_files[-1]
 
@@ -137,7 +141,7 @@ class DepSolver:
             }
             q_code = qual_map.get(qualifier, "b")
 
-            # Special case: optional_external → priority 4, qualifier b
+            # Special case: optional_external â†’ priority 4, qualifier b
             if key == "optional_external":
                 priority = 4
                 q_code = "b"
@@ -158,7 +162,7 @@ class DepSolver:
     # -------------------------------------------------------
     def generate_deps(self, packages: list[str]):
         """
-        Step 2 — Initialize dependency graph root.
+        Step 2 â€” Initialize dependency graph root.
         Creates 'root.dep' with one line per target: '1 b <package>'
         """
         dep_glob = os.path.join(self.dep_dir, "*")
@@ -177,7 +181,8 @@ class DepSolver:
     # -------------------------------------------------------
     def generate_subgraph(self, dep_file: str, weight: int, depth: int, qualifier: str):
         """
-        Step 3 — Recursively expand dependency graph from YAML metadata.
+        1:1 behavioral match of the original Bash generate_subgraph() function.
+        Uses .dep file existence as state (no memory sets).
         """
         dep_path = os.path.join(self.dep_dir, dep_file)
         if not os.path.exists(dep_path):
@@ -195,31 +200,34 @@ class DepSolver:
                 print(f"[ERROR] Invalid line in {dep_path}: '{line}'")
                 sys.exit(1)
 
-            # Skip dependencies exceeding the DEP_LEVEL
+            # Match Bash DEP_LEVEL logic
             if prio > self.dep_level:
                 print(f" Out: {pkg} (priority {prio} > {self.dep_level})")
                 continue
 
-            # Avoid reprocessing already expanded nodes
-            if pkg in self.visited:
-                print(f" Edge: already processed {pkg}")
+            pkg_dep_path = os.path.join(self.dep_dir, f"{pkg}.dep")
+            if os.path.exists(pkg_dep_path):
+                print(f" Edge: {pkg}.dep already exists, skipping")
                 continue
 
             yaml_path = self._find_yaml_for_package(pkg)
+            if yaml_path is None:
+                # Package intentionally skipped due to blank alias
+                continue
+                
             deps = self._read_yaml_deps(yaml_path)
 
-            pkg_dep_path = os.path.join(self.dep_dir, f"{pkg}.dep")
+            # Write new .dep file
             with open(pkg_dep_path, "w") as depf:
                 for (p, q, name) in deps:
                     depf.write(f"{p} {q} {name}\n")
 
-            self.visited.add(pkg)
             print(f" Node: {pkg} (depth {depth})")
 
             if not deps:
                 print(f" Leaf: {pkg}")
             else:
-                # Recurse into dependencies
+                # Recursion occurs immediately (depth-first)
                 self.generate_subgraph(f"{pkg}.dep", prio, depth + 1, qual)
 
     # -------------------------------------------------------
@@ -238,7 +246,7 @@ def main():
     parser.add_argument("--dep-dir", required=True, help="Directory for output .dep files")
     parser.add_argument("--package-dir", required=True, help="Directory containing YAML package files")
     parser.add_argument("--config", required=True, help="TOML configuration with package aliases")
-    parser.add_argument("--dep-level", type=int, default=3, help="Maximum dependency weight (1–4)")
+    parser.add_argument("--dep-level", type=int, default=3, help="Maximum dependency weight (1â€“4)")
     args = parser.parse_args()
 
     packages = [p.strip() for p in args.packages.split(",") if p.strip()]
