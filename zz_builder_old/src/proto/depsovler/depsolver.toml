@@ -2,6 +2,7 @@
 bind-utils = "bind_utilities"
 cyrus-sasl = "cyrus_sasl"
 DocBook = "docbook-xml"
+docbook-xsl = "docbook-xsl-nons"
 freetype2 = "freetype"
 glib2 = "glib"
 gnupg2 = "gnupg"
