@@ -1,2 +1,2 @@
 [package_aliases]
-none = "none"
+mitkrb = "mit_kerberos_v5"
