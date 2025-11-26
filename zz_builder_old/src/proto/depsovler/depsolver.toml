@@ -2,6 +2,7 @@
 bind-utils = "bind_utilities"
 freetype2 = "freetype"
 hatch-vcs = "hatch_vcs"
+java-bin = "java"
 mitkrb = "mit_kerberos_v5"
 pypa-build = "build"
 pyproject-hooks = "pyproject_hooks"
