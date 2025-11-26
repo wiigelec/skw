@@ -84,14 +84,14 @@ class DepSolver:
             if not names:
                 continue  # empty, skip
 
-            # Normalize names to a list
+            # Normalize names to list
             if isinstance(names, str):
                 names = [names]
             elif not isinstance(names, list):
                 print(f"[WARN] Unexpected type for {key} in {yaml_path}: {type(names).__name__}")
                 continue
 
-            # Extract type and qualifier
+            # Extract dependency type and qualifier
             dep_type = None
             qualifier = None
             for t in ("required", "recommended", "optional", "external"):
@@ -105,7 +105,7 @@ class DepSolver:
                 print(f"[WARN] Could not determine dependency type for '{key}' in {yaml_path}")
                 continue
 
-            # Determine priority and qualifier code
+            # Priority and qualifier code
             priority = self.PRIORITY_MAP.get(dep_type, 1)
             qual_map = {
                 "before": "b",
@@ -120,7 +120,11 @@ class DepSolver:
                 priority = 4
                 q_code = "b"
 
-            # Add each dependency package
+            # --- NEW: skip dependencies beyond dep-level ---
+            if priority > self.dep_level:
+                continue
+
+            # Write valid dependencies
             for pkg in names:
                 pkg = str(pkg).strip()
                 if not pkg:
