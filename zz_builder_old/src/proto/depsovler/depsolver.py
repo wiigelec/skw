@@ -233,7 +233,7 @@ class DepSolver:
     # -------------------------------------------------------
     def clean_subgraph(self):
         """
-        Step 4 — Clean and normalize .dep files.
+        Step 4 - Clean and normalize .dep files.
         1. Remove dangling edges
         2. Transform 'after' → 'groupxx' nodes
         3. Transform 'first' → '-pass1' nodes
