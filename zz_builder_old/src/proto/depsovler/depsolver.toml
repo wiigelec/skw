@@ -1,6 +1,7 @@
 [package_aliases]
-mitkrb = "mit_kerberos_v5"
 bind-utils = "bind_utilities"
 hatch-vcs = "hatch_vcs"
+mitkrb = "mit_kerberos_v5"
 pypa-build = "build"
 pyproject-hooks = "pyproject_hooks"
+python3 = "python"
