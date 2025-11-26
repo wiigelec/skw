@@ -46,15 +46,37 @@ class DepSolver:
 
     # -------------------------------------------------------
     def _find_yaml_for_package(self, package: str):
-        """Find <package>-<version>.yaml file, using alias if necessary."""
+        """
+        Find YAML file whose name matches the given package.
+        The match is based on the portion before the last '-' in the filename.
+        Example:
+          systemd -> matches systemd-257.8.yaml
+          glib2   -> matches glib2-2.78.1.yaml
+        """
         pkg_alias = self._resolve_package_name(package)
-        pattern = os.path.join(self.package_dir, f"{pkg_alias}-*.yaml")
-        files = glob.glob(pattern)
-        if not files:
+        candidates = glob.glob(os.path.join(self.package_dir, "*.yaml"))
+        matched_files = []
+
+        for path in candidates:
+            base = os.path.basename(path)
+            if not base.endswith(".yaml"):
+                continue
+
+            name_part = base[:-5]  # strip .yaml
+            if "-" not in name_part:
+                continue
+
+            pkg_base = name_part.rsplit("-", 1)[0]
+            if pkg_base == pkg_alias:
+                matched_files.append(path)
+
+        if not matched_files:
             print(f"[ERROR] No YAML file found for package '{package}' (alias: '{pkg_alias}')")
             sys.exit(1)
-        # Select the lexicographically latest (e.g., highest version)
-        return sorted(files)[-1]
+
+        # If multiple versions exist, pick the lexicographically latest
+        matched_files.sort()
+        return matched_files[-1]
 
     # -------------------------------------------------------
     def _read_yaml_deps(self, yaml_path: str):
