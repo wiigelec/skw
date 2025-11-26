@@ -1,5 +1,6 @@
 [package_aliases]
 bind-utils = "bind_utilities"
+cyrus-sasl = "cyrus_sasl"
 DocBook = "docbook-xml"
 freetype2 = "freetype"
 glib2 = "glib"
