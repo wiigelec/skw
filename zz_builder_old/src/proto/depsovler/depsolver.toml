@@ -1,3 +1,4 @@
 [package_aliases]
 mitkrb = "mit_kerberos_v5"
 bind-utils = "bind_utilities"
+hatch-vcs = "hatch_vcs"
