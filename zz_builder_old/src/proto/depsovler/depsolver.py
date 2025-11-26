@@ -60,12 +60,10 @@ class DepSolver:
     def _read_yaml_deps(self, yaml_path: str):
         """
         Parse YAML and return list of (priority, qualifier_code, dep_name).
-        YAML format:
+        Supports structure:
           dependencies:
-            required_before:
-              - glibc
-            optional_external:
-              - bash
+            required_before: { name: "glibc" }
+            optional_before: { name: ["curl", "git"] }
         """
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
@@ -77,17 +75,25 @@ class DepSolver:
             print(f"[ERROR] Invalid dependencies structure in {yaml_path}. Expected a mapping.")
             sys.exit(1)
 
-        for key, pkg_list in dep_data.items():
-            if not isinstance(pkg_list, list):
-                print(f"[WARN] Dependency key '{key}' does not contain a list. Skipping.")
+        for key, obj in dep_data.items():
+            key = key.lower().strip()
+            if not isinstance(obj, dict) or "name" not in obj:
                 continue
 
-            key = key.lower().strip()
+            names = obj["name"]
+            if not names:
+                continue  # empty, skip
 
-            # Split into type and qualifier parts
+            # Normalize names to a list
+            if isinstance(names, str):
+                names = [names]
+            elif not isinstance(names, list):
+                print(f"[WARN] Unexpected type for {key} in {yaml_path}: {type(names).__name__}")
+                continue
+
+            # Extract type and qualifier
             dep_type = None
             qualifier = None
-
             for t in ("required", "recommended", "optional", "external"):
                 if key.startswith(t):
                     dep_type = t
@@ -99,10 +105,8 @@ class DepSolver:
                 print(f"[WARN] Could not determine dependency type for '{key}' in {yaml_path}")
                 continue
 
-            # Map to numeric priority
+            # Determine priority and qualifier code
             priority = self.PRIORITY_MAP.get(dep_type, 1)
-
-            # Qualifier mapping
             qual_map = {
                 "before": "b",
                 "after": "a",
@@ -111,14 +115,17 @@ class DepSolver:
             }
             q_code = qual_map.get(qualifier, "b")
 
-            # Handle special case
+            # Special case: optional_external → priority 4, qualifier b
             if key == "optional_external":
                 priority = 4
                 q_code = "b"
 
-            # Add each package name under that key
-            for pkg in pkg_list:
-                deps.append((priority, q_code, pkg.strip()))
+            # Add each dependency package
+            for pkg in names:
+                pkg = str(pkg).strip()
+                if not pkg:
+                    continue
+                deps.append((priority, q_code, pkg))
 
         return deps
 
