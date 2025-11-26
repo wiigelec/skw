@@ -58,18 +58,54 @@ class DepSolver:
 
     # -------------------------------------------------------
     def _read_yaml_deps(self, yaml_path: str):
-        """Parse YAML and return list of (priority, qualifier, dep_name)."""
+        """
+        Parse YAML and return list of (priority, qualifier_code, dep_name).
+        Supports compact dependency naming like 'required_before' or 'optional_external'.
+        """
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f)
+
         deps = []
         for dep in data.get("dependencies", []):
-            dep_type = dep.get("type", "required").lower()
-            qualifier = dep.get("qualifier", "b")
-            name = dep.get("name")
-            if not name:
+            if not isinstance(dep, str):
+                continue  # skip malformed entries
+
+            dep = dep.strip().lower()
+
+            # Determine type (priority)
+            dep_type = None
+            qualifier = None
+
+            for t in ("required", "recommended", "optional", "external"):
+                if dep.startswith(t):
+                    dep_type = t
+                    rest = dep[len(t):].lstrip("_")
+                    qualifier = rest or "before"
+                    break
+
+            if dep_type is None:
+                print(f"[WARN] Could not determine type for '{dep}' in {yaml_path}")
                 continue
+
+            # Map to priority
             priority = self.PRIORITY_MAP.get(dep_type, 1)
-            deps.append((priority, qualifier, name))
+
+            # Determine qualifier code
+            qual_map = {
+                "before": "b",
+                "after": "a",
+                "first": "f",
+                "external": "b"
+            }
+            q_code = qual_map.get(qualifier, "b")
+
+            # Special case: optional_external → priority 4, qualifier b
+            if dep == "optional_external":
+                priority = 4
+                q_code = "b"
+
+            deps.append((priority, q_code, dep))
+
         return deps
 
     # -------------------------------------------------------
