@@ -231,12 +231,126 @@ class DepSolver:
                 self.generate_subgraph(f"{pkg}.dep", prio, depth + 1, qual)
 
     # -------------------------------------------------------
+    def clean_subgraph(self):
+        """
+        Step 4 — Clean and normalize .dep files.
+        1. Remove dangling edges
+        2. Transform 'after' → 'groupxx' nodes
+        3. Transform 'first' → '-pass1' nodes
+        """
+        dep_files = [
+            f for f in glob.glob(os.path.join(self.dep_dir, "*.dep"))
+            if os.path.basename(f) != "root.dep"
+        ]
+
+        # --- Remove dangling edges ---
+        for path in dep_files:
+            lines = []
+            with open(path) as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) != 3:
+                        continue
+                    _, _, dep = parts
+                    if os.path.exists(os.path.join(self.dep_dir, f"{dep}.dep")):
+                        lines.append(line)
+            with open(path, "w") as f:
+                f.writelines(lines)
+        print("[CLEAN] Removed dangling edges")
+
+        # --- Handle 'after' edges ---
+        for path in list(dep_files):
+            with open(path) as f:
+                lines = [l.strip() for l in f if l.strip()]
+            after_edges = [l for l in lines if " a " in l]
+            if not after_edges:
+                continue
+
+            node_base = os.path.basename(path)[:-4]
+            group_node = f"{node_base}groupxx"
+            group_path = os.path.join(self.dep_dir, f"{group_node}.dep")
+
+            group_lines = [f"1 b {node_base}\n"]
+            for l in after_edges:
+                prio, _, dep = l.split()
+                group_lines.append(f"{prio} b {dep}\n")
+
+            with open(group_path, "w") as f:
+                f.writelines(group_lines)
+            print(f"[GROUP] Created {group_node}.dep")
+
+            # Replace references in parents
+            parent_found = False
+            for parent in dep_files + [os.path.join(self.dep_dir, "root.dep")]:
+                with open(parent) as f:
+                    content = f.read()
+                if f" {node_base}\n" in content or content.strip().endswith(f" {node_base}"):
+                    new_content = content.replace(f" {node_base}", f" {group_node}")
+                    with open(parent, "w") as f:
+                        f.write(new_content)
+                    parent_found = True
+            if not parent_found:
+                with open(os.path.join(self.dep_dir, "root.dep"), "a") as f:
+                    f.write(f"1 b {group_node}\n")
+
+            # Remove 'a' lines from original
+            lines = [l for l in lines if " a " not in l]
+            with open(path, "w") as f:
+                for l in lines:
+                    f.write(l + "\n")
+        print("[CLEAN] Processed 'after' edges")
+
+        # --- Handle 'first' edges ---
+        for path in list(dep_files):
+            with open(path) as f:
+                lines = [l.strip() for l in f if l.strip()]
+            first_edges = [l for l in lines if " f " in l]
+            if not first_edges:
+                continue
+
+            node_base = os.path.basename(path)[:-4]
+            for l in first_edges:
+                prio, _, dep = l.split()
+                src_path = os.path.join(self.dep_dir, f"{dep}.dep")
+                pass1_path = os.path.join(self.dep_dir, f"{dep}-pass1.dep")
+
+                if os.path.exists(src_path):
+                    with open(src_path) as f:
+                        dep_lines = [dl for dl in f if dl.strip()]
+                    with open(pass1_path, "w") as f:
+                        f.writelines(dep_lines)
+                    print(f"[PASS1] Created {dep}-pass1.dep")
+
+                # Rewrite in origin
+                new_lines = []
+                for line in lines:
+                    if line == l:
+                        new_lines.append(f"1 b {dep}-pass1")
+                    else:
+                        new_lines.append(line)
+                lines = new_lines
+
+                # If orphan, link to root
+                linked = any(
+                    f" {dep}\n" in open(f).read()
+                    for f in dep_files if f != path
+                )
+                if not linked:
+                    with open(os.path.join(self.dep_dir, "root.dep"), "a") as f:
+                        f.write(f"1 b {dep}\n")
+
+            with open(path, "w") as f:
+                for l in lines:
+                    f.write(l + "\n")
+        print("[CLEAN] Processed 'first' edges")
+
+    # -------------------------------------------------------
     def run_pipeline(self, packages: list[str]):
-        """
-        Run Step 2 + Step 3 as a unified pipeline.
-        """
+        """Run Steps 2–4: generate deps, expand graph, clean it."""
         root_path = self.generate_deps(packages)
         self.generate_subgraph(os.path.basename(root_path), 1, 1, "b")
+        self.clean_subgraph()
+        print("[PIPELINE] Step 4 complete — graph ready for tree generation.")
 
 
 # -------------------------------------------------------
