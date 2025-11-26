@@ -436,7 +436,7 @@ class DepSolver:
 
     # -------------------------------------------------------
     def run_pipeline(self, packages: list[str]):
-        """Run Steps 2â€“4: generate deps, expand graph, clean it."""
+        """Run Steps 2 - 4: generate deps, expand graph, clean it."""
         root_path = self.generate_deps(packages)
         self.generate_subgraph(os.path.basename(root_path), 1, 1, "b")
         self.clean_subgraph()
