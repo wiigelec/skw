@@ -1,4 +1,5 @@
 [aliases]
+dejavu-fonts = ""
 DocBook = "docbook-xml-4.5"
 docbook-xsl = "docbook-xsl-nons-1.79.2"
 freetype2 = "freetype-2.13.3"
