@@ -11,8 +11,10 @@ import sys
 
 class DependencySolver:
     """
-    DependencySolver — Stage 2 integrated version.
-    Builds dependency tree (Stage 1) and topological build/runtime order (Stage 2).
+    DependencySolver v3.0
+    - Depth-first DAG builder
+    - Correct edge direction (dep → dependent)
+    - Merges runtime + build sequences into final_build_list
     """
 
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
@@ -37,6 +39,8 @@ class DependencySolver:
 
     def _resolve_yaml_path(self, dep: str) -> Path | None:
         dep = dep.lower()
+        if not dep:
+            return None
         candidates = []
         for f in self.yaml_dir.glob("*.yaml"):
             parts = f.stem.split("-")
@@ -51,8 +55,7 @@ class DependencySolver:
         if dep in self.alias_map:
             alias_value = self.alias_map[dep]
             if not alias_value:
-                print(f"[WARN] Alias for '{dep}' is empty; skipping dependency.")
-                return None
+                return None  # silently skip blank alias
             yaml_path = self.yaml_dir / f"{alias_value}.yaml"
             if not yaml_path.exists():
                 print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
@@ -66,14 +69,15 @@ class DependencySolver:
             return yaml.safe_load(f) or {}
 
     # ----------------------------------------------------------------
-    # Stage 1 — Build Recursive Dependency Tree
+    # Stage 1 — Dependency Tree
     # ----------------------------------------------------------------
     def _extract_filtered_dependencies(self, pkg_yaml: dict) -> list[str]:
         deps = pkg_yaml.get("dependencies", {})
         result = set()
         for key, val in deps.items():
             if key.startswith("required_") or key.startswith("recommended_") or (
-                key.endswith("_after") and (key.startswith("required_") or key.startswith("recommended_"))
+                key.endswith("_after")
+                and (key.startswith("required_") or key.startswith("recommended_"))
             ):
                 if isinstance(val, dict) and "name" in val:
                     names = val["name"]
@@ -81,9 +85,8 @@ class DependencySolver:
                         result.add(names.lower())
                     elif isinstance(names, list):
                         result.update([n.lower() for n in names if n])
-        # silently skip empty or whitespace-only entries
-        result = {d.strip() for d in result if d and d.strip()}
-        return sorted(result)
+        # silently drop blanks
+        return sorted({d.strip() for d in result if d and d.strip()})
 
     def _collect_dependencies(self, pkg_name: str, visited=None) -> None:
         if visited is None:
@@ -108,7 +111,7 @@ class DependencySolver:
         return self.dependency_tree
 
     # ----------------------------------------------------------------
-    # Stage 2 — Build & Runtime Order Generation
+    # Stage 2 — Graph + Unified Build List
     # ----------------------------------------------------------------
     def _topo_sort(self, graph: dict[str, set[str]]) -> list[str]:
         indeg = defaultdict(int)
@@ -127,6 +130,7 @@ class DependencySolver:
                 indeg[v] -= 1
                 if indeg[v] == 0:
                     queue.append(v)
+        # Flatten circulars if any remain
         for n in graph:
             if n not in seen:
                 order.append(n)
@@ -140,14 +144,15 @@ class DependencySolver:
                 graph[a].add(b)
 
         def collect_edges(node, seen=None):
+            """Depth-first traversal ensures dependencies come first."""
             if seen is None:
                 seen = set()
             if node in seen:
                 return
             seen.add(node)
             for dep in self.dependency_tree.get(node, []):
-                add_edge(build_edges, dep, node)  # dep → node (dependency before dependent)
                 collect_edges(dep, seen.copy())
+                add_edge(build_edges, dep, node)  # dependency → dependent
 
         collect_edges(self.target)
         for pkg in self.dependency_tree:
@@ -158,7 +163,17 @@ class DependencySolver:
         runtime_order = [p for p in reversed(build_order) if p != self.target]
         runtime_order.insert(0, self.target)
 
-        return {"build_order": build_order, "runtime_order": runtime_order}
+        # Merge runtime packages not already built
+        final_build_list = build_order.copy()
+        for pkg in runtime_order:
+            if pkg not in build_order:
+                final_build_list.append(pkg)
+
+        return {
+            "build_order": build_order,
+            "runtime_order": runtime_order,
+            "final_build_list": final_build_list,
+        }
 
     # ----------------------------------------------------------------
     # Output
@@ -174,14 +189,14 @@ class DependencySolver:
 # CLI Entrypoint
 # --------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Dependency Solver (Stage 2 Integrated)")
+    parser = argparse.ArgumentParser(description="Dependency Solver (Unified Build Sequence)")
     parser.add_argument("--target", required=True, help="Target package (e.g., systemd)")
-    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory with YAMLs")
-    parser.add_argument("--alias-file", required=True, type=Path, help="TOML alias map")
+    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAMLs")
+    parser.add_argument("--alias-file", required=True, type=Path, help="Alias mapping TOML file")
     parser.add_argument("--classes", nargs="+", default=["required", "recommended"],
-                        help="Dependency classes to include (default: required recommended)")
-    parser.add_argument("--order", action="store_true", help="Generate build/runtime order")
-    parser.add_argument("--output", type=Path, help="Optional JSON output file")
+                        help="Dependency classes to include")
+    parser.add_argument("--order", action="store_true", help="Generate unified build/runtime order")
+    parser.add_argument("--output", type=Path, help="Optional JSON output path")
 
     args = parser.parse_args()
     solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
