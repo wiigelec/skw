@@ -35,26 +35,26 @@ child1 = [ "required_first", "required_before", "required_after", "recommended_f
 [required_first]
 name = ".//para[@role='required']//xref[@role='first' and not(@role='nodep')]/@linkend"
 
-[required_before]
-name = ".//para[@role='required']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
-
-[required_after]
-name = ".//para[@role='required']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
-
 [recommended_first]
 name = ".//para[@role='recommended']//xref[@role='first' and not(@role='nodep')]/@linkend"
-
-[recommended_before]
-name = ".//para[@role='recommended']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
-
-[recommended_after]
-name = ".//para[@role='recommended']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
 
 [optional_first]
 name = ".//para[@role='optional']//xref[@role='first' and not(@role='nodep')]/@linkend"
 
+[required_before]
+name = ".//para[@role='required']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
+[recommended_before]
+name = ".//para[@role='recommended']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
 [optional_before]
 name = ".//para[@role='optional']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
+[required_after]
+name = ".//para[@role='required']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
+
+[recommended_after]
+name = ".//para[@role='recommended']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
 
 [optional_after]
 name = ".//para[@role='optional']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
