@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 from pathlib import Path
 import yaml
-import tomllib
+import toml
 import json
+import argparse
+import sys
 
 
 class DependencySolver:
@@ -23,10 +26,12 @@ class DependencySolver:
     # Alias & YAML loading
     # ---------------------------
     def _load_aliases(self) -> dict[str, str]:
+        """Load alias mappings from a TOML file."""
         if not self.alias_file.exists():
+            print(f"[WARN] Alias file not found: {self.alias_file}")
             return {}
-        with open(self.alias_file, "rb") as f:
-            data = tomllib.load(f)
+        with open(self.alias_file, "r") as f:
+            data = toml.load(f)
         return data.get("aliases", {})
 
     def _resolve_yaml_path(self, dep: str) -> Path:
@@ -118,6 +123,7 @@ class DependencySolver:
     # ---------------------------
     def build_tree(self) -> dict:
         """Public method to trigger dependency resolution."""
+        print(f"[INFO] Building dependency tree for target: {self.target}")
         self.dependency_tree = self._collect_dependencies(self.target)
         return self.dependency_tree
 
@@ -127,14 +133,40 @@ class DependencySolver:
 
 
 # ---------------------------
-# Example Usage (Stage 1 Prototype)
+# CLI Entrypoint
 # ---------------------------
-if __name__ == "__main__":
-    solver = DependencySolver(
-        target="systemd",
-        yaml_dir=Path("/mnt/data"),
-        alias_file=Path("/mnt/data/aliases.toml"),  # expected alias TOML file
-        include_classes=["required", "recommended"]
+def main():
+    parser = argparse.ArgumentParser(
+        description="Dependency Solver — Build a recursive dependency tree from YAML package definitions."
     )
-    tree = solver.build_tree()
-    solver.print_tree()
+    parser.add_argument("--target", required=True, help="Target package to resolve (e.g., systemd)")
+    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
+    parser.add_argument("--alias-file", required=True, type=Path, help="Path to TOML alias mapping file")
+    parser.add_argument(
+        "--classes",
+        nargs="+",
+        default=["required", "recommended"],
+        help="Dependency classes to include (default: required recommended)",
+    )
+    parser.add_argument("--output", type=Path, help="Optional path to save output JSON file")
+
+    args = parser.parse_args()
+
+    try:
+        solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
+        tree = solver.build_tree()
+
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(tree, f, indent=2)
+            print(f"[INFO] Dependency tree saved to: {args.output}")
+        else:
+            solver.print_tree()
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
