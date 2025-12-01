@@ -1,4 +1,5 @@
 [aliases]
+DocBook = "docbook-xml-4.5"
 freetype2 = "freetype-2.13.3"
 glib2 = "glib-2.84.4"
 xorg7-lib = "xorg_libraries-_version_"
