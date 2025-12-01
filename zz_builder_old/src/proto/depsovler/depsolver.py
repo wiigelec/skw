@@ -10,7 +10,7 @@ import sys
 
 class DependencySolver:
     """
-    Stage 1: Recursive dependency structure builder.
+    Stage 1: Recursive dependency structure builder (strict mode).
     Parses package YAMLs, applies alias resolution, and recursively builds dependency trees.
     """
 
@@ -28,8 +28,8 @@ class DependencySolver:
     def _load_aliases(self) -> dict[str, str]:
         """Load alias mappings from a TOML file."""
         if not self.alias_file.exists():
-            print(f"[WARN] Alias file not found: {self.alias_file}")
-            return {}
+            print(f"[ERROR] Alias file not found: {self.alias_file}")
+            sys.exit(1)
         with open(self.alias_file, "r") as f:
             data = toml.load(f)
         return data.get("aliases", {})
@@ -41,7 +41,7 @@ class DependencySolver:
           1. Match base name (strip everything after last '-')
           2. If ambiguous -> hard error
           3. If not found -> use alias map
-          4. If still not found -> hard error
+          4. If still not found -> hard error and exit
         """
         candidates = []
         for f in self.yaml_dir.glob("*.yaml"):
@@ -51,7 +51,8 @@ class DependencySolver:
                 candidates.append(f)
 
         if len(candidates) > 1:
-            raise RuntimeError(f"Multiple YAML files match dependency '{dep}': {[c.name for c in candidates]}")
+            print(f"[ERROR] Multiple YAML files match dependency '{dep}': {[c.name for c in candidates]}")
+            sys.exit(1)
         if len(candidates) == 1:
             return candidates[0]
 
@@ -59,10 +60,12 @@ class DependencySolver:
             alias_name = self.alias_map[dep]
             yaml_path = self.yaml_dir / f"{alias_name}.yaml"
             if not yaml_path.exists():
-                raise FileNotFoundError(f"Alias '{dep}' points to missing file '{yaml_path.name}'")
+                print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
+                sys.exit(1)
             return yaml_path
 
-        raise FileNotFoundError(f"No YAML found for dependency '{dep}'")
+        print(f"[ERROR] No YAML found for dependency '{dep}'")
+        sys.exit(1)
 
     # ---------------------------
     # YAML and dependency parsing
@@ -95,11 +98,7 @@ class DependencySolver:
 
         stack.append(package)
 
-        try:
-            yaml_path = self._resolve_yaml_path(package)
-        except (FileNotFoundError, RuntimeError) as e:
-            return {"_error": str(e)}
-
+        yaml_path = self._resolve_yaml_path(package)
         pkg_data = self._parse_yaml(yaml_path)
         deps = pkg_data.get("dependencies", {})
         result = {}
@@ -137,7 +136,7 @@ class DependencySolver:
 # ---------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Dependency Solver — Build a recursive dependency tree from YAML package definitions."
+        description="Dependency Solver — Strict mode recursive dependency graph builder."
     )
     parser.add_argument("--target", required=True, help="Target package to resolve (e.g., systemd)")
     parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
@@ -152,20 +151,15 @@ def main():
 
     args = parser.parse_args()
 
-    try:
-        solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
-        tree = solver.build_tree()
+    solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
+    tree = solver.build_tree()
 
-        if args.output:
-            with open(args.output, "w") as f:
-                json.dump(tree, f, indent=2)
-            print(f"[INFO] Dependency tree saved to: {args.output}")
-        else:
-            solver.print_tree()
-
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        sys.exit(1)
+    if args.output:
+        with open(args.output, "w") as f:
+            json.dump(tree, f, indent=2)
+        print(f"[INFO] Dependency tree saved to: {args.output}")
+    else:
+        solver.print_tree()
 
 
 if __name__ == "__main__":
