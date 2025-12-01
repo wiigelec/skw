@@ -10,12 +10,12 @@ import sys
 
 class DependencySolver:
     """
-    Stage 1: Recursive dependency structure builder (strict mode).
+    Stage 1: Recursive dependency structure builder (strict mode, case-insensitive).
     Parses package YAMLs, applies alias resolution, and recursively builds dependency trees.
     """
 
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
-        self.target = target
+        self.target = target.lower()
         self.yaml_dir = Path(yaml_dir)
         self.alias_file = Path(alias_file)
         self.include_classes = include_classes
@@ -26,28 +26,32 @@ class DependencySolver:
     # Alias & YAML loading
     # ---------------------------
     def _load_aliases(self) -> dict[str, str]:
-        """Load alias mappings from a TOML file."""
+        """Load alias mappings from a TOML file (keys converted to lowercase)."""
         if not self.alias_file.exists():
             print(f"[ERROR] Alias file not found: {self.alias_file}")
             sys.exit(1)
         with open(self.alias_file, "r") as f:
             data = toml.load(f)
-        return data.get("aliases", {})
+        aliases = data.get("aliases", {})
+        # Normalize keys to lowercase
+        return {k.lower(): v for k, v in aliases.items()}
 
     def _resolve_yaml_path(self, dep: str) -> Path:
         """
         Resolve dependency name to YAML file path using base-name heuristic and alias map.
         Rules:
           1. Match base name (strip everything after last '-')
-          2. If ambiguous -> hard error
-          3. If not found -> use alias map
-          4. If still not found -> hard error and exit
+          2. Convert all names to lowercase before comparing
+          3. If ambiguous -> hard error
+          4. If not found -> use alias map
+          5. If still not found -> hard error and exit
         """
+        dep = dep.lower()
         candidates = []
         for f in self.yaml_dir.glob("*.yaml"):
             parts = f.stem.split("-")
             base = "-".join(parts[:-1]) if len(parts) > 1 else f.stem
-            if base == dep:
+            if base.lower() == dep:
                 candidates.append(f)
 
         if len(candidates) > 1:
@@ -75,12 +79,13 @@ class DependencySolver:
             return yaml.safe_load(f) or {}
 
     def _normalize_names(self, entry: dict) -> list[str]:
+        """Normalize dependency entries to lowercase list."""
         if not entry or entry == "" or entry == {"name": ""}:
             return []
         names = entry.get("name", [])
         if isinstance(names, str):
-            return [names]
-        return [n for n in names if n]
+            return [names.lower()]
+        return [n.lower() for n in names if n]
 
     # ---------------------------
     # Recursive dependency resolver
@@ -92,6 +97,8 @@ class DependencySolver:
             visited = set()
         if stack is None:
             stack = []
+
+        package = package.lower()
 
         if package in stack:
             return {"_circular_ref": package}
@@ -136,7 +143,7 @@ class DependencySolver:
 # ---------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Dependency Solver — Strict mode recursive dependency graph builder."
+        description="Dependency Solver — Strict mode, case-insensitive recursive dependency graph builder."
     )
     parser.add_argument("--target", required=True, help="Target package to resolve (e.g., systemd)")
     parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
