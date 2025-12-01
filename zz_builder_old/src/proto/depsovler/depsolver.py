@@ -11,10 +11,8 @@ import sys
 
 class DependencySolver:
     """
-    DependencySolver v3.0
-    - Depth-first DAG builder
-    - Correct edge direction (dep → dependent)
-    - Merges runtime + build sequences into final_build_list
+    DependencySolver v4.0
+    Dual-build aware solver with fatal YAML validation and depth-first DAG traversal.
     """
 
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
@@ -61,7 +59,7 @@ class DependencySolver:
                 print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
                 sys.exit(1)
             return yaml_path
-        print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
+        print(f"[ERROR] Missing YAML for dependency '{dep}'")
         sys.exit(1)
 
     def _parse_yaml(self, path: Path) -> dict:
@@ -69,24 +67,40 @@ class DependencySolver:
             return yaml.safe_load(f) or {}
 
     # ----------------------------------------------------------------
-    # Stage 1 — Dependency Tree
+    # Stage 1 — Build Dependency Tree
     # ----------------------------------------------------------------
-    def _extract_filtered_dependencies(self, pkg_yaml: dict) -> list[str]:
+    def _extract_filtered_dependencies(self, pkg_yaml: dict) -> dict[str, list[str]]:
         deps = pkg_yaml.get("dependencies", {})
-        result = set()
+        collected: dict[str, list[str]] = {"first": [], "before": [], "after": []}
+
         for key, val in deps.items():
-            if key.startswith("required_") or key.startswith("recommended_") or (
-                key.endswith("_after")
-                and (key.startswith("required_") or key.startswith("recommended_"))
-            ):
-                if isinstance(val, dict) and "name" in val:
-                    names = val["name"]
-                    if isinstance(names, str):
-                        result.add(names.lower())
-                    elif isinstance(names, list):
-                        result.update([n.lower() for n in names if n])
-        # silently drop blanks
-        return sorted({d.strip() for d in result if d and d.strip()})
+            # Ignore optional_* entirely
+            if key.startswith("optional_"):
+                continue
+
+            # Check inclusion for required_/recommended_
+            if not any(key.startswith(cls + "_") for cls in self.include_classes):
+                continue
+
+            # Determine suffix type
+            if key.endswith("_first"):
+                group = "first"
+            elif key.endswith("_before"):
+                group = "before"
+            elif key.endswith("_after"):
+                group = "after"
+            else:
+                continue
+
+            if isinstance(val, dict) and "name" in val:
+                names = val["name"]
+                if isinstance(names, str):
+                    names = [names]
+                for name in names:
+                    if name and name.strip():
+                        collected[group].append(name.lower())
+
+        return collected
 
     def _collect_dependencies(self, pkg_name: str, visited=None) -> None:
         if visited is None:
@@ -101,8 +115,9 @@ class DependencySolver:
         pkg_yaml = self._parse_yaml(yaml_path)
         deps = self._extract_filtered_dependencies(pkg_yaml)
         self.dependency_tree[pkg_name] = deps
-        for dep in deps:
-            self._collect_dependencies(dep, visited)
+        for group in deps.values():
+            for dep in group:
+                self._collect_dependencies(dep, visited)
 
     def build_tree(self) -> dict:
         print(f"[INFO] Building dependency tree for target: {self.target}")
@@ -130,7 +145,6 @@ class DependencySolver:
                 indeg[v] -= 1
                 if indeg[v] == 0:
                     queue.append(v)
-        # Flatten circulars if any remain
         for n in graph:
             if n not in seen:
                 order.append(n)
@@ -144,15 +158,28 @@ class DependencySolver:
                 graph[a].add(b)
 
         def collect_edges(node, seen=None):
-            """Depth-first traversal ensures dependencies come first."""
             if seen is None:
                 seen = set()
             if node in seen:
                 return
             seen.add(node)
-            for dep in self.dependency_tree.get(node, []):
-                collect_edges(dep, seen.copy())
-                add_edge(build_edges, dep, node)  # dependency → dependent
+
+            pkg_deps = self.dependency_tree.get(node, {"first": [], "before": [], "after": []})
+
+            # Depth-first recursion first
+            for group in pkg_deps.values():
+                for dep in group:
+                    collect_edges(dep, seen.copy())
+
+            # Now add edges
+            for dep in pkg_deps["before"]:
+                add_edge(build_edges, dep, node)
+            for dep in pkg_deps["after"]:
+                add_edge(build_edges, node, dep)
+            for dep in pkg_deps["first"]:
+                add_edge(build_edges, dep, node)
+                add_edge(build_edges, node, dep)
+                print(f"[INFO] dual-build: {node} ↔ {dep}")
 
         collect_edges(self.target)
         for pkg in self.dependency_tree:
@@ -163,7 +190,7 @@ class DependencySolver:
         runtime_order = [p for p in reversed(build_order) if p != self.target]
         runtime_order.insert(0, self.target)
 
-        # Merge runtime packages not already built
+        # Merge runtime deps not already built
         final_build_list = build_order.copy()
         for pkg in runtime_order:
             if pkg not in build_order:
@@ -189,7 +216,7 @@ class DependencySolver:
 # CLI Entrypoint
 # --------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Dependency Solver (Unified Build Sequence)")
+    parser = argparse.ArgumentParser(description="Dependency Solver v4.0 (Dual-Build Aware)")
     parser.add_argument("--target", required=True, help="Target package (e.g., systemd)")
     parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAMLs")
     parser.add_argument("--alias-file", required=True, type=Path, help="Alias mapping TOML file")
