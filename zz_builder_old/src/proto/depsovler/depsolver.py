@@ -81,6 +81,8 @@ class DependencySolver:
                         result.add(names.lower())
                     elif isinstance(names, list):
                         result.update([n.lower() for n in names if n])
+        # silently skip empty or whitespace-only entries
+        result = {d.strip() for d in result if d and d.strip()}
         return sorted(result)
 
     def _collect_dependencies(self, pkg_name: str, visited=None) -> None:
