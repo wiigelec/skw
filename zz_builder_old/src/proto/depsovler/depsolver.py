@@ -10,8 +10,9 @@ import sys
 
 class DependencySolver:
     """
-    Stage 1: Recursive dependency structure builder (strict mode, case-insensitive, safe alias skipping).
-    Parses package YAMLs, applies alias resolution, and recursively builds dependency trees.
+    DependencySolver — Stage 1 strict mode.
+    Case-insensitive YAML and alias resolution.
+    Only missing YAMLs for blank aliases are warnings; all others are fatal errors.
     """
 
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
@@ -35,26 +36,21 @@ class DependencySolver:
             data = toml.load(f)
 
         aliases = data.get("aliases", {})
-        # Normalize keys to lowercase and skip empty aliases
-        valid_aliases = {}
+        normalized = {}
         for k, v in aliases.items():
-            if isinstance(v, str) and v.strip():
-                valid_aliases[k.lower()] = v
+            key = k.lower()
+            if isinstance(v, str):
+                normalized[key] = v.strip()
             else:
-                print(f"[WARN] Skipping empty alias entry for '{k}'")
+                normalized[key] = ""
+                print(f"[WARN] Alias for '{k}' is not a string; treating as blank.")
+        return normalized
 
-        return valid_aliases
-
-    def _resolve_yaml_path(self, dep: str) -> Path:
+    def _resolve_yaml_path(self, dep: str) -> Path | None:
         """
-        Resolve dependency name to YAML file path using base-name heuristic and alias map.
-        Rules:
-          1. Match base name (strip everything after last '-')
-          2. Convert all names to lowercase before comparing
-          3. If ambiguous -> hard error
-          4. If not found -> use alias map
-          5. If alias empty -> warn and skip
-          6. If still not found -> hard error and exit
+        Resolve dependency name to YAML file path.
+        - Missing YAML only allowed for blank aliases (warn).
+        - All other missing YAMLs are fatal errors.
         """
         dep = dep.lower()
         candidates = []
@@ -65,24 +61,30 @@ class DependencySolver:
             if base.lower() == dep:
                 candidates.append(f)
 
+        # Ambiguous match → fatal
         if len(candidates) > 1:
             print(f"[ERROR] Multiple YAML files match dependency '{dep}': {[c.name for c in candidates]}")
             sys.exit(1)
+
+        # Direct match found
         if len(candidates) == 1:
             return candidates[0]
 
+        # Alias-based resolution
         if dep in self.alias_map:
-            alias_name = self.alias_map[dep]
-            if not alias_name.strip():
-                print(f"[WARN] Alias for '{dep}' is empty; skipping alias lookup.")
-            else:
-                yaml_path = self.yaml_dir / f"{alias_name}.yaml"
-                if not yaml_path.exists():
-                    print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
-                    sys.exit(1)
-                return yaml_path
+            alias_value = self.alias_map[dep]
+            if not alias_value:
+                # Blank alias: non-fatal skip
+                print(f"[WARN] Alias for '{dep}' is empty; skipping dependency.")
+                return None
+            yaml_path = self.yaml_dir / f"{alias_value}.yaml"
+            if not yaml_path.exists():
+                print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
+                sys.exit(1)
+            return yaml_path
 
-        print(f"[ERROR] No YAML found for dependency '{dep}'")
+        # No alias, no file → fatal
+        print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
         sys.exit(1)
 
     # ---------------------------
@@ -120,6 +122,10 @@ class DependencySolver:
         stack.append(package)
 
         yaml_path = self._resolve_yaml_path(package)
+        if yaml_path is None:  # blank alias → skip gracefully
+            stack.pop()
+            return {"_warn": f"Skipped due to blank alias for {package}"}
+
         pkg_data = self._parse_yaml(yaml_path)
         deps = pkg_data.get("dependencies", {})
         result = {}
@@ -157,9 +163,9 @@ class DependencySolver:
 # ---------------------------
 def main():
     parser = argparse.ArgumentParser(
-        description="Dependency Solver — Strict mode, case-insensitive, safe alias skipping."
+        description="Dependency Solver — strict mode, case-insensitive, only blank aliases allowed to skip."
     )
-    parser.add_argument("--target", required=True, help="Target package to resolve (e.g., systemd)")
+    parser.add_argument("--target", required=True, help="Target package to resolve (e.g., xinit)")
     parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
     parser.add_argument("--alias-file", required=True, type=Path, help="Path to TOML alias mapping file")
     parser.add_argument(
