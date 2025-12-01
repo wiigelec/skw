@@ -1,2 +1,3 @@
 [aliases]
+freetype2 = "freetype-2.13.3"
 xorg7-lib = "xorg_libraries-_version_"
