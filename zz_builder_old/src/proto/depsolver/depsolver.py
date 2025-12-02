@@ -92,16 +92,13 @@ class DependencySolver:
         return [n.lower() for n in names if n]
 
     # ---------------------------
-    # Normal dependency resolver (strict mode)
+    # Strict dependency resolver
     # ---------------------------
-    def _collect_dependencies(
-        self, package: str, visited: set[str] | None = None, stack: list[str] | None = None
-    ) -> dict:
+    def _collect_dependencies(self, package: str, visited: set[str] | None = None, stack: list[str] | None = None) -> dict:
         if visited is None:
             visited = set()
         if stack is None:
             stack = []
-
         package = package.lower()
 
         if package in stack:
@@ -142,19 +139,12 @@ class DependencySolver:
         print(json.dumps(self.dependency_tree, indent=2))
 
     # ---------------------------
-    # Recursive full-phase dependency builder (honors --classes)
+    # Full-phase builder
     # ---------------------------
     def _expand_phase_tree(self, pkg: str, visited=None):
-        """
-        Recursively expand a package into a full 5-phase dependency structure:
-        bootstrap1_pkg, before_pkg, target_pkg, bootstrap2_pkg, after_pkg
-        Only includes dependency classes listed in self.include_classes.
-        """
         if visited is None:
             visited = set()
-
         pkg = pkg.lower()
-
         if pkg in visited:
             return {f"target_{pkg}": pkg, "_circular_ref": pkg}
 
@@ -165,7 +155,6 @@ class DependencySolver:
 
         data = self._parse_yaml(yaml_path)
         deps = data.get("dependencies", {})
-
         tree = {
             f"bootstrap1_{pkg}": [],
             f"before_{pkg}": {},
@@ -178,67 +167,144 @@ class DependencySolver:
             prefix = key.split("_", 1)[0]
             if prefix not in self.include_classes:
                 continue
-
-            # Bootstrap deps
+            dep_list = self._normalize_names(entry)
             if key.endswith("_first"):
-                dep_list = self._normalize_names(entry)
                 for dep in dep_list:
                     subtree = self._expand_phase_tree(dep, visited)
                     tree[f"bootstrap1_{pkg}"].append(subtree)
                     tree[f"bootstrap2_{pkg}"].append(subtree)
-
-            # Buildtime deps
             elif key.endswith("_before"):
-                dep_list = self._normalize_names(entry)
                 for dep in dep_list:
                     tree[f"before_{pkg}"][dep] = self._expand_phase_tree(dep, visited)
-
-            # Runtime deps
             elif key.endswith("_after"):
-                dep_list = self._normalize_names(entry)
                 for dep in dep_list:
                     tree[f"after_{pkg}"][dep] = self._expand_phase_tree(dep, visited)
-
         return tree
 
     def build_full_phase_tree(self):
-        """Return the fully recursive 5-phase dependency tree."""
         return self._expand_phase_tree(self.target)
 
     def print_full_phase_tree(self):
         tree = self.build_full_phase_tree()
         print(json.dumps(tree, indent=2))
 
+    # ---------------------------
+    # Flatten (v5 logic integrated)
+    # ---------------------------
+    def flatten_phases(self, node, built_so_far=None, first_seen=None, target_pkg=None):
+        if built_so_far is None:
+            built_so_far = set()
+        if first_seen is None:
+            first_seen = set()
+        if target_pkg is None:
+            target_pkg = self.target
+
+        order = {
+            "bootstrap_pass1": [],
+            "buildtime": [],
+            "target": [],
+            "bootstrap_pass2": [],
+            "runtime": [],
+        }
+        bootstrap2_set = set()
+
+        if not isinstance(node, dict):
+            return order
+
+        for key, value in node.items():
+            if key.startswith("bootstrap1_"):
+                for dep in value:
+                    if isinstance(dep, dict):
+                        dep_name = next(iter(dep.values())) if isinstance(next(iter(dep.values())), str) else None
+                        if not dep_name:
+                            dep_key = next(iter(dep.keys()), None)
+                            dep_name = dep_key.split("_", 1)[-1] if dep_key else None
+                        if dep_name:
+                            sub = self.flatten_phases(dep, built_so_far, first_seen, target_pkg)
+                            order["bootstrap_pass1"].extend(sub["bootstrap_pass1"])
+                            order["bootstrap_pass1"].extend(sub["buildtime"])
+                            if dep_name not in first_seen:
+                                order["bootstrap_pass1"].append(dep_name)
+                                first_seen.add(dep_name)
+                                built_so_far.add(dep_name)
+
+            elif key.startswith("bootstrap2_"):
+                for dep in value:
+                    if isinstance(dep, dict):
+                        dep_name = next(iter(dep.values())) if isinstance(next(iter(dep.values())), str) else None
+                        if not dep_name:
+                            dep_key = next(iter(dep.keys()), None)
+                            dep_name = dep_key.split("_", 1)[-1] if dep_key else None
+                        if dep_name:
+                            order["bootstrap_pass2"].append(dep_name)
+                            bootstrap2_set.add(dep_name)
+
+            elif key.startswith("before_"):
+                for dep, subnode in value.items():
+                    if dep not in built_so_far:
+                        built_so_far.add(dep)
+                        sub = self.flatten_phases(subnode, built_so_far, first_seen, target_pkg)
+                        for k in order:
+                            order[k].extend(sub[k])
+                        order["buildtime"].append(dep)
+
+            elif key.startswith("target_"):
+                pkg = value
+                if pkg == target_pkg:
+                    order["target"].append(pkg)
+                    built_so_far.add(pkg)
+                elif pkg not in built_so_far:
+                    built_so_far.add(pkg)
+                    order["buildtime"].append(pkg)
+
+            elif key.startswith("after_"):
+                for dep, subnode in value.items():
+                    if dep not in built_so_far:
+                        built_so_far.add(dep)
+                        sub = self.flatten_phases(subnode, built_so_far, first_seen, target_pkg)
+                        for k in order:
+                            order[k].extend(sub[k])
+                        order["runtime"].append(dep)
+
+        for k in order:
+            seen = set()
+            order[k] = [x for x in order[k] if x not in seen and not seen.add(x)]
+        order["buildtime"] = [p for p in order["buildtime"] if p not in bootstrap2_set]
+        return order
+
 
 # ---------------------------
 # CLI Entrypoint
 # ---------------------------
 def main():
-    parser = argparse.ArgumentParser(
-        description="Dependency Solver — strict mode with optional recursive 5-phase tree."
-    )
+    parser = argparse.ArgumentParser(description="Dependency Solver — strict mode with optional recursive 5-phase tree.")
     parser.add_argument("--target", required=True, help="Target package to resolve (e.g., mesa)")
-    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
+    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing YAML package files")
     parser.add_argument("--alias-file", required=True, type=Path, help="Path to TOML alias mapping file")
-    parser.add_argument(
-        "--classes",
-        nargs="+",
-        default=["required", "recommended"],
-        help="Dependency classes to include (default: required recommended)",
-    )
+    parser.add_argument("--classes", nargs="+", default=["required", "recommended"], help="Dependency classes to include")
     parser.add_argument("--output", type=Path, help="Optional path to save output JSON file")
     parser.add_argument("--full-phase-tree", action="store_true", help="Generate recursive full 5-phase dependency tree")
+    parser.add_argument("--flat-phase-tree", action="store_true", help="Generate final flat ordered build list")
 
     args = parser.parse_args()
-
     solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
 
-    if args.full_phase_tree:
+    if args.full_phase_tree or args.flat_phase_tree:
         tree = solver.build_full_phase_tree()
         if args.output:
             with open(args.output, "w") as f:
                 json.dump(tree, f, indent=2)
             print(f"[INFO] Full-phase dependency tree saved to: {args.output}")
+
+        if args.flat_phase_tree:
+            result = solver.flatten_phases(tree)
+            print("\n===== FINAL ORDERED BUILD LIST =====\n")
+            for phase in ["bootstrap_pass1", "buildtime", "target", "bootstrap_pass2", "runtime"]:
+                print(f"[{phase.upper()}]")
+                print(" ".join(result[phase]) or "(none)")
+                print()
+            sys.exit(0)
+
         else:
             solver.print_full_phase_tree()
     else:
