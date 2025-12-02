@@ -47,23 +47,12 @@ class DependencySolver:
         return normalized
 
     def _resolve_yaml_path(self, dep: str) -> Path | None:
-        """Resolve dependency name to YAML file path."""
+        """Resolve dependency name to YAML file path.
+        Alias mapping takes precedence over directory scan.
+        """
         dep = dep.lower()
-        candidates = []
 
-        for f in self.yaml_dir.glob("*.yaml"):
-            parts = f.stem.split("-")
-            base = "-".join(parts[:-1]) if len(parts) > 1 else f.stem
-            if base.lower() == dep:
-                candidates.append(f)
-
-        if len(candidates) > 1:
-            print(f"[ERROR] Multiple YAML files match dependency '{dep}': {[c.name for c in candidates]}")
-            sys.exit(1)
-
-        if len(candidates) == 1:
-            return candidates[0]
-
+        # Check alias mapping first
         if dep in self.alias_map:
             alias_value = self.alias_map[dep]
             if not alias_value:
@@ -75,8 +64,33 @@ class DependencySolver:
                 sys.exit(1)
             return yaml_path
 
+        # Fallback: scan YAML directory
+        candidates = []
+        for f in self.yaml_dir.glob("*.yaml"):
+            parts = f.stem.split("-")
+            base = "-".join(parts[:-1]) if len(parts) > 1 else f.stem
+            if base.lower() == dep:
+                candidates.append(f)
+
+        if len(candidates) > 1:
+            # Sort numerically by version tokens and choose latest
+            def version_key(path: Path):
+                parts = path.stem.split("-")
+                try:
+                    return [int(x) if x.isdigit() else x for x in parts[-1].split(".")]
+                except Exception:
+                    return [parts[-1]]
+            candidates.sort(key=version_key, reverse=True)
+            chosen = candidates[0]
+            print(f"[WARN] Multiple YAMLs match '{dep}': {[c.name for c in candidates]} — using {chosen.name}")
+            return chosen
+
+        if len(candidates) == 1:
+            return candidates[0]
+
         print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
         sys.exit(1)
+
 
     def _parse_yaml(self, yaml_path: Path) -> dict:
         with open(yaml_path, "r") as f:
@@ -287,6 +301,13 @@ class DependencySolver:
 
         # Remove buildtime packages that are rebuilt in bootstrap2
         order["buildtime"] = [p for p in order["buildtime"] if p not in bootstrap2_set]
+
+        # Remove buildtime packages already built in bootstrap_pass1
+        bootstrap1_set = set(order["bootstrap_pass1"])
+        order["buildtime"] = [p for p in order["buildtime"] if p not in bootstrap1_set]
+
+        # Remove target itself from bootstrap_pass2 (it is already built in target phase)
+        order["bootstrap_pass2"] = [p for p in order["bootstrap_pass2"] if p != target_pkg]
 
         # Deduplicate runtime vs earlier phases + target
         earlier_phases = set(
