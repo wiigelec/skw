@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 from pathlib import Path
-from collections import defaultdict, deque
-import yaml, toml, json, argparse, sys
+import yaml
+import toml
+import json
+import argparse
+import sys
+from collections import defaultdict
 
 
 class DependencySolver:
     """
-    DependencySolver v4.2
-    Dual-build + runtime-aware rebuild model.
+    DependencySolver — Stage 1 strict mode with recursive 5-phase dependency support.
+    Honors --classes filters (e.g. required, recommended).
     """
 
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
@@ -18,231 +22,233 @@ class DependencySolver:
         self.include_classes = include_classes
         self.alias_map = self._load_aliases()
         self.dependency_tree: dict[str, dict] = {}
-        self.first_pass_set: set[str] = set()   # <-- track _first rebuilds
 
-    # --------------------------------------------------------------
-    # Loaders
-    # --------------------------------------------------------------
+    # ---------------------------
+    # Alias & YAML loading
+    # ---------------------------
     def _load_aliases(self) -> dict[str, str]:
+        """Load alias mappings from a TOML file (keys converted to lowercase)."""
         if not self.alias_file.exists():
             print(f"[ERROR] Alias file not found: {self.alias_file}")
             sys.exit(1)
+
         with open(self.alias_file, "r") as f:
             data = toml.load(f)
+
         aliases = data.get("aliases", {})
-        return {k.lower(): v.strip() for k, v in aliases.items() if isinstance(v, str)}
+        normalized = {}
+        for k, v in aliases.items():
+            key = k.lower()
+            if isinstance(v, str):
+                normalized[key] = v.strip()
+            else:
+                normalized[key] = ""
+                print(f"[WARN] Alias for '{k}' is not a string; treating as blank.")
+        return normalized
 
-    def _resolve_yaml_path(self, dep: str) -> tuple[Path | None, str | None]:
-        """Return (yaml_path, canonical_name) for dependency, or (None, None) if skipped."""
+    def _resolve_yaml_path(self, dep: str) -> Path | None:
+        """Resolve dependency name to YAML file path."""
         dep = dep.lower()
-        if not dep:
-            return None, None
-
-        # 1. direct match
         candidates = []
+
         for f in self.yaml_dir.glob("*.yaml"):
-            base = "-".join(f.stem.split("-")[:-1]) or f.stem
+            parts = f.stem.split("-")
+            base = "-".join(parts[:-1]) if len(parts) > 1 else f.stem
             if base.lower() == dep:
                 candidates.append(f)
+
         if len(candidates) > 1:
             print(f"[ERROR] Multiple YAML files match dependency '{dep}': {[c.name for c in candidates]}")
             sys.exit(1)
-        if len(candidates) == 1:
-            return candidates[0], dep
 
-        # 2. alias lookup
+        if len(candidates) == 1:
+            return candidates[0]
+
         if dep in self.alias_map:
             alias_value = self.alias_map[dep]
             if not alias_value:
-                return None, None   # skip blank alias
+                print(f"[WARN] Alias for '{dep}' is empty; skipping dependency.")
+                return None
             yaml_path = self.yaml_dir / f"{alias_value}.yaml"
             if not yaml_path.exists():
                 print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
                 sys.exit(1)
-            canonical = alias_value.split("-")[0].lower()
-            return yaml_path, canonical
+            return yaml_path
 
-        print(f"[ERROR] Missing YAML for dependency '{dep}'")
+        print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
         sys.exit(1)
 
-    def _parse_yaml(self, path: Path) -> dict:
-        with open(path, "r") as f:
+    def _parse_yaml(self, yaml_path: Path) -> dict:
+        with open(yaml_path, "r") as f:
             return yaml.safe_load(f) or {}
 
-    # --------------------------------------------------------------
-    # Stage 1 – Collect Tree
-    # --------------------------------------------------------------
-    def _extract_filtered_dependencies(self, pkg_yaml: dict) -> dict[str, list[str]]:
-        deps = pkg_yaml.get("dependencies", {})
-        collected = {"first": [], "before": [], "after": []}
+    def _normalize_names(self, entry: dict) -> list[str]:
+        """Normalize dependency entries to lowercase list."""
+        if not entry or entry == "" or entry == {"name": ""}:
+            return []
+        names = entry.get("name", [])
+        if isinstance(names, str):
+            return [names.lower()]
+        return [n.lower() for n in names if n]
 
-        for key, val in deps.items():
-            if key.startswith("optional_"):
-                continue
-            if not any(key.startswith(cls + "_") for cls in self.include_classes):
-                continue
-
-            if key.endswith("_first"):
-                group = "first"
-            elif key.endswith("_before"):
-                group = "before"
-            elif key.endswith("_after"):
-                group = "after"
-            else:
-                continue
-
-            names = val.get("name") if isinstance(val, dict) else None
-            if isinstance(names, str):
-                names = [names]
-            for n in names or []:
-                if n and n.strip():
-                    collected[group].append(n.lower())
-                    if group == "first":
-                        self.first_pass_set.add(n.lower())   # record rebuild
-
-        return collected
-
-    def _collect_dependencies(self, pkg_name: str, visited=None):
+    # ---------------------------
+    # Normal dependency resolver (strict mode)
+    # ---------------------------
+    def _collect_dependencies(
+        self, package: str, visited: set[str] | None = None, stack: list[str] | None = None
+    ) -> dict:
         if visited is None:
             visited = set()
-        if pkg_name in visited:
-            return
-        visited.add(pkg_name)
+        if stack is None:
+            stack = []
 
-        yaml_path, canon_name = self._resolve_yaml_path(pkg_name)
+        package = package.lower()
+
+        if package in stack:
+            return {"_circular_ref": package}
+
+        stack.append(package)
+
+        yaml_path = self._resolve_yaml_path(package)
         if yaml_path is None:
-            self.dependency_tree[pkg_name] = {"_warn": "Skipped blank alias"}
-            return
-        pkg_yaml = self._parse_yaml(yaml_path)
-        deps = self._extract_filtered_dependencies(pkg_yaml)
-        self.dependency_tree[canon_name] = deps
+            stack.pop()
+            return {"_warn": f"Skipped due to blank alias for {package}"}
 
-        for group in deps.values():
-            for dep in group:
-                self._collect_dependencies(dep, visited)
+        pkg_data = self._parse_yaml(yaml_path)
+        deps = pkg_data.get("dependencies", {})
+        result = {}
+
+        for key, value in deps.items():
+            prefix = key.split("_", 1)[0]
+            if prefix not in self.include_classes:
+                continue
+            dep_list = self._normalize_names(value)
+            if dep_list:
+                phase = key.split("_", 1)[1] if "_" in key else "unspecified"
+                result[f"{prefix}_{phase}"] = {}
+                for dep in dep_list:
+                    result[f"{prefix}_{phase}"][dep] = self._collect_dependencies(dep, visited, stack.copy())
+
+        stack.pop()
+        visited.add(package)
+        return result
 
     def build_tree(self) -> dict:
         print(f"[INFO] Building dependency tree for target: {self.target}")
-        self.dependency_tree.clear()
-        self._collect_dependencies(self.target)
+        self.dependency_tree = self._collect_dependencies(self.target)
         return self.dependency_tree
 
-    # --------------------------------------------------------------
-    # Stage 2 – Graph + Unified Build List
-    # --------------------------------------------------------------
-    def _topo_sort(self, graph: dict[str, set[str]]) -> list[str]:
-        indeg = defaultdict(int)
-        for u in graph:
-            for v in graph[u]:
-                indeg[v] += 1
-        queue = deque([u for u in graph if indeg[u] == 0])
-        order, seen = [], set()
-        while queue:
-            u = queue.popleft()
-            if u in seen:
-                continue
-            seen.add(u)
-            order.append(u)
-            for v in graph[u]:
-                indeg[v] -= 1
-                if indeg[v] == 0:
-                    queue.append(v)
-        for n in graph:
-            if n not in seen:
-                order.append(n)
-        return order
-
-    def build_order(self) -> dict[str, list[str]]:
-        build_edges = defaultdict(set)
-
-        def add_edge(a, b):
-            if b not in build_edges[a]:
-                build_edges[a].add(b)
-
-        def collect_edges(node, seen=None):
-            if seen is None:
-                seen = set()
-            if node in seen:
-                return
-            seen.add(node)
-            pkg_deps = self.dependency_tree.get(node, {"first": [], "before": [], "after": []})
-
-            # recurse depth-first
-            for group in pkg_deps.values():
-                for dep in group:
-                    collect_edges(dep, seen.copy())
-
-            for dep in pkg_deps["before"]:
-                add_edge(dep, node)
-            for dep in pkg_deps["after"]:
-                add_edge(node, dep)
-            for dep in pkg_deps["first"]:
-                add_edge(dep, node)
-                add_edge(node, dep)
-                print(f"[INFO] dual-build: {node} ↔ {dep}")
-
-        collect_edges(self.target)
-        for pkg in self.dependency_tree:
-            build_edges.setdefault(pkg, set())
-
-        build_order = self._topo_sort(build_edges)
-
-        # Runtime order (reverse build)
-        runtime_order = [p for p in reversed(build_order) if p != self.target]
-        runtime_order.insert(0, self.target)
-
-        # --- Stage 4.2 logic ---
-        runtime_final = [
-            pkg for pkg in runtime_order
-            if pkg not in build_order or pkg in self.first_pass_set
-        ]
-        final_build_list = build_order + runtime_final
-
-        return {
-            "build_order": build_order,
-            "runtime_order": runtime_order,
-            "final_build_list": final_build_list,
-        }
-
-    # --------------------------------------------------------------
-    # Output
-    # --------------------------------------------------------------
     def print_tree(self):
         print(json.dumps(self.dependency_tree, indent=2))
 
-    def print_order(self, data):
-        print(json.dumps(data, indent=2))
+    # ---------------------------
+    # Recursive full-phase dependency builder (honors --classes)
+    # ---------------------------
+    def _expand_phase_tree(self, pkg: str, visited=None):
+        """
+        Recursively expand a package into a full 5-phase dependency structure:
+        bootstrap1_pkg, before_pkg, target_pkg, bootstrap2_pkg, after_pkg
+        Only includes dependency classes listed in self.include_classes.
+        """
+        if visited is None:
+            visited = set()
+
+        pkg = pkg.lower()
+
+        if pkg in visited:
+            return {f"target_{pkg}": pkg, "_circular_ref": pkg}
+
+        visited.add(pkg)
+        yaml_path = self._resolve_yaml_path(pkg)
+        if not yaml_path:
+            return {f"target_{pkg}": pkg, "_warn": f"No YAML found for {pkg}"}
+
+        data = self._parse_yaml(yaml_path)
+        deps = data.get("dependencies", {})
+
+        tree = {
+            f"bootstrap1_{pkg}": [],
+            f"before_{pkg}": {},
+            f"target_{pkg}": pkg,
+            f"bootstrap2_{pkg}": [],
+            f"after_{pkg}": {},
+        }
+
+        for key, entry in deps.items():
+            prefix = key.split("_", 1)[0]
+            if prefix not in self.include_classes:
+                continue
+
+            # Bootstrap deps
+            if key.endswith("_first"):
+                dep_list = self._normalize_names(entry)
+                for dep in dep_list:
+                    subtree = self._expand_phase_tree(dep, visited)
+                    tree[f"bootstrap1_{pkg}"].append(subtree)
+                    tree[f"bootstrap2_{pkg}"].append(subtree)
+
+            # Buildtime deps
+            elif key.endswith("_before"):
+                dep_list = self._normalize_names(entry)
+                for dep in dep_list:
+                    tree[f"before_{pkg}"][dep] = self._expand_phase_tree(dep, visited)
+
+            # Runtime deps
+            elif key.endswith("_after"):
+                dep_list = self._normalize_names(entry)
+                for dep in dep_list:
+                    tree[f"after_{pkg}"][dep] = self._expand_phase_tree(dep, visited)
+
+        return tree
+
+    def build_full_phase_tree(self):
+        """Return the fully recursive 5-phase dependency tree."""
+        return self._expand_phase_tree(self.target)
+
+    def print_full_phase_tree(self):
+        tree = self.build_full_phase_tree()
+        print(json.dumps(tree, indent=2))
 
 
-# --------------------------------------------------------------
-# CLI
-# --------------------------------------------------------------
+# ---------------------------
+# CLI Entrypoint
+# ---------------------------
 def main():
-    p = argparse.ArgumentParser(description="Dependency Solver v4.2 (Runtime-Aware Rebuilds)")
-    p.add_argument("--target", required=True)
-    p.add_argument("--yaml-dir", required=True, type=Path)
-    p.add_argument("--alias-file", required=True, type=Path)
-    p.add_argument("--classes", nargs="+", default=["required", "recommended"])
-    p.add_argument("--order", action="store_true")
-    p.add_argument("--output", type=Path)
-    a = p.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Dependency Solver — strict mode with optional recursive 5-phase tree."
+    )
+    parser.add_argument("--target", required=True, help="Target package to resolve (e.g., mesa)")
+    parser.add_argument("--yaml-dir", required=True, type=Path, help="Directory containing package YAML files")
+    parser.add_argument("--alias-file", required=True, type=Path, help="Path to TOML alias mapping file")
+    parser.add_argument(
+        "--classes",
+        nargs="+",
+        default=["required", "recommended"],
+        help="Dependency classes to include (default: required recommended)",
+    )
+    parser.add_argument("--output", type=Path, help="Optional path to save output JSON file")
+    parser.add_argument("--full-phase-tree", action="store_true", help="Generate recursive full 5-phase dependency tree")
 
-    solver = DependencySolver(a.target, a.yaml_dir, a.alias_file, a.classes)
-    tree = solver.build_tree()
+    args = parser.parse_args()
 
-    if a.order:
-        data = solver.build_order()
-        solver.print_order(data)
-        if a.output:
-            with open(a.output, "w") as f:
-                json.dump(data, f, indent=2)
-            print(f"[INFO] Build/runtime order saved to: {a.output}")
-    else:
-        solver.print_tree()
-        if a.output:
-            with open(a.output, "w") as f:
+    solver = DependencySolver(args.target, args.yaml_dir, args.alias_file, args.classes)
+
+    if args.full_phase_tree:
+        tree = solver.build_full_phase_tree()
+        if args.output:
+            with open(args.output, "w") as f:
                 json.dump(tree, f, indent=2)
-            print(f"[INFO] Dependency tree saved to: {a.output}")
+            print(f"[INFO] Full-phase dependency tree saved to: {args.output}")
+        else:
+            solver.print_full_phase_tree()
+    else:
+        tree = solver.build_tree()
+        if args.output:
+            with open(args.output, "w") as f:
+                json.dump(tree, f, indent=2)
+            print(f"[INFO] Dependency tree saved to: {args.output}")
+        else:
+            solver.print_tree()
 
 
 if __name__ == "__main__":
