@@ -192,6 +192,15 @@ class DependencySolver:
     # Flatten (v5 logic integrated)
     # ---------------------------
     def flatten_phases(self, node, built_so_far=None, first_seen=None, target_pkg=None):
+        """
+        Flatten dependency tree into five ordered lists:
+        - bootstrap_pass1: *_first deps (and all their transitive *_before deps)
+        - buildtime: *_before deps for normal packages
+        - target: target package itself
+        - bootstrap_pass2: *_first packages rebuilt again
+        - runtime: *_after deps (deduplicated against all earlier phases)
+        Global deduplication except *_first packages.
+        """
         if built_so_far is None:
             built_so_far = set()
         if first_seen is None:
@@ -212,6 +221,7 @@ class DependencySolver:
             return order
 
         for key, value in node.items():
+            # Handle *_first packages (bootstrap phase)
             if key.startswith("bootstrap1_"):
                 for dep in value:
                     if isinstance(dep, dict):
@@ -228,6 +238,7 @@ class DependencySolver:
                                 first_seen.add(dep_name)
                                 built_so_far.add(dep_name)
 
+            # Handle bootstrap2 (rebuild only top-level *_first)
             elif key.startswith("bootstrap2_"):
                 for dep in value:
                     if isinstance(dep, dict):
@@ -239,6 +250,7 @@ class DependencySolver:
                             order["bootstrap_pass2"].append(dep_name)
                             bootstrap2_set.add(dep_name)
 
+            # Handle *_before deps
             elif key.startswith("before_"):
                 for dep, subnode in value.items():
                     if dep not in built_so_far:
@@ -248,6 +260,7 @@ class DependencySolver:
                             order[k].extend(sub[k])
                         order["buildtime"].append(dep)
 
+            # Handle target package
             elif key.startswith("target_"):
                 pkg = value
                 if pkg == target_pkg:
@@ -257,6 +270,7 @@ class DependencySolver:
                     built_so_far.add(pkg)
                     order["buildtime"].append(pkg)
 
+            # Handle *_after deps (runtime)
             elif key.startswith("after_"):
                 for dep, subnode in value.items():
                     if dep not in built_so_far:
@@ -266,11 +280,25 @@ class DependencySolver:
                             order[k].extend(sub[k])
                         order["runtime"].append(dep)
 
+        # Deduplicate within each phase
         for k in order:
             seen = set()
             order[k] = [x for x in order[k] if x not in seen and not seen.add(x)]
+
+        # Remove buildtime packages that are rebuilt in bootstrap2
         order["buildtime"] = [p for p in order["buildtime"] if p not in bootstrap2_set]
+
+        # Deduplicate runtime vs earlier phases + target
+        earlier_phases = set(
+            order["bootstrap_pass1"]
+            + order["buildtime"]
+            + order["bootstrap_pass2"]
+            + order["target"]
+        )
+        order["runtime"] = [p for p in order["runtime"] if p not in earlier_phases]
+
         return order
+
 
 
 # ---------------------------
