@@ -4,10 +4,7 @@
 #
 ####################################################################
 
-[main]
-xml_path = "builder/build/{book}/blfs-systemd-full.xml"
-output_dir = "builder/build/{book}/parser/build_metadata"
-
+### DO NOT MOVE THIS SECTION FOR PROPER PARSING AND FILE NAMING ###
 [package]
 xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indexterm]"
 name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
@@ -65,3 +62,7 @@ name = ".//para[@role='optional']//xref[@role='runtime' and not(@role='nodep')]/
 
 [optional_external]
 name = ".//para[@role='optional'']//ulink/text()"
+
+[main]
+xml_path = "builder/build/{book}/blfs-systemd-full.xml"
+output_dir = "builder/build/{book}/parser/build_metadata"
