@@ -104,18 +104,28 @@ class SKWScripter:
     # -------------------
     def _run_dependency_mode(self, entries):
         print("[INFO] No build_order fields detected - switching to dependency mode.")
-
-        alias_file = Path(self.cfg.get("main", {}).get("alias_file", "aliases.toml"))
+    
+        # Get alias file path
+        raw_alias_file = self.cfg.get("main", {}).get("alias_file", "aliases.toml")
+        alias_file = raw_alias_file.format(
+            profiles_dir=self.profiles_dir,
+            book=self.book,
+            profile=self.profile,
+            build_dir=self.build_dir,
+        )
+        alias_file = Path(alias_file).expanduser().resolve()
+    
         include_classes = self.cfg.get("main", {}).get("include_classes", ["required", "recommended"])
         target = self.cfg.get("main", {}).get("target")
-
+    
         if not target:
             sys.exit("Error: [main].target must be defined in skwscripter.toml for dependency mode.")
-
+    
+        # Build dependency tree
         solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
         tree = solver.build_full_phase_tree()
         flat = solver.flatten_phases(tree)
-
+    
         ordered_names = (
             flat["bootstrap_pass1"]
             + flat["buildtime"]
@@ -124,8 +134,37 @@ class SKWScripter:
             + flat["runtime"]
         )
         print(f"[INFO] Dependency tree resolved - {len(ordered_names)} total packages.")
-
+    
+        # Load aliases for reverse lookup
+        try:
+            alias_data = toml.load(alias_file)
+            aliases = alias_data.get("aliases", {})
+        except Exception as e:
+            sys.exit(f"[ERROR] Failed to load alias file {alias_file}: {e}")
+    
+        # Reverse alias: map canonical (YAML base) -> alias key
+        reverse_alias = {}
+        for alias_key, canonical_name in aliases.items():
+            if isinstance(canonical_name, str) and canonical_name:
+                reverse_alias[canonical_name.lower()] = alias_key.lower()
+    
+        # Build name map from YAML entries
         name_map = {e["name"].lower(): e for e in entries if e.get("name")}
+    
+        # Extend name map with alias entries
+        for canonical, alias in reverse_alias.items():
+            # Exact match
+            if canonical in name_map and alias not in name_map:
+                name_map[alias] = name_map[canonical]
+                continue
+    
+            # Prefix match (e.g. canonical 'glib-2.82.5' ? YAML 'glib')
+            for key in list(name_map.keys()):
+                if canonical.startswith(key) and alias not in name_map:
+                    name_map[alias] = name_map[key]
+                    break
+    
+        # Match dependency order to YAML entries
         ordered_entries = []
         for pkg in ordered_names:
             pkg_lower = pkg.lower()
@@ -133,7 +172,10 @@ class SKWScripter:
                 ordered_entries.append(name_map[pkg_lower])
             else:
                 print(f"[WARN] Package '{pkg}' not found among YAML entries.")
-
+    
+        print(f"[INFO] Matched {len(ordered_entries)} of {len(ordered_names)} packages to YAML entries.")
+    
+        # Generate scripts in dependency order
         self._generate_scripts(ordered_entries)
 
 
