@@ -10,7 +10,7 @@ from pathlib import Path
 
 class SKWParser:
     """
-    SKWParser — Modern TOML–XML–YAML parser for ScratchKit Builder.
+    SKWParser — Modern TOML-XML-YAML parser for ScratchKit Builder.
 
     This parser replaces the legacy XML?JSON parser and automatically:
     - Loads book XML (from build_dir/books/<book>/book.xml)
@@ -166,6 +166,12 @@ class SKWParser:
         
             # --- Determine XPath expression using override hierarchy ---
             xpath_expr = self._get_xpath_expr(sec_id, chap_id, key) or value
+            
+            # Apply explicit blank overrides (e.g., "source.url" = "")
+            override_expr = self._get_xpath_expr(local_context.get("section_id"), local_context.get("chapter_id"), f"{section_name}.{key}")
+            if override_expr == "":
+                result[key] = ""
+                continue
         
             val = self._extract_value(node, xpath_expr, local_context) if node is not None else ""
             result[key] = val
@@ -189,29 +195,52 @@ class SKWParser:
 
         return result
         
+        
     #------------------------------------------------------------------#
     def _get_xpath_expr(self, section_id, chapter_id, key):
-        """Retrieve an XPath expression with section/chapter/global fallback."""
-        # Section-specific overrides
-        if section_id in self.toml_data and "xpaths" in self.toml_data[section_id]:
-            sec_cfg = self.toml_data[section_id]["xpaths"]
-            if key in sec_cfg:
-                return sec_cfg[key]
-    
-        # Chapter-specific overrides
-        if chapter_id in self.toml_data and "xpaths" in self.toml_data[chapter_id]:
-            chap_cfg = self.toml_data[chapter_id]["xpaths"]
-            if key in chap_cfg:
-                return chap_cfg[key]
-    
-        # Global fallback
-        if "xpaths" in self.toml_data and key in self.toml_data["xpaths"]:
-            return self.toml_data["xpaths"][key]
-    
-        return None
-        
+        """Retrieve an XPath expression with section/chapter/global fallback.
+        Supports nested override keys like 'source.url'."""
+        def resolve_nested(cfg, dotted_key):
+            """Resolve nested keys such as 'source.url' inside a dict."""
+            if not isinstance(cfg, dict):
+                return None
+            if dotted_key in cfg:
+                return cfg[dotted_key]
+            # Walk through nested structures
+            parts = dotted_key.split(".")
+            cur = cfg
+            for part in parts:
+                if isinstance(cur, dict) and part in cur:
+                    cur = cur[part]
+                else:
+                    return None
+            return cur if isinstance(cur, str) else None
 
-    # === YAML OUTPUT ===
+        # Try section-level overrides
+        if section_id in self.toml_data:
+            sec_cfg = self.toml_data[section_id].get("xpaths", {})
+            val = resolve_nested(sec_cfg, key)
+            if val is not None:
+                return val
+
+        # Try chapter-level overrides
+        if chapter_id in self.toml_data:
+            chap_cfg = self.toml_data[chapter_id].get("xpaths", {})
+            val = resolve_nested(chap_cfg, key)
+            if val is not None:
+                return val
+
+        # Try global-level overrides
+        if "xpaths" in self.toml_data:
+            val = resolve_nested(self.toml_data["xpaths"], key)
+            if val is not None:
+                return val
+
+        return None
+
+
+        
+    #------------------------------------------------------------------#
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
         entries = self._resolve_section(top_section)
