@@ -42,6 +42,12 @@ class SKWScripter:
             sys.exit("Error: 'script_dir' is not defined in [main] section of skwscripter.toml")
         self.script_dir = Path(raw_script_dir).expanduser().resolve()
         os.makedirs(self.script_dir, exist_ok=True)
+        # Delete contents
+        for item in self.script_dir.iterdir():
+            if item.is_dir():
+                shutil.rmtree(item)
+            else:
+                item.unlink()
 
     # -------------------
     # Main Execution
