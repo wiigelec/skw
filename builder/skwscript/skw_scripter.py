@@ -3,9 +3,10 @@ import sys
 import toml
 import yaml
 import re
+import shutil
 from glob import glob
 from pathlib import Path
-#from depsolver import DependencySolver
+from .depsolver import DependencySolver
 
 class SKWScripter:
     def __init__(self, build_dir, profiles_dir, book, profile):
@@ -54,11 +55,7 @@ class SKWScripter:
     # Main Execution
     # -------------------
     def run(self):
-
-        # Get config paths
         parser_dir = self.parser_dir
-        script_dir = self.script_dir
-
         yaml_files = sorted(glob(os.path.join(parser_dir, "*.yaml")) + glob(os.path.join(parser_dir, "*.yml")))
         if not yaml_files:
             sys.exit(f"No YAML files found in {parser_dir}")
@@ -72,26 +69,80 @@ class SKWScripter:
                 entries.append(normalized)
             except Exception as e:
                 print(f"Error reading {path}: {e}")
-        
-        # Get mode: linear or dependency      
-        has_build_order = any((e.get("build_order") or "").strip() for e in entries)
-        
-        # Linear
-        if has_build_order:
-            # Hard rule: any entry that would generate a script must have build_order
-            for e in entries:
-                if self._should_generate_script(e) and not (e.get("build_order") or "").strip():
-                    sys.exit(f"Error: build_order is required in linear mode (missing for: {e.get('name')})")
-        
-            # Sort by build_order (string), then deterministic tiebreakers
-            entries.sort(key=lambda e: (
-                (e.get("build_order") or "").strip(),
-                (e.get("chapter_id") or ""),
-                (e.get("section_id") or ""),
-                (e.get("name") or ""),
-            ))
 
-        for idx, entry in enumerate(entries, start=1):
+        has_build_order = any((e.get("build_order") or "").strip() for e in entries)
+
+        if has_build_order:
+            self._run_linear_mode(entries)
+        else:
+            self._run_dependency_mode(entries)
+        
+        
+    # -------------------
+    # Linear Mode
+    # -------------------
+    def _run_linear_mode(self, entries):
+        # Validation
+        for e in entries:
+            if self._should_generate_script(e) and not (e.get("build_order") or "").strip():
+                sys.exit(f"Error: build_order is required in linear mode (missing for: {e.get('name')})")
+
+        # Sort by build_order (string), then deterministic tiebreakers
+        entries.sort(key=lambda e: (
+            (e.get("build_order") or "").strip(),
+            (e.get("chapter_id") or ""),
+            (e.get("section_id") or ""),
+            (e.get("name") or ""),
+        ))
+        print(f"[INFO] Linear mode active - {len(entries)} entries ordered by build_order.")
+
+        self._generate_scripts(entries)
+
+
+    # -------------------
+    # Dependency Mode
+    # -------------------
+    def _run_dependency_mode(self, entries):
+        print("[INFO] No build_order fields detected - switching to dependency mode.")
+
+        alias_file = Path(self.cfg.get("main", {}).get("alias_file", "aliases.toml"))
+        include_classes = self.cfg.get("main", {}).get("include_classes", ["required", "recommended"])
+        target = self.cfg.get("main", {}).get("target")
+
+        if not target:
+            sys.exit("Error: [main].target must be defined in skwscripter.toml for dependency mode.")
+
+        solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
+        tree = solver.build_full_phase_tree()
+        flat = solver.flatten_phases(tree)
+
+        ordered_names = (
+            flat["bootstrap_pass1"]
+            + flat["buildtime"]
+            + flat["target"]
+            + flat["bootstrap_pass2"]
+            + flat["runtime"]
+        )
+        print(f"[INFO] Dependency tree resolved - {len(ordered_names)} total packages.")
+
+        name_map = {e["name"].lower(): e for e in entries if e.get("name")}
+        ordered_entries = []
+        for pkg in ordered_names:
+            pkg_lower = pkg.lower()
+            if pkg_lower in name_map:
+                ordered_entries.append(name_map[pkg_lower])
+            else:
+                print(f"[WARN] Package '{pkg}' not found among YAML entries.")
+
+        self._generate_scripts(ordered_entries)
+
+
+    # -------------------
+    # Script Generation (Shared)
+    # -------------------
+    def _generate_scripts(self, ordered_entries):
+        script_dir = self.script_dir
+        for idx, entry in enumerate(ordered_entries, start=1):
             if not self._should_generate_script(entry):
                 continue
 
@@ -100,29 +151,20 @@ class SKWScripter:
             script_content = self._apply_regex(entry, script_content)
 
             order = entry.get("build_order") or f"{idx:04d}"
-            
-            # Resolve name with fallback
             name = entry.get("name") or entry.get("chapter_id")
-            if not name:
-                sys.exit(f"Error: missing name and chapter_id for script generation: {entry}")
-            # Resolve version with fallback
             ver = entry.get("version") or entry.get("section_id")
-            if not ver:
-                sys.exit(f"Error: missing version and section_id for script generation: {entry}")
-            
-            name_s = self._slug(name)
-            ver_s = self._slug(ver)
-                
-            script_name = f"{order}_{name_s}_{ver_s}.sh"
-    
-            script_path = os.path.join(script_dir, script_name)
+            if not name or not ver:
+                sys.exit(f"Error: missing name or version for script generation: {entry}")
 
+            script_name = f"{order}_{self._slug(name)}_{self._slug(ver)}.sh"
+            script_path = os.path.join(script_dir, script_name)
             with open(script_path, "w", encoding="utf-8") as f:
                 f.write(script_content)
             os.chmod(script_path, 0o755)
 
-        print(f"Scripter complete. Scripts written to {script_dir}")
-    
+        print(f"[INFO] Scripter complete. Scripts written to {script_dir}")
+        
+        
     # -------------------   
     def _slug(self, s: str) -> str:
         s = str(s).strip().lower()
@@ -131,6 +173,7 @@ class SKWScripter:
         s = re.sub(r"[^a-z0-9._+-]+", "-", s)
         s = re.sub(r"-{2,}", "-", s).strip("-")
         return s or "unnamed"
+        
 
     # -------------------
     # Script filtering
