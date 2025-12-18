@@ -61,6 +61,14 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 
 
 #------------------------------------------------------------------#
+# XPATH OVERRIDES
+#------------------------------------------------------------------#
+
+[ch-materials-introduction.xpaths]
+build_instructions = ".//screen[@role=\"nodump\"]/userinput"
+
+
+#------------------------------------------------------------------#
 # MAIN CONFIG SECTION
 #------------------------------------------------------------------#
 [main]
