@@ -305,28 +305,47 @@ class SKWScripter:
     # -------------------
     def _expand_template(self, entry, template_content):
         content = template_content
-
+    
         def replace_placeholder(match):
-            key = match.group(1)
+            key = match.group(1).strip()
             parts = key.split(".")
             val = entry
+    
             for p in parts:
-                if isinstance(val, dict) and p in val:
+                # List handling (supports "source.0.url" or flatten for "source.url")
+                if isinstance(val, list):
+                    # If p is numeric index
+                    if p.isdigit():
+                        idx = int(p)
+                        if 0 <= idx < len(val):
+                            val = val[idx]
+                        else:
+                            return ""
+                    else:
+                        # Flatten all dict values that contain p
+                        extracted = []
+                        for item in val:
+                            if isinstance(item, dict) and p in item:
+                                extracted.append(str(item[p]))
+                        if extracted:
+                            val = extracted
+                        else:
+                            return ""
+                elif isinstance(val, dict) and p in val:
                     val = val[p]
-                elif isinstance(val, list):
-                    try:
-                        val = val[int(p)]
-                    except (ValueError, IndexError):
-                        return ""
                 else:
                     return ""
+    
+            # Format the final result
             if isinstance(val, list):
-                if key == "build_instructions":
-                    return "\n".join(val)
-                return " ".join(str(v) for v in val)
+                if all(isinstance(v, str) for v in val):
+                    return " ".join(val)
+                else:
+                    return " ".join(str(v) for v in val)
             return str(val) if val is not None else ""
-
+    
         return re.sub(r"{{([^}]+)}}", replace_placeholder, content)
+
 
     # -------------------
     # Regex Transforms
