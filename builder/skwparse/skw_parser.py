@@ -12,7 +12,7 @@ class SKWParser:
     """
     SKWParser — Modern TOML–XML–YAML parser for ScratchKit Builder.
 
-    This parser replaces the legacy XML→JSON parser and automatically:
+    This parser replaces the legacy XML?JSON parser and automatically:
     - Loads book XML (from build_dir/books/<book>/book.xml)
     - Loads parser mapping TOML (from profiles/<book>/<profile>/parser_map.toml)
     - Converts XML into multiple ordered YAML files according to TOML mappings.
@@ -148,17 +148,35 @@ class SKWParser:
 
         node = nodes[0] if nodes else None
 
+        
+        
+###
         for key, value in section.items():
             if key == "xpath":
                 continue
-
+        
+            # Child sections recurse
             if key.startswith("child"):
                 for child_name in value:
                     result[child_name] = self._resolve_section(child_name, node, local_context)
-            else:
-                val = self._extract_value(node, value, local_context) if node is not None else ""
-                result[key] = val
-                local_context[key] = val
+                continue
+        
+            # --- Determine chapter and section IDs ---
+            chap_id = node.get("id") if node is not None and node.tag.lower() == "chapter" else local_context.get("chapter_id")
+            sec_id = node.get("id") if node is not None and node.tag.lower() == "section" else local_context.get("section_id")
+            local_context["chapter_id"] = chap_id
+            local_context["section_id"] = sec_id
+        
+            # --- Determine XPath expression using override hierarchy ---
+            xpath_expr = self._get_xpath_expr(sec_id, chap_id, key) or value
+        
+            val = self._extract_value(node, xpath_expr, local_context) if node is not None else ""
+            result[key] = val
+            local_context[key] = val
+
+###
+
+
 
         # Postprocess name/version logic
         if "name_version" in result and isinstance(result["name_version"], str):
@@ -177,6 +195,28 @@ class SKWParser:
                         result[field] = new_val
 
         return result
+        
+    #------------------------------------------------------------------#
+    def _get_xpath_expr(self, section_id, chapter_id, key):
+        """Retrieve an XPath expression with section/chapter/global fallback."""
+        # Section-specific overrides
+        if section_id in self.toml_data and "xpaths" in self.toml_data[section_id]:
+            sec_cfg = self.toml_data[section_id]["xpaths"]
+            if key in sec_cfg:
+                return sec_cfg[key]
+    
+        # Chapter-specific overrides
+        if chapter_id in self.toml_data and "xpaths" in self.toml_data[chapter_id]:
+            chap_cfg = self.toml_data[chapter_id]["xpaths"]
+            if key in chap_cfg:
+                return chap_cfg[key]
+    
+        # Global fallback
+        if "xpaths" in self.toml_data and key in self.toml_data["xpaths"]:
+            return self.toml_data["xpaths"][key]
+    
+        return None
+        
 
     # === YAML OUTPUT ===
     def _generate_yaml_files(self):
@@ -229,20 +269,3 @@ class SKWParser:
         with filepath.open("w", encoding="utf-8") as f:
             yaml.dump(clean_data, f, sort_keys=False, allow_unicode=True, indent=2, width=1000)
         print(f"[SKWParser] Wrote: {filepath}")
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Convert XML + TOML mapping into ordered YAML build blueprints."
-    )
-    parser.add_argument("xml", help="Path to input XML file.")
-    parser.add_argument("toml", help="Path to TOML mapping file.")
-    parser.add_argument("output_dir", help="Directory to output YAML files.")
-    args = parser.parse_args()
-
-    skw_parser = SKWParser(args.xml, args.toml, args.output_dir)
-    skw_parser.convert()
-  
-
-if __name__ == "__main__":
-    main()
