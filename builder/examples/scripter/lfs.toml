@@ -4,7 +4,7 @@
 
 [main]
 parser_output = "builder/build/{book}/parser/build_metadata/"
-script_dir = "builder/build/{book}/scripter/scripts/"
+script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
 default_template = "template.script"
 
 [global]
