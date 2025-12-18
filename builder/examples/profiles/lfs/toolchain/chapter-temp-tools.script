@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
+
+# If not already running as lfs, restart as lfs with login env
+if [[ "$(id -un)" != "lfs" ]]; then
+    exec su - lfs -c "LFS=$LFS $0 $*"
+fi
+
+### EXTRACT SOURCE TARBALL ###
+
+source_url="{{source.0.url}}"
+tarball=$(basename "$source_urls")
+dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
+tar -xf "$tarball"
+cd "$dirname"
+
+
+### START BUILD COMMANDS ###
+
+{{build_instructions}}
+
+### END BUILD COMMANDS ###

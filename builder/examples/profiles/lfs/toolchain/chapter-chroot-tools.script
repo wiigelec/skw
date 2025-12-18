@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+
+### EXTRACT SOURCE TARBALL ###
+
+source_url="{{sources.urls}}"
+tarball=$(basename "$source_urls")
+dirname=$(tar tf "$tarball" | head -1 | cut -f1 -d"/")
+tar -xf "$tarball"
+cd "$dirname"
+
+
+### START BUILD COMMANDS ###
+
+{{build_instructions}}
+
+### END BUILD COMMANDS ###
