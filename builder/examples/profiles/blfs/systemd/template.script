@@ -3,31 +3,57 @@ set -euo pipefail
 
 # ==========================================================
 # Auto-generated build script from ScratchKit
-# Book: {{source_book}}
-# Chapter: {{chapter_id}}
-# Section: {{section_id}}
-# Package: {{package_name}} {{package_version}}
+# Book: {{book_title}}
+# Package: {{name}} {{version}}
 # ==========================================================
 
 
 echo
 echo "# =========================================================="
 echo "#"
-echo "# BUILDING {{chapter_id}} {{section_id}}"
+echo "# BUILDING {{name}} {{version}}"
 echo "#"
 echo "# =========================================================="
+echo
 
-sudo -u lfs env HOME=/home/lfs bash -l <<'LFS_EOF'
+cd "/sources"
 
-set -euo pipefail
-
-source /home/lfs/.bashrc
-
-cd "$LFS/sources"
+### DOWNLOAD AND VERIFY ADDITIONAL DOWNLOADS ###
+add_urls="{{additional_downloads.url}}"
+add_sums="{{additional_downloads.checksum}}"
 
 
-### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+
+### DOWNLOAD VERIFY AND EXTRACT SOURCE TARBALL ###
+source_urls="{{source.url}}"
+source_sums="{{source.checksum}}"
+
+# Download sources if missing
+for url in $source_urls; do
+    file=$(basename "$url")
+    if [[ ! -f "$file" ]]; then
+        echo "[INFO] Downloading $file"
+        wget -q --show-progress "$url"
+    else
+        echo "[INFO] Using cached $file"
+    fi
+done
+
+# Verify checksums
+if [[ -n "$source_sums" ]]; then
+    echo
+    echo "[INFO] Verifying checksums..."
+    file=$(basename "$url")
+    if [[ -z "$source_sums" ]]; then
+        echo "[WARN] No checksum for $file - skipping verification."
+    else
+        echo "$source_sums  $file" | md5sum -c -
+    fi
+    echo "[INFO] Checksum verification complete."
+else
+    echo "[WARN] No checksums defined for this package."
+fi
+
 tarball=$(basename "$source_urls")
 
 echo
@@ -52,5 +78,3 @@ cd "$dirname"
 
 cd "$LFS/sources"
 rm -rf $dirname
-
-LFS_EOF
