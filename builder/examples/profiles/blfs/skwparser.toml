@@ -22,11 +22,11 @@ url = ".//para[contains(.,'Download (HTTP):')]//ulink/@url"
 checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': ')"
 
 [additional_downloads]
-url = ".//para[contains(.,'Required file:')]//ulink/@url"
+url = ".//para[contains(.,'Download: ')]//ulink/@url"
 checksum = ""
 
 [patches]
-url = ".//para[contains(.,'Required patch:')]//ulink/@url"
+url = ".//para[contains(.,'patch:')]//ulink/@url"
 checksum = ""
 
 
