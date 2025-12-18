@@ -1,0 +1,67 @@
+####################################################################
+#
+#
+#
+####################################################################
+
+[package]
+xpath = "//chapter//sect1"
+chapter_id = "./ancestor::chapter/@id"
+section_id = "translate(./@id,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
+name = "translate(.//productname/text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')"
+version = ".//productnumber/text()"
+build_order = "{xpath_index}"
+book_title = "//bookinfo/title/text()"
+book_ver = "substring-before(substring-after(//bookinfo/subtitle[1]/text(),' '),'-')"
+book_rev = "substring-after(//bookinfo/subtitle[1]/text(),'-')"
+child1 = [ "source", "patches" ]
+build_instructions = ".//screen[not(@role=\"nodump\")]/userinput//text()"
+
+
+[source]
+url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  starts-with(
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
+    substring-before(concat('{name}','-pass'),'-pass')
+  )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
+      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+  )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  starts-with(
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
+    substring-before(concat('{name}','-pass'),'-pass')
+  )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
+      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+  )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+
+
+[patches]
+url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+####################################################################
+# MAIN CONFIG SECTION
+####################################################################
+[main]
+xml_path = "builder/build/{book}/lfs-full.xml"
+output_dir = "builder/build/{book}/parser/build_metadata"
