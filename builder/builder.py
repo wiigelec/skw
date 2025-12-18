@@ -119,12 +119,12 @@ class Builder:
         print(f"Running make command: {expanded_command}")
         subprocess.run(expanded_command, shell=True, check=True, cwd=repo_dir, env=env)
 
-        xml_dst = os.path.join(self.build_dir, "books", book, output_file)
+        xml_dst = os.path.join(self.build_dir, book, output_file)
 
         if os.path.exists(xml_dst):
             print(f"Installed book {book}. XML available at {xml_dst}")
         else:
-            print(f"XML book generation failed.")
+            print(f"XML book generation failed: {xml_dst}")
 
     # -------------------
     # Parser / Scripter / Executer
