@@ -5,6 +5,7 @@ import yaml
 import re
 from glob import glob
 from pathlib import Path
+#from depsolver import DependencySolver
 
 class SKWScripter:
     def __init__(self, build_dir, profiles_dir, book, profile):
@@ -71,6 +72,24 @@ class SKWScripter:
                 entries.append(normalized)
             except Exception as e:
                 print(f"Error reading {path}: {e}")
+        
+        # Get mode: linear or dependency      
+        has_build_order = any((e.get("build_order") or "").strip() for e in entries)
+        
+        # Linear
+        if has_build_order:
+            # Hard rule: any entry that would generate a script must have build_order
+            for e in entries:
+                if self._should_generate_script(e) and not (e.get("build_order") or "").strip():
+                    sys.exit(f"Error: build_order is required in linear mode (missing for: {e.get('name')})")
+        
+            # Sort by build_order (string), then deterministic tiebreakers
+            entries.sort(key=lambda e: (
+                (e.get("build_order") or "").strip(),
+                (e.get("chapter_id") or ""),
+                (e.get("section_id") or ""),
+                (e.get("name") or ""),
+            ))
 
         for idx, entry in enumerate(entries, start=1):
             if not self._should_generate_script(entry):
@@ -82,20 +101,19 @@ class SKWScripter:
 
             order = entry.get("build_order") or f"{idx:04d}"
             
-            # Required fields (fail fast if missing)
-            name = entry.get("name")
-            ver = entry.get("version")
+            # Resolve name with fallback
+            name = entry.get("name") or entry.get("chapter_id")
             if not name:
-                sys.exit(f"Error: missing name for script generation: {entry}")
+                sys.exit(f"Error: missing name and chapter_id for script generation: {entry}")
+            # Resolve version with fallback
+            ver = entry.get("version") or entry.get("section_id")
+            if not ver:
+                sys.exit(f"Error: missing version and section_id for script generation: {entry}")
             
             name_s = self._slug(name)
+            ver_s = self._slug(ver)
                 
-            # version is optional for “non-package” pages; decide policy:
-            if ver:
-                ver_s = self._slug(ver)
-                script_name = f"{order}_{name_s}-{ver_s}.sh"
-            else:
-                script_name = f"{order}_{name_s}.sh"
+            script_name = f"{order}_{name_s}_{ver_s}.sh"
     
             script_path = os.path.join(script_dir, script_name)
 
@@ -122,7 +140,7 @@ class SKWScripter:
         filters = {
             "chapter_id": self.cfg.get("chapter_filters", {}),
             "section_id": self.cfg.get("section_filters", {}),
-            "package_name": self.cfg.get("package_filters", {}),
+            "name": self.cfg.get("package_filters", {}),
         }
 
         for key, section in filters.items():
@@ -234,7 +252,7 @@ class SKWScripter:
 
         chap_key = entry.get("chapter_id")
         sec_key = entry.get("section_id")
-        pkg_key = entry.get("package_name")
+        pkg_key = entry.get("name")
 
         if chap_key and chap_key in self.cfg:
             transforms += self.cfg[chap_key].get("regex", [])
@@ -270,7 +288,7 @@ class SKWScripter:
     def _select_template(self, entry):
         template_file = self.cfg.get("main", {}).get("default_template", "template.script")
 
-        for key in [entry.get("chapter_id"), entry.get("section_id"), entry.get("package_name")]:
+        for key in [entry.get("chapter_id"), entry.get("section_id"), entry.get("name")]:
             if key and key in self.cfg and "template" in self.cfg[key]:
                 template_file = self.cfg[key]["template"]
 
