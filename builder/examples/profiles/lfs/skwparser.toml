@@ -65,6 +65,10 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 #------------------------------------------------------------------#
 
 [ch-materials-introduction.xpaths]
+source.url = ""
+source.checksum = ""
+patches.url = ""
+patches.checksum = ""
 build_instructions = ".//screen[@role=\"nodump\"]/userinput"
 
 
