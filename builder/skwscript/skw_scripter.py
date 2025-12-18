@@ -81,10 +81,22 @@ class SKWScripter:
             script_content = self._apply_regex(entry, script_content)
 
             order = entry.get("build_order") or f"{idx:04d}"
-            chapter_id = entry.get("chapter_id", "chapter-unknown")
-            section_id = entry.get("section_id", "section-unknown")
-
-            script_name = f"{order}_{chapter_id}_{section_id}.sh"
+            
+            # Required fields (fail fast if missing)
+            name = entry.get("name")
+            ver = entry.get("version")
+            if not name:
+                sys.exit(f"Error: missing name for script generation: {entry}")
+            
+            name_s = self._slug(name)
+                
+            # version is optional for “non-package” pages; decide policy:
+            if ver:
+                ver_s = self._slug(ver)
+                script_name = f"{order}_{name_s}-{ver_s}.sh"
+            else:
+                script_name = f"{order}_{name_s}.sh"
+    
             script_path = os.path.join(script_dir, script_name)
 
             with open(script_path, "w", encoding="utf-8") as f:
@@ -92,6 +104,15 @@ class SKWScripter:
             os.chmod(script_path, 0o755)
 
         print(f"Scripter complete. Scripts written to {script_dir}")
+    
+    # -------------------   
+    def _slug(self, s: str) -> str:
+        s = str(s).strip().lower()
+        s = s.replace("/", "_").replace("\\", "_")
+        s = re.sub(r"\s+", "-", s)
+        s = re.sub(r"[^a-z0-9._+-]+", "-", s)
+        s = re.sub(r"-{2,}", "-", s).strip("-")
+        return s or "unnamed"
 
     # -------------------
     # Script filtering
@@ -158,8 +179,8 @@ class SKWScripter:
             return [val]
 
         return {
-            "package_name": raw.get("name", ""),
-            "package_version": raw.get("version", ""),
+            "name": raw.get("name", ""),
+            "version": raw.get("version", ""),
             "book_title": (
                 " ".join(raw["book_title"]) if isinstance(raw.get("book_title"), list)
                 else raw.get("book_title", "")
