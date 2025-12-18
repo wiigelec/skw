@@ -1,0 +1,67 @@
+####################################################################
+#
+#
+#
+####################################################################
+
+[main]
+xml_path = "builder/build/{book}/blfs-systemd-full.xml"
+output_dir = "builder/build/{book}/parser/build_metadata"
+
+[package]
+xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indexterm]"
+name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+version = "translate('{version}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
+name_version = "./title/text()"
+book_title = "/book/bookinfo/title//text()"
+book_ver = "substring-after(/book/bookinfo/subtitle/text(),' ')"
+book_rev = "/book/bookinfo/title/phrase/@revision"
+child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
+build_instructions = ".//screen//userinput//text()"
+
+
+[source]
+url = ".//para[contains(.,'Download (HTTP):')]//ulink/@url"
+checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': ')"
+
+[additional_downloads]
+url = ".//para[contains(.,'Required file:')]//ulink/@url"
+checksum = ""
+
+[patches]
+url = ".//para[contains(.,'Required patch:')]//ulink/@url"
+checksum = ""
+
+
+[dependencies]
+child1 = [ "required_first", "required_before", "required_after", "recommended_first", "recommended_before", "recommended_after", "optional_first", "optional_before", "optional_after", "optional_external" ]
+
+[required_first]
+name = ".//para[@role='required']//xref[@role='first' and not(@role='nodep')]/@linkend"
+
+[recommended_first]
+name = ".//para[@role='recommended']//xref[@role='first' and not(@role='nodep')]/@linkend"
+
+[optional_first]
+name = ".//para[@role='optional']//xref[@role='first' and not(@role='nodep')]/@linkend"
+
+[required_before]
+name = ".//para[@role='required']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
+[recommended_before]
+name = ".//para[@role='recommended']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
+[optional_before]
+name = ".//para[@role='optional']//xref[not(@role='first') and not (@role='runtime') and not(@role='nodep')]/@linkend"
+
+[required_after]
+name = ".//para[@role='required']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
+
+[recommended_after]
+name = ".//para[@role='recommended']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
+
+[optional_after]
+name = ".//para[@role='optional']//xref[@role='runtime' and not(@role='nodep')]/@linkend"
+
+[optional_external]
+name = ".//para[@role='optional'']//ulink/text()"

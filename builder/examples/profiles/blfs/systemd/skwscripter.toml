@@ -1,0 +1,122 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_output = "builder/build/{book}/parser/build_metadata/"
+script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
+default_template = "template.script"
+target = "systemd"
+alias_file = "{profiles_dir}/{book}/{profile}/aliases.toml"
+include_classes = ["required", "recommended"]
+
+[global]
+regex = []
+
+[ch-materials-introduction]
+template = "chapter-final-preps.script"
+regex = [ 
+		"r@(?s)wget --input-file.*?.*\\$LFS/sources/\\*\\n?@@",
+		"s@mkdir@sudo mkdir@",	
+		"s@chmod@sudo chmod@",	
+ ]
+
+[chapter-getting-materials]
+template = "chapter-getting-materials.script"
+
+[chapter-final-preps]
+template = "chapter-final-preps.script"
+
+[ch-preps-settingenviron]
+regex = [ "s@LFS=/mnt/lfs@LFS=$LFS" ]
+
+[chapter-cross-tools]
+template = "chapter-temp-tools.script"
+
+[chapter-temporary-tools]
+template = "chapter-temp-tools.script"
+
+[chapter-chroot-temporary-tools]
+template = "chapter-chroot-tools.script"
+
+[ch-tools-changingowner]
+template = "chroot-nosrc.script"
+
+[ch-tools-kernfs]
+template = "chroot-nosrc.script"
+
+[ch-tools-creatingdirs]
+template = "chroot-nosrc.script"
+
+[ch-tools-creatingfiles]
+template = "chroot-nosrc.script"
+
+[chapter-building-system]
+template = "chapter-building-system.script"
+regex = [ 
+			"s@make check@#make check@",
+			"r@make(?: (.*))? install@make DESTDIR=$DESTDIR \\g<1> install@",
+			"r@(mkdir\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(mv\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(ln)(.*) (/.*)@\\1\\2 $DESTDIR\\3@",
+			"r@.*tester.*@@",
+			"r@.*test_summary.*@@"
+		]
+		
+		
+[ch-system-gcc]
+regex = [ 
+			"r@(?s)ulimit -s -H unlimited.*?i386/fentryname3.c\\n?@@",
+			"r@(?s)echo 'int main\\(\\).*?rm -v dummy.c a.out dummy.log\\n?@@",
+			"r@    /usr/lib@    $DESTDIR/usr/lib@"
+		]
+		
+[ch-system-stripping]
+template = "chroot-nosrc.script"
+
+[ch-system-cleanup]
+template = "chroot-nosrc.script"
+
+[chapter-config]
+template = "write-config.script"
+regex = [ "r@(\\s*cat\\s*>>?\\s*)(/[^ ]+)@\\1$DESTDIR\\2@"	]
+
+[chapter-bootable]
+template = "write-config.script"
+regex = [ "r@(\\s*cat\\s*>>?\\s*)(/[^ ]+)@\\1$DESTDIR\\2@"	]
+
+[ch-bootable-kernel]
+template = "chapter-building-system.script"
+regex = [
+            "r@(.*make mrproper.*)@\\1\\nmake defconfig@",
+            "r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@",
+			"r@(cp\\b.*) (/.*)@\\1 $DESTDIR\\2@"
+		]
+
+[chapter-finalizing]
+template = "write-config.script"
+regex = [ "r@(\\s*echo\\b.*?>\\s*)(/[^ ]+)@\\1$DESTDIR\\2@"	]
+
+
+
+# Chapter-specific filters
+# Example:
+# [<chapter>]
+# template = "chapter.script"
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [<section>]
+# template = "section.script"
+# regex = []
+
+# Package-specific filters
+# Example:
+# [<package>]
+# template = "package.script"
+# regex = []
+

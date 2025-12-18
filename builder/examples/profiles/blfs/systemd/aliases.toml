@@ -1,0 +1,4 @@
+[aliases]
+glib2 = "glib-2.82.5"
+docbook = "docbook-xml-4.5"
+docbook-xsl = "docbook-xsl-nons-1.79.2"
