@@ -22,6 +22,33 @@ cd "/sources"
 add_urls="{{additional_downloads.url}}"
 add_sums="{{additional_downloads.checksum}}"
 
+# Download additional if missing
+for url in $add_urls; do
+    file=$(basename "$url")
+    if [[ ! -f "$file" ]]; then
+        echo "[INFO] Downloading $file"
+        wget -q --show-progress "$url"
+    else
+        echo "[INFO] Using cached $file"
+    fi
+done
+
+
+### DOWNLOAD AND VERIFY PATCHES ###
+patch_urls="{{patches.url}}"
+patch_sums="{{patches.checksum}}"
+
+# Download patches if missing
+echo
+for url in $patch_urls; do
+    file=$(basename "$url")
+    if [[ ! -f "$file" ]]; then
+        echo "[INFO] Downloading $file"
+        wget -q --show-progress "$url"
+    else
+        echo "[INFO] Using cached $file"
+    fi
+done
 
 
 ### DOWNLOAD VERIFY AND EXTRACT SOURCE TARBALL ###
@@ -29,6 +56,7 @@ source_urls="{{source.url}}"
 source_sums="{{source.checksum}}"
 
 # Download sources if missing
+echo
 for url in $source_urls; do
     file=$(basename "$url")
     if [[ ! -f "$file" ]]; then
