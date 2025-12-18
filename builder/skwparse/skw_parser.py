@@ -148,9 +148,6 @@ class SKWParser:
 
         node = nodes[0] if nodes else None
 
-        
-        
-###
         for key, value in section.items():
             if key == "xpath":
                 continue
@@ -173,10 +170,6 @@ class SKWParser:
             val = self._extract_value(node, xpath_expr, local_context) if node is not None else ""
             result[key] = val
             local_context[key] = val
-
-###
-
-
 
         # Postprocess name/version logic
         if "name_version" in result and isinstance(result["name_version"], str):
