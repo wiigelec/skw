@@ -10,6 +10,11 @@ default_template = "template.script"
 [global]
 regex = []
 
+
+#------------------------------------------------------------------#
+# OVERRIDES
+#------------------------------------------------------------------#
+
 [ch-materials-introduction]
 template = "ch-materials-introduction.script"
 regex = [ 
@@ -24,7 +29,6 @@ template = "ch-materials-packages.script"
 [ch-materials-patches]
 template = "ch-materials-patches.script"
 regex = [ "r@done@done\n\nchown root:root $LFS/sources/*@" ]
-
 
 
 #------------------------------------------------------------------#
@@ -43,4 +47,3 @@ exclude  = []
 include = []
 exclude = []
 deps    = []
-
