@@ -10,15 +10,6 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-cross-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-temporary-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-chroot-temporary-tools]
-template = "chapter-chroot-tools.script"
-
 
 #------------------------------------------------------------------#
 # FILTERS
