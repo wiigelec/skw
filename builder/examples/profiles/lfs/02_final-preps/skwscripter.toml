@@ -12,9 +12,11 @@ regex = []
 
 [chapter-final-preps]
 template = "chapter-final-preps.script"
+regex = [ "r@groupadd lfs useradd -s@groupadd lfs\nuseradd -s@" ]
 
 [ch-preps-settingenviron]
 template = "ch-preps-settingenviron.script"
+regex = [ "r@source .*@chown lfs:lfs ~/.bashrc ~/.bash_profile@" ]
 
 
 #------------------------------------------------------------------#
