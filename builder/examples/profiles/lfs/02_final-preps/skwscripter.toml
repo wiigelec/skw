@@ -10,14 +10,20 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-cross-tools]
-template = "chapter-temp-tools.script"
+[chapter-final-preps]
+template = "chapter-final-preps.script"
+regex =	[
+	    "s@groupadd lfs@getent group lfs >/dev/null || groupadd lfs@",
+	    "r@(useradd.*)@id -u lfs >/dev/null 2>&1 || \\1@"
+	]  
 
-[chapter-temporary-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-chroot-temporary-tools]
-template = "chapter-chroot-tools.script"
+[ch-preps-settingenviron]
+template = "ch-preps-settingenviron.script"
+regex = [ "s@$(uname -m)@\\$(uname -m)@", 
+	  "s@$PATH@\\$PATH@",
+	  "s@$LFS/@\\$LFS/@",
+	  "s@$(nproc)@\\$(nproc)@" 
+	]
 
 
 #------------------------------------------------------------------#
@@ -25,12 +31,12 @@ template = "chapter-chroot-tools.script"
 #------------------------------------------------------------------#
 
 [chapter_filters]
-include  = [ "chapter-cross-tools", "chapter-temporary-tools", "chapter-chroot-temporary-tools" ]
+include  = [ "chapter-final-preps" ]
 exclude  = []
 
 [section_filters]
 include  = []
-exclude  = [ "ch-tools-introduction", "ch-tools-introduction-cross" ]
+exclude  = [ "ch-preps-introduction", "ch-preps-aboutsbus", "ch-preps-abouttestsuites" ]
 
 [package_filters]
 include = []
