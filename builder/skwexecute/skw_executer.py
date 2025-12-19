@@ -35,7 +35,7 @@ class SKWExecuter:
         cfg_path = self.profiles_dir / book / profile / "executer.toml"
         if not cfg_path.exists():
             sys.exit(f"ERROR: missing {cfg_path}")
-        with open(cfg_path, "rb") as f:
+        with open(cfg_path, "r", encoding="utf-8") as f:
             self.cfg = toml.load(f)
 
         # Load parser output
@@ -58,7 +58,7 @@ class SKWExecuter:
         builder_cfg = {}
         builder_toml = Path("builder.toml")
         if builder_toml.exists():
-            with open(builder_toml, "rb") as bf:
+            with open(builder_toml, "r", encoding="utf-8") as bf:
                 builder_cfg = toml.load(bf)
 
          # Map for variable expansion
