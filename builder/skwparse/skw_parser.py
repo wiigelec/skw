@@ -259,10 +259,10 @@ class SKWParser:
             filename = f"{val1}-{val2}.yaml"
             filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
             filepath = self.output_dir / filename
-            self._write_yaml(entry, filepath)
+            self._write_yaml(entry, filepath, filename)
 
     #------------------------------------------------------------------#
-    def _write_yaml(self, data, filepath):
+    def _write_yaml(self, data, filepath, filename):
         def to_dict(obj):
             if isinstance(obj, OrderedDict):
                 return {k: to_dict(v) for k, v in obj.items()}
@@ -296,4 +296,4 @@ class SKWParser:
         clean_data = prepare_literals(to_dict(data))
         with filepath.open("w", encoding="utf-8") as f:
             yaml.dump(clean_data, f, sort_keys=False, allow_unicode=True, indent=2, width=1000)
-        print(f"[SKWParser] Wrote: {filepath}")
+        print(f"[SKWParser] Wrote: {filename}")
