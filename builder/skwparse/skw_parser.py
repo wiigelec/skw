@@ -296,4 +296,4 @@ class SKWParser:
         clean_data = prepare_literals(to_dict(data))
         with filepath.open("w", encoding="utf-8") as f:
             yaml.dump(clean_data, f, sort_keys=False, allow_unicode=True, indent=2, width=1000)
-        print(f"[SKWParser] Wrote: {filename}")
+        print(f"{filename}")
