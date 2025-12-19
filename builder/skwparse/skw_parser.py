@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# ================================================================
+#
+# skw_parser.py
+#
+# ================================================================
+
 import os
 import toml
 import yaml
@@ -7,7 +13,7 @@ from collections import OrderedDict
 from lxml import etree
 from pathlib import Path
 
-
+#------------------------------------------------------------------#
 class SKWParser:
     """
     SKWParser — Modern TOML-XML-YAML parser for ScratchKit Builder.
@@ -18,6 +24,7 @@ class SKWParser:
     - Converts XML into multiple ordered YAML files according to TOML mappings.
     """
 
+    #------------------------------------------------------------------#
     def __init__(self, build_dir, profiles_dir, book):
         self.build_dir = Path(build_dir)
         self.profiles_dir = Path(profiles_dir)
@@ -53,7 +60,7 @@ class SKWParser:
         self.toml_data = OrderedDict()
         self.xml_tree = None
 
-    # === ENTRYPOINT ===
+    #------------------------------------------------------------------#
     def run(self):
         print(f"[SKWParser] Running parser for book '{self.book}'")
         self._load_toml()
@@ -62,17 +69,18 @@ class SKWParser:
         self._generate_yaml_files()
         print(f"[SKWParser] Completed. YAML outputs in {self.output_dir}")
 
-    # === LOADERS ===
+    #------------------------------------------------------------------#
     def _load_toml(self):
         with self.toml_path.open("r", encoding="utf-8") as f:
             self.toml_data = toml.load(f, _dict=OrderedDict)
 
+    #------------------------------------------------------------------#
     def _load_xml(self):
         parser = etree.XMLParser(remove_blank_text=True)
         with self.xml_path.open("r", encoding="utf-8") as f:
             self.xml_tree = etree.parse(f, parser)
 
-    # === VALUE EXTRACTION ===
+    #------------------------------------------------------------------#
     def _extract_value(self, node, xpath_expr, context=None):
         """Extract values relative to a node; supports placeholders like {field} and {xpath_index}."""
         if not xpath_expr or not xpath_expr.strip():
@@ -121,7 +129,7 @@ class SKWParser:
             return "".join(results)
         return results if len(results) > 1 else results[0]
 
-    # === SECTION RESOLUTION ===
+    #------------------------------------------------------------------#
     def _resolve_section(self, section_name, context_node=None, context=None, index=None):
         """Recursively resolve TOML-defined section into nested YAML data."""
         section = self.toml_data[section_name]
@@ -195,7 +203,6 @@ class SKWParser:
 
         return result
         
-        
     #------------------------------------------------------------------#
     def _get_xpath_expr(self, section_id, chapter_id, key):
         """Retrieve an XPath expression with section/chapter/global fallback.
@@ -237,9 +244,7 @@ class SKWParser:
                 return val
 
         return None
-
-
-        
+   
     #------------------------------------------------------------------#
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
@@ -256,6 +261,7 @@ class SKWParser:
             filepath = self.output_dir / filename
             self._write_yaml(entry, filepath)
 
+    #------------------------------------------------------------------#
     def _write_yaml(self, data, filepath):
         def to_dict(obj):
             if isinstance(obj, OrderedDict):

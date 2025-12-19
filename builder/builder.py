@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# ================================================================
+#
+# builder.py
+#
+# ================================================================
+
 import os
 import sys
 import glob
@@ -11,6 +17,7 @@ from skwparse.skw_parser import SKWParser
 from skwscript.skw_scripter import SKWScripter
 #from skw_executer import SKWExecuter
 
+#------------------------------------------------------------------#
 class Builder:
     def __init__(self, config_path="builder/builder.toml"):
         if not os.path.exists(config_path):
@@ -26,9 +33,7 @@ class Builder:
         os.makedirs(self.build_dir, exist_ok=True)
         #os.makedirs(self.package_dir, exist_ok=True)
 
-    # -------------------
-    # Book + Profile
-    # -------------------
+    #------------------------------------------------------------------#
     def add_book(self, name):
         book_path = os.path.join(self.profiles_dir, name)
         if os.path.exists(book_path):
@@ -42,6 +47,7 @@ class Builder:
         print(f"Book {name} created at {book_path}")
         print(f"Edit {dst} before running install-book")
 
+    #------------------------------------------------------------------#
     def add_profile(self, book, profile):
         book_path = os.path.join(self.profiles_dir, book)
         if not os.path.exists(book_path):
@@ -56,6 +62,7 @@ class Builder:
         print(f"Profile {profile} created at {profile_path}")
         print("Copy/edit example configs before scripting.")
 
+    #------------------------------------------------------------------#
     def list_books(self):
         if not os.path.exists(self.profiles_dir):
             sys.exit("Profiles directory not found.")
@@ -63,6 +70,7 @@ class Builder:
                  if os.path.isdir(os.path.join(self.profiles_dir, d))]
         print("Available books:", books)
 
+    #------------------------------------------------------------------#
     def list_profiles(self, book):
         path = os.path.join(self.profiles_dir, book)
         if not os.path.isdir(path):
@@ -71,6 +79,7 @@ class Builder:
                     if os.path.isdir(os.path.join(path, d))]
         print(f"Profiles for {book}:", profiles)
 
+    #------------------------------------------------------------------#
     def list_sections(self, book, profile):
         parser = SKWParser(self.build_dir, self.profiles_dir, book, profile)
         parsed_entries = parser._parse_book_xml()
@@ -81,9 +90,7 @@ class Builder:
             pkg = entry.package_name or "(no package)"
             print(f"  {sid} -> {pkg}")
 
-    # -------------------
-    # Book installation
-    # -------------------
+    #------------------------------------------------------------------#
     def install_book(self, book):
         book_path = os.path.join(self.profiles_dir, book, "book.toml")
         if not os.path.exists(book_path):
@@ -126,25 +133,25 @@ class Builder:
         else:
             print(f"XML book generation failed: {xml_dst}")
 
-    # -------------------
-    # Parser / Scripter / Executer
-    # -------------------
+    #------------------------------------------------------------------#
     def parse_book(self, book):
         parser = SKWParser(self.build_dir, self.profiles_dir, book)
         parser.run()
 
+    #------------------------------------------------------------------#
     def script_book(self, book, profile):
         scripter = SKWScripter(self.build_dir, self.profiles_dir, book, profile)
         scripter.run()
 
+    #------------------------------------------------------------------#
     def execute_book(self, book, profile, auto_confirm=False):
         executer = SKWExecuter(self.build_dir, self.profiles_dir, book, profile, auto_confirm=auto_confirm)
         executer.run_all()
 
 
-# -------------------
+#------------------------------------------------------------------#
 # CLI
-# -------------------
+#------------------------------------------------------------------#
 def main():
     parser = argparse.ArgumentParser(description="ScratchKit Builder CLI")
     sub = parser.add_subparsers(dest="command")

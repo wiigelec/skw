@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# ================================================================
+#
+# skw_scripter.py
+#
+# ================================================================
+
 import os
 import sys
 import toml
@@ -8,6 +15,7 @@ from glob import glob
 from pathlib import Path
 from .depsolver import DependencySolver
 
+#------------------------------------------------------------------#
 class SKWScripter:
     def __init__(self, build_dir, profiles_dir, book, profile):
         self.build_dir = build_dir
@@ -51,9 +59,7 @@ class SKWScripter:
             else:
                 item.unlink()
 
-    # -------------------
-    # Main Execution
-    # -------------------
+    #------------------------------------------------------------------#
     def run(self):
         parser_dir = self.parser_dir
         yaml_files = sorted(glob(os.path.join(parser_dir, "*.yaml")) + glob(os.path.join(parser_dir, "*.yml")))
@@ -77,10 +83,7 @@ class SKWScripter:
         else:
             self._run_dependency_mode(entries)
         
-        
-    # -------------------
-    # Linear Mode
-    # -------------------
+    #------------------------------------------------------------------#
     def _run_linear_mode(self, entries):
         # Validation
         for e in entries:
@@ -98,10 +101,7 @@ class SKWScripter:
 
         self._generate_scripts(entries)
 
-
-    # -------------------
-    # Dependency Mode
-    # -------------------
+    #------------------------------------------------------------------#
     def _run_dependency_mode(self, entries):
         print("[INFO] No build_order fields detected - switching to dependency mode.")
     
@@ -178,10 +178,7 @@ class SKWScripter:
         # Generate scripts in dependency order
         self._generate_scripts(ordered_entries)
 
-
-    # -------------------
-    # Script Generation (Shared)
-    # -------------------
+    #------------------------------------------------------------------#
     def _generate_scripts(self, ordered_entries):
         script_dir = self.script_dir
         for idx, entry in enumerate(ordered_entries, start=1):
@@ -206,8 +203,7 @@ class SKWScripter:
 
         print(f"[INFO] Scripter complete. Scripts written to {script_dir}")
         
-        
-    # -------------------   
+    #------------------------------------------------------------------#  
     def _slug(self, s: str) -> str:
         s = str(s).strip().lower()
         s = s.replace("/", "_").replace("\\", "_")
@@ -216,10 +212,7 @@ class SKWScripter:
         s = re.sub(r"-{2,}", "-", s).strip("-")
         return s or "unnamed"
         
-
-    # -------------------
-    # Script filtering
-    # -------------------
+    #------------------------------------------------------------------#
     def _should_generate_script(self, entry):
         """Determine if the script should be generated based on TOML filter sections."""
         filters = {
@@ -245,9 +238,7 @@ class SKWScripter:
 
         return True
 
-    # -------------------
-    # Normalization
-    # -------------------
+    #------------------------------------------------------------------#
     def _normalize_entry(self, raw):
         def normalize_source_block(block):
             """Ensures source-like dicts become list[dict(url, checksum)]"""
@@ -300,9 +291,7 @@ class SKWScripter:
             "build_instructions": ensure_list(raw.get("build_instructions")),
         }
 
-    # -------------------
-    # Template Expansion
-    # -------------------
+    #------------------------------------------------------------------#
     def _expand_template(self, entry, template_content):
         content = template_content
     
@@ -344,11 +333,7 @@ class SKWScripter:
     
         return re.sub(r"{{([^}]+)}}", replace_placeholder, content)
 
-
-
-    # -------------------
-    # Regex Transforms
-    # -------------------
+    #------------------------------------------------------------------#
     def _apply_regex(self, entry, content):
         transforms = []
         transforms += self.cfg.get("global", {}).get("regex", [])
@@ -385,9 +370,7 @@ class SKWScripter:
                     print(f"Regex error on {p}: {e}")
         return content
 
-    # -------------------
-    # Template Selection
-    # -------------------
+    #------------------------------------------------------------------#
     def _select_template(self, entry):
         template_file = self.cfg.get("main", {}).get("default_template", "template.script")
 
