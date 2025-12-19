@@ -1,4 +1,8 @@
-# builder.toml
+# ================================================================
+#
+# Builder Configuration
+#
+# ================================================================
 
 [paths]
 # Workspace for cloning and building book sources
