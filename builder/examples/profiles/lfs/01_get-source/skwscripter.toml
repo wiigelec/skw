@@ -18,6 +18,12 @@ regex = [
 		"s@chmod@sudo chmod@",	
  ]
 
+[ch-materials-packages]
+template = "ch-materials-packages.script"
+
+[ch-materials-patches]
+template = "ch-materials-patches.script"
+
 
 #------------------------------------------------------------------#
 # FILTERS

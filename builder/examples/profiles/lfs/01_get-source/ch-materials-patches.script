@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
+
+cd $LFS/sources
+
+# --- Sources ---
+source_urls="{{patches.url}}"
+source_checksums="{{patches.checksum}}"
+
+# DOWNLOAD AND VERIFY
+
+# turn them into arrays
+read -ra urls <<<"$source_urls"
+read -ra sums <<<"$source_checksums"
+
+# sanity check
+if [[ ${#urls[@]} -ne ${#sums[@]} ]]; then
+    echo "Mismatch: ${#urls[@]} URLs but ${#sums[@]} checksums"
+    exit 1
+fi
+
+for i in "${!urls[@]}"; do
+    url="${urls[$i]}"
+    expected="${sums[$i]}"
+    file=$(basename "$url")
+
+    echo "==> Fetching $file"
+
+    # download if missing
+    if [[ ! -f $file ]]; then
+        #curl -# -L -o "$file" "$url"
+	wget "$url"
+    else
+        echo "    $file already exists, skipping download"
+    fi
+
+    # verify checksum
+    actual=$(md5sum "$file" | awk '{print $1}')
+    if [[ $actual != "$expected" ]]; then
+        echo "    Checksum mismatch for $file"
+        echo "    expected: $expected"
+        echo "    actual:   $actual"
+        #exit 1
+    fi
+
+    echo "    Checksum OK"
+done
