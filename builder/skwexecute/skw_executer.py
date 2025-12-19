@@ -11,7 +11,7 @@ import tarfile
 import shutil
 import subprocess
 import requests
-import tomllib
+import toml
 import socket
 import platform
 import hashlib
@@ -36,7 +36,7 @@ class SKWExecuter:
         if not cfg_path.exists():
             sys.exit(f"ERROR: missing {cfg_path}")
         with open(cfg_path, "rb") as f:
-            self.cfg = tomllib.load(f)
+            self.cfg = toml.load(f)
 
         # Load parser output
         parser_out = self.build_dir / "parser" / book / profile / "parser_output.json"
@@ -59,7 +59,7 @@ class SKWExecuter:
         builder_toml = Path("builder.toml")
         if builder_toml.exists():
             with open(builder_toml, "rb") as bf:
-                builder_cfg = tomllib.load(bf)
+                builder_cfg = toml.load(bf)
 
          # Map for variable expansion
         vars_map = {
