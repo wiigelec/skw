@@ -308,43 +308,42 @@ class SKWScripter:
     
         def replace_placeholder(match):
             key = match.group(1).strip()
+            multiline = False
+    
+            # Detect special list join syntax like build_instructions[*]
+            if key.endswith("[*]"):
+                key = key[:-3].strip()
+                multiline = True
+    
             parts = key.split(".")
             val = entry
     
             for p in parts:
-                # List handling (supports "source.0.url" or flatten for "source.url")
                 if isinstance(val, list):
-                    # If p is numeric index
                     if p.isdigit():
                         idx = int(p)
-                        if 0 <= idx < len(val):
-                            val = val[idx]
-                        else:
-                            return ""
+                        val = val[idx] if 0 <= idx < len(val) else ""
                     else:
-                        # Flatten all dict values that contain p
                         extracted = []
                         for item in val:
                             if isinstance(item, dict) and p in item:
                                 extracted.append(str(item[p]))
-                        if extracted:
-                            val = extracted
-                        else:
-                            return ""
+                        val = extracted if extracted else ""
                 elif isinstance(val, dict) and p in val:
                     val = val[p]
                 else:
                     return ""
     
-            # Format the final result
+            # Formatting
             if isinstance(val, list):
                 if all(isinstance(v, str) for v in val):
-                    return " ".join(val)
+                    return "\n".join(val) if multiline else " ".join(val)
                 else:
-                    return " ".join(str(v) for v in val)
+                    return "\n".join(str(v) for v in val) if multiline else " ".join(str(v) for v in val)
             return str(val) if val is not None else ""
     
         return re.sub(r"{{([^}]+)}}", replace_placeholder, content)
+
 
 
     # -------------------
