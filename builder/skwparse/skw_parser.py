@@ -127,6 +127,13 @@ class SKWParser:
             return ""
         if len(results) > 1 and all(isinstance(x, str) and len(x) == 1 for x in results):
             return "".join(results)
+            
+        # --- POSTPROCESS JOIN LOGIC FOR SCREEN TEXTS ---
+        if "screen" in xpath_expr and "text()" in xpath_expr:
+            screens = node.xpath(".//screen[not(@role='nodump')]")
+            lines = [s.xpath("normalize-space(string())") for s in screens]
+            return lines
+                        
         return results if len(results) > 1 else results[0]
 
     #------------------------------------------------------------------#
@@ -245,6 +252,21 @@ class SKWParser:
 
         return None
    
+    #------------------------------------------------------------------# 
+    def _force_str(self, obj):
+        """Recursively convert lxml._ElementUnicodeResult etc. to plain Python types."""
+        import lxml.etree
+    
+        if isinstance(obj, lxml.etree._ElementUnicodeResult):
+            return str(obj)
+        if isinstance(obj, (bytes, bytearray)):
+            return obj.decode("utf-8", "ignore")
+        if isinstance(obj, (list, tuple)):
+            return [self._force_str(x) for x in obj]
+        if isinstance(obj, dict):
+            return {k: self._force_str(v) for k, v in obj.items()}
+        return obj
+        
     #------------------------------------------------------------------#
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
@@ -259,6 +281,9 @@ class SKWParser:
             filename = f"{val1}-{val2}.yaml"
             filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
             filepath = self.output_dir / filename
+            
+            entry = self._force_str(entry)
+            
             self._write_yaml(entry, filepath, filename)
 
     #------------------------------------------------------------------#
