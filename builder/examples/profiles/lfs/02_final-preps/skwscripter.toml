@@ -12,18 +12,9 @@ regex = []
 
 [chapter-final-preps]
 template = "chapter-final-preps.script"
-regex =	[
-	    "s@groupadd lfs@getent group lfs >/dev/null || groupadd lfs@",
-	    "r@(useradd.*)@id -u lfs >/dev/null 2>&1 || \\1@"
-	]  
 
 [ch-preps-settingenviron]
 template = "ch-preps-settingenviron.script"
-regex = [ "s@$(uname -m)@\\$(uname -m)@", 
-	  "s@$PATH@\\$PATH@",
-	  "s@$LFS/@\\$LFS/@",
-	  "s@$(nproc)@\\$(nproc)@" 
-	]
 
 
 #------------------------------------------------------------------#
