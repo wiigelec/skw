@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""
-skw_executer.py
-Execution engine for ScratchKit (SKW) pipeline.
-"""
+# ================================================================
+#
+# skw_executer.py
+#
+# ================================================================
 
 import os
 import sys
@@ -19,7 +20,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-
+#------------------------------------------------------------------#
 class SKWExecuter:
     def __init__(self, build_dir, profiles_dir, book, profile, auto_confirm=False):
         self.build_dir = Path(build_dir)
@@ -91,6 +92,7 @@ class SKWExecuter:
         self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
         self.require_confirm_root = self.cfg["main"].get("require_confirm_root", True)
 
+    #------------------------------------------------------------------#
     def run_all(self):
         scripts = sorted(self.scripts_dir.glob("*.sh"))
         for script in scripts:
@@ -126,10 +128,7 @@ class SKWExecuter:
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
 
-    # ---------------------------
-    # Core helpers
-    # ---------------------------
-
+    #------------------------------------------------------------------#
     def _find_metadata(self, script_name):
         base = os.path.basename(script_name).split(".")[0]
         parts = base.split("_")
@@ -152,6 +151,7 @@ class SKWExecuter:
 
         sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
 
+    #------------------------------------------------------------------#
     def _pkg_filename(self, entry):
         tmpl = self.cfg["main"]["package_name_template"]
 
@@ -173,6 +173,7 @@ class SKWExecuter:
         tmpl = re.sub(r"\$\{([^}]+)\}", r"{\1}", tmpl)
         return tmpl.format(**values) + "." + self.cfg["main"].get("package_format", "tar.xz")
 
+    #------------------------------------------------------------------#
     def _exec_mode(self, entry):
         # Host rules take precedence
         h = self.cfg.get("host", {})
@@ -195,6 +196,7 @@ class SKWExecuter:
         # Default fallback
         return "host"
 
+    #------------------------------------------------------------------#
     def _should_package(self, entry):
         pkg = entry.get("package_name", "")
         ver = entry.get("package_version", "")
@@ -220,6 +222,7 @@ class SKWExecuter:
 
         return include and not exclude
 
+    #------------------------------------------------------------------#
     def _make_destdir(self, mode, entry):
         pkg = entry.get("package_name") or entry.get("section_id") or entry.get("chapter_id")
         if not pkg:
@@ -237,6 +240,7 @@ class SKWExecuter:
     
         return str(destdir)
 
+    #------------------------------------------------------------------#
     def _run_script(self, script, entry, mode, destdir=None):
         log_path = self.logs_dir / (script.name + ".log")
         with open(log_path, "w", encoding="utf-8") as logf:
@@ -289,6 +293,7 @@ class SKWExecuter:
     
             return proc.returncode
 
+    #------------------------------------------------------------------#
     def _create_archive(self, destdir, pkg_file, entry, exec_mode):
         out_path = self.package_dir / pkg_file
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -328,6 +333,7 @@ class SKWExecuter:
 
         return out_path
 
+    #------------------------------------------------------------------#
     def _sha256_file(self, path):
         h = hashlib.sha256()
         with open(path, "rb") as f:
@@ -335,6 +341,7 @@ class SKWExecuter:
                 h.update(chunk)
         return h.hexdigest()
 
+    #------------------------------------------------------------------#
     def _list_files(self, root):
         files = []
         for base, _, names in os.walk(root):
@@ -342,6 +349,7 @@ class SKWExecuter:
                 files.append(os.path.relpath(os.path.join(base, n), root))
         return files
 
+    #------------------------------------------------------------------#
     def _package_exists(self, pkg_file):
         meta_name = pkg_file + ".meta.json"
         for repo in self.download_repos:
@@ -363,6 +371,7 @@ class SKWExecuter:
                     return True
         return False
 
+    #------------------------------------------------------------------#
     def _install_package(self, pkg_file, entry):
         repo = getattr(self, "_found_repo", None)
         meta_ref = getattr(self, "_found_meta", None)
@@ -425,6 +434,7 @@ class SKWExecuter:
         print(f"[PKG] Installed cached package {pkg_file} "
               f"from {repo} into {target}")
 
+    #------------------------------------------------------------------#
     def _install_local_package(self, archive, entry):
         meta_path = archive.with_suffix(archive.suffix + ".meta.json")
         if not meta_path.exists():
@@ -441,6 +451,7 @@ class SKWExecuter:
         target = self._extract_package(archive, entry)
         print(f"[PKG] Installed freshly built package {archive.name} into {target}")
 
+    #------------------------------------------------------------------#
     def _extract_package(self, archive, entry):
         exec_mode = self._exec_mode(entry)
         if exec_mode == "chroot":
@@ -465,6 +476,7 @@ class SKWExecuter:
         self._safe_extract(archive, target)
         return target
 
+    #------------------------------------------------------------------#
     def _safe_extract(self, archive, target):
         """Safer tar extraction using system tar, but tolerant of symlinks and leading '/'."""
         target_path = Path(target).resolve()
@@ -503,6 +515,7 @@ class SKWExecuter:
         except subprocess.CalledProcessError as e:
             sys.exit(f"ERROR: failed to extract {archive} to {target}: {e}")
 
+    #------------------------------------------------------------------#
     def _upload_package(self, archive):
         if self.upload_repo.startswith("http"):
             sys.exit("ERROR: upload_repo cannot be http (only local path or scp)")
@@ -519,6 +532,7 @@ class SKWExecuter:
 
         print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
         
+    #------------------------------------------------------------------#
     def _expand_vars(self, value, vars_map):
         """Expand ${var} placeholders and environment variables recursively."""
         if not isinstance(value, str):
@@ -533,6 +547,7 @@ class SKWExecuter:
     
         return value
 
+    #------------------------------------------------------------------#
     def _log_skip(self, script, pkg_file):
         log_path = self.logs_dir / (script.name + ".log")
         with open(log_path, "a", encoding="utf-8") as logf:
