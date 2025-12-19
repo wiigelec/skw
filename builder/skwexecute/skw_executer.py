@@ -40,14 +40,19 @@ class SKWExecuter:
             self.cfg = toml.load(f)
 
         # Load parser output
-        parser_out = self.build_dir / "parser" / book / profile / "parser_output.json"
-        if not parser_out.exists():
-            sys.exit(f"ERROR: missing {parser_out}")
-        with open(parser_out, "r", encoding="utf-8") as f:
-            self.entries = json.load(f)
+        parser_dir = self.build_dir / book / "parser" 
+        if not parser_dir.exists():
+            sys.exit(f"ERROR: missing {parser_dir}")
+        self.entries = []
+        for yfile in parser_dir.glob("*.yaml"):
+            with open(yfile, "r", encoding="utf-8") as f:
+                entry = yaml.safe_load(f) or {}
+                entry["package_name"] = entry.get("name", "")
+                entry["package_version"] = entry.get("version", "")
+                self.entries.append(entry)
 
         # Scripts dir
-        self.scripts_dir = self.build_dir / "scripter" / book / profile / "scripts"
+        self.scripts_dir = self.build_dir/ book / profile / "scripter" / "scripts"
         if not self.scripts_dir.exists():
             sys.exit(f"ERROR: missing {self.scripts_dir}")
 
