@@ -23,6 +23,8 @@ template = "ch-materials-packages.script"
 
 [ch-materials-patches]
 template = "ch-materials-patches.script"
+regex = [ "r@done@done\n\nchown root:root $LFS/sources/*@" ]
+
 
 
 #------------------------------------------------------------------#
