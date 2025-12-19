@@ -17,6 +17,7 @@ import socket
 import platform
 import hashlib
 import re
+import yaml
 from pathlib import Path
 from datetime import datetime
 
@@ -27,7 +28,7 @@ class SKWExecuter:
         self.profiles_dir = Path(profiles_dir)
         self.book = book
         self.profile = profile
-        self.exec_dir = self.build_dir / "executer" / book / profile
+        self.exec_dir = self.build_dir / book / profile / "executer" 
         self.logs_dir = self.exec_dir / "logs"
         self.downloads_dir = self.exec_dir / "downloads"
         self.auto_confirm = auto_confirm
@@ -40,16 +41,19 @@ class SKWExecuter:
             self.cfg = toml.load(f)
 
         # Load parser output
-        parser_dir = self.build_dir / book / "parser" 
+        parser_dir = self.build_dir / book / "parser"  / "build_metadata"
         if not parser_dir.exists():
             sys.exit(f"ERROR: missing {parser_dir}")
+        
         self.entries = []
-        for yfile in parser_dir.glob("*.yaml"):
+        for yfile in sorted(parser_dir.glob("*.yaml")):
             with open(yfile, "r", encoding="utf-8") as f:
                 entry = yaml.safe_load(f) or {}
+                # Normalize keys for executer
                 entry["package_name"] = entry.get("name", "")
                 entry["package_version"] = entry.get("version", "")
                 self.entries.append(entry)
+
 
         # Scripts dir
         self.scripts_dir = self.build_dir/ book / profile / "scripter" / "scripts"
@@ -135,26 +139,23 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _find_metadata(self, script_name):
-        base = os.path.basename(script_name).split(".")[0]
-        parts = base.split("_")
-
-        chapter_id = None
-        section_id = None
-
-        for p in parts:
-            if p.startswith("chapter-"):
-                chapter_id = p
-            elif p.startswith("ch-"):
-                section_id = p
-
-        if not chapter_id or not section_id:
-            sys.exit(f"ERROR: could not parse chapter/section IDs from {script_name}")
-
-        for e in self.entries:
-            if e.get("chapter_id") == chapter_id and e.get("section_id") == section_id:
-                return e
-
-        sys.exit(f"ERROR: no metadata match for {script_name} (chapter={chapter_id}, section={section_id})")
+        scripts = sorted(self.scripts_dir.glob("*.sh"))
+        scripts = [s.name for s in scripts]
+        entries = self.entries
+    
+        if len(entries) != len(scripts):
+            print(f"[WARN] YAML/script count mismatch: {len(entries)} entries vs {len(scripts)} scripts")
+    
+        try:
+            index = scripts.index(script_name)
+        except ValueError:
+            sys.exit(f"ERROR: script {script_name} not found in scripts list")
+    
+        # Fallback protection if misalignment
+        if index >= len(entries):
+            sys.exit(f"ERROR: index out of range for {script_name} (no matching YAML entry)")
+    
+        return entries[index]
 
     #------------------------------------------------------------------#
     def _pkg_filename(self, entry):
