@@ -29,7 +29,7 @@ if [[ -z "${LFS:-}" ]]; then
     exit 1
 fi
 
-{{build_instructions}}
+{{build_instructions[*]}}
 
 ROOT_EOF
 
