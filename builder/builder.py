@@ -15,7 +15,7 @@ import subprocess
 
 from skwparse.skw_parser import SKWParser
 from skwscript.skw_scripter import SKWScripter
-#from skw_executer import SKWExecuter
+from skwexecute.skw_executer import SKWExecuter
 
 #------------------------------------------------------------------#
 class Builder:
