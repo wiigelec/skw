@@ -129,10 +129,10 @@ class SKWParser:
             return "".join(results)
             
         # --- POSTPROCESS JOIN LOGIC FOR SCREEN TEXTS ---
-        if "screen" in xpath_expr and "text()" in xpath_expr:
-            screens = node.xpath(".//screen[not(@role='nodump')]")
-            lines = [s.xpath("normalize-space(string())") for s in screens]
-            return lines
+        #if "screen" in xpath_expr and "text()" in xpath_expr:
+        #    screens = node.xpath(".//screen[not(@role='nodump')]")
+        #    lines = [s.xpath("normalize-space(string())") for s in screens]
+        #    return lines
                         
         return results if len(results) > 1 else results[0]
 
@@ -282,7 +282,7 @@ class SKWParser:
             filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
             filepath = self.output_dir / filename
             
-            entry = self._force_str(entry)
+            #entry = self._force_str(entry)
             
             self._write_yaml(entry, filepath, filename)
 
