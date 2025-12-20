@@ -1,4 +1,5 @@
 */build
+builder/profiles/*
 */packages
 __pycache__/
 *.pyc
