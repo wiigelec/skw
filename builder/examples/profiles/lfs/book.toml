@@ -8,7 +8,7 @@
 repo_path = "https://git.linuxfromscratch.org/lfs.git"
 
 # Version (branch, tag, or commit) to checkout
-version = "12.3"
+version = "12.4"
 
 # Revision type for book XML generation (systemd or sysv)
 rev = "systemd"
