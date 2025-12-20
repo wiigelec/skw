@@ -21,7 +21,7 @@ regex = []
 template = "ch-materials-introduction.script"
 regex = [ 
 		"r@(?s)wget --input-file.*?.*\\$LFS/sources/\\*\\n?@@",
-		"s@mkdir@sudo mkdir@",	
+		"s@mkdir@[ -d \"$LFS/sources\" ] || sudo mkdir@",	
 		"s@chmod@sudo chmod@",	
  ]
 
