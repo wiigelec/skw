@@ -27,7 +27,7 @@ cd "$LFS/sources"
 
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+source_urls="{{source.url}}"
 tarball=$(basename "$source_urls")
 
 echo
