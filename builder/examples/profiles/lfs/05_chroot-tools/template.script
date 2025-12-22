@@ -48,4 +48,3 @@ cd "$dirname"
 cd "/sources"
 rm -rf $dirname
 
-LFS_EOF
