@@ -1,0 +1,9 @@
+# ================================================================
+# Executer Configuration
+# ================================================================
+
+[main]
+
+# Template for naming packages (disambiguates multiple builds of same package)
+# Variables: ${book}, ${profile}, ${chapter_id}, ${section_id}, ${package_name}, ${package_version}
+package_name_template = "${package_name}--${package_version}--${book}"
