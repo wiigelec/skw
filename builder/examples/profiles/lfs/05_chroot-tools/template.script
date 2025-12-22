@@ -23,7 +23,8 @@ cd "/sources"
 
 ### EXTRACT SOURCE TARBALL ###
 source_urls="{{source.url}}"
-tarball=$(basename "$source_urls")
+urls_array=($source_urls)
+tarball=$(basename "${urls_array[0]}")
 
 echo
 echo "EXTRACING TARBALL $tarball"

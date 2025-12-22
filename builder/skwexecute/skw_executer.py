@@ -146,6 +146,8 @@ class SKWExecuter:
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
+            print(f"[SUCCESS] Script execution complete!")
+
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
