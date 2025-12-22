@@ -9,6 +9,11 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
 
 echo
 echo "# =========================================================="
@@ -18,34 +23,12 @@ echo "#"
 echo "# =========================================================="
 
 
-cd "/sources"
-
-
-### EXTRACT SOURCE TARBALL ###
-source_urls="{{source.url}}"
-tarball=$(basename "$source_urls")
-
-echo
-echo "EXTRACING TARBALL $tarball"
-echo
-
-mapfile -t toc < <(tar -tf "$tarball")
-dirname="${toc[0]%%/*}"
-[[ -d "$dirname" ]] && rm -rf -- "$dirname"
-tar -xf "$tarball"
-cd "$dirname"
-
-
 ### START BUILD COMMANDS ###
 
-{{build_instructions[*]}}
+sudo chown --from lfs -R root:root $LFS/{usr,var,etc,tools}
+case $(uname -m) in
+  x86_64) sudo chown --from lfs -R root:root $LFS/lib64 ;;
+esac
 
 ### END BUILD COMMANDS ###
 
-
-### CLEANUP ###
-
-cd "/sources"
-rm -rf $dirname
-
-LFS_EOF

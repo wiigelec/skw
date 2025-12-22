@@ -10,27 +10,26 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-cross-tools]
-template = "chapter-temp-tools.script"
+[ch-tools-changingowner]
+template = "ch-tools-changingowner.script"
 
-[chapter-temporary-tools]
-template = "chapter-temp-tools.script"
+[ch-tools-creatingdirs]
+template = "ch-tools-creatingdirs.script"
 
-[chapter-chroot-temporary-tools]
-template = "chapter-chroot-tools.script"
-
+[ch-tools-createfiles]
+template = "ch-tools-createfiles.script"
 
 #------------------------------------------------------------------#
 # FILTERS
 #------------------------------------------------------------------#
 
 [chapter_filters]
-include  = [ "chapter-cross-tools", "chapter-temporary-tools", "chapter-chroot-temporary-tools" ]
+include  = [ "chapter-chroot-temporary-tools" ]
 exclude  = []
 
 [section_filters]
 include  = []
-exclude  = [ "ch-tools-introduction", "ch-tools-introduction-cross" ]
+exclude  = [ "ch-tools-introduction-chroot", "ch-tools-kernfs", "ch-tools-chroot" ]
 
 [package_filters]
 include = []

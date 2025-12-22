@@ -54,6 +54,47 @@ class SKWExecuter:
                 entry["package_version"] = entry.get("version", "")
                 self.entries.append(entry)
 
+        # --- Filter YAML entries to match scripts by exact (package_name, package_version) ---
+        script_dir = self.build_dir / book / profile / "scripter" / "scripts"
+        script_files = sorted(script_dir.glob("*.sh"))
+
+        def parse_script_name(fname):
+            """Extract package_name and package_version from {index}_{name}_{version}.sh"""
+            base = Path(fname).stem  # e.g. '0023_binutils-pass1_2.45'
+            parts = base.split("_")
+            if len(parts) < 3:
+                return None, None
+            pkg_name = "_".join(parts[1:-1])
+            pkg_ver = parts[-1]
+            return pkg_name, pkg_ver
+
+        # Create a set of exact (pkg_name, pkg_ver) tuples
+        script_keys = set()
+        for f in script_files:
+            pkg, ver = parse_script_name(f)
+            if pkg and ver:
+                script_keys.add((pkg, ver))
+
+        # Now filter YAMLs for exact name/version matches only
+        filtered_entries = []
+        for entry in self.entries:
+            pkg = str(entry.get("package_name", "")).strip()
+            ver = str(entry.get("package_version", "")).strip()
+            if (pkg, ver) in script_keys:
+                filtered_entries.append(entry)
+
+        print(f"[INFO] Filtered YAML metadata: {len(self.entries)} → {len(filtered_entries)} entries for this profile.")
+
+        # Sort YAMLs in the same order as scripts
+        def script_sort_key(entry):
+            for f in script_files:
+                pkg, ver = parse_script_name(f)
+                if entry.get("package_name") == pkg and entry.get("package_version") == ver:
+                    return f.name
+            return ""
+
+        filtered_entries.sort(key=script_sort_key)
+        self.entries = filtered_entries
 
         # Scripts dir
         self.scripts_dir = self.build_dir/ book / profile / "scripter" / "scripts"
@@ -182,6 +223,7 @@ class SKWExecuter:
     #------------------------------------------------------------------#
     def _exec_mode(self, entry):
         # Host rules take precedence
+        print(f"[DEBUG] Checking exec mode for {entry}")
         h = self.cfg.get("host", {})
         if entry.get("package_name") in h.get("packages", []):
             return "host"
@@ -252,6 +294,7 @@ class SKWExecuter:
         with open(log_path, "w", encoding="utf-8") as logf:
             mounts = []
             if mode == "chroot":
+                print(f"[INFO] Running in chroot mode for script {script}")
                 scripts_target = self.chroot_dir / "scripts"
                 dev_target = self.chroot_dir / "dev"
                 proc_target = self.chroot_dir / "proc"
@@ -282,6 +325,7 @@ class SKWExecuter:
                     internal_destdir = "/" + str(Path(destdir).relative_to(self.chroot_dir))
                     cmd.append(internal_destdir)
             else:
+                print(f"[INFO] Running in host mode for script {script}")
                 cmd = ["/bin/bash", str(script)]
                 if destdir:
                     cmd.append(destdir)
