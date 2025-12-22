@@ -54,8 +54,6 @@ class SKWExecuter:
                 entry["package_version"] = entry.get("version", "")
                 self.entries.append(entry)
 
-########
-
         # --- Filter YAML entries to match scripts by exact (package_name, package_version) ---
         script_dir = self.build_dir / book / profile / "scripter" / "scripts"
         script_files = sorted(script_dir.glob("*.sh"))
@@ -68,7 +66,6 @@ class SKWExecuter:
                 return None, None
             pkg_name = "_".join(parts[1:-1])
             pkg_ver = parts[-1]
-            #print(f"[DEBUG] Parsed script name {fname}: {pkg_name}, {pkg_ver}")
             return pkg_name, pkg_ver
 
         # Create a set of exact (pkg_name, pkg_ver) tuples
@@ -78,51 +75,13 @@ class SKWExecuter:
             if pkg and ver:
                 script_keys.add((pkg, ver))
 
-        # Now filter YAMLs for exact name/version matches (with optional chapter_id or section_id)
-        # Remove duplicates from filtered_entries
-        seen = set()
-        unique_entries = []
-
-        for entry in self.entries:
-            # Extract the relevant fields from the YAML entry
-            pkg = str(entry.get("package_name", "")).strip()
-            ver = str(entry.get("package_version", "")).strip()
-            chapter_id = str(entry.get("chapter_id", "")).strip()
-            section_id = str(entry.get("section_id", "")).strip()
-
-            # Deduplicate based on package_name + package_version OR chapter_id + section_id
-            entry_key = (pkg, ver) if pkg and ver else (chapter_id, section_id)
-
-            if entry_key not in seen:
-                seen.add(entry_key)
-                unique_entries.append(entry)
-
-        # Now `unique_entries` contains only the unique YAML entries
-        # Filter the unique entries based on the package_name/version or chapter_id/section_id
-        # Define the sorting key function before using it
-        def script_sort_key(entry):
-            # Example sorting logic based on package name or chapter_id
-            # You can change this logic to whatever sorting criteria you need
-            return entry.get("section_id", "").lower()
-
+        # Now filter YAMLs for exact name/version matches only
         filtered_entries = []
-        for entry in unique_entries:
+        for entry in self.entries:
             pkg = str(entry.get("package_name", "")).strip()
             ver = str(entry.get("package_version", "")).strip()
-            chapter_id = str(entry.get("chapter_id", "")).strip()
-            section_id = str(entry.get("section_id", "")).strip()
-
-            # Match based on package_name/version or chapter_id/section_id
-            if (pkg,ver) in script_keys:
+            if (pkg, ver) in script_keys:
                 filtered_entries.append(entry)
-            elif (chapter_id, section_id) in script_keys:
-                filtered_entries.append(entry)
-
-        # Finally, sort the filtered entries
-        filtered_entries.sort(key=script_sort_key)
-
-        # Now filtered_entries contains the sorted, unique YAML entries for the current scripts
-        # At this point, `filtered_entries` contains only the relevant YAML entries for the current scripts
 
         print(f"[INFO] Filtered YAML metadata: {len(self.entries)} → {len(filtered_entries)} entries for this profile.")
 
@@ -135,12 +94,7 @@ class SKWExecuter:
             return ""
 
         filtered_entries.sort(key=script_sort_key)
-        for entry in filtered_entries:
-            print(f"[DEBUG] kept YAML {entry.get('section_id')}")
-
         self.entries = filtered_entries
-
-########
 
         # Scripts dir
         self.scripts_dir = self.build_dir/ book / profile / "scripter" / "scripts"
@@ -268,8 +222,8 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _exec_mode(self, entry):
-        #print(f"[DEBUG] Getting exec mode for {entry}")
         # Host rules take precedence
+        print(f"[DEBUG] Checking exec mode for {entry}")
         h = self.cfg.get("host", {})
         if entry.get("package_name") in h.get("packages", []):
             return "host"
