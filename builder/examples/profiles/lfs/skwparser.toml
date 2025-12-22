@@ -35,6 +35,14 @@ url = """
       or substring-before(concat('{name}','-pass'),'-pass')='kernel'
     )
   )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='gcc-libstdc++'
+    )
+  )
 ]//para[contains(.,'Download')]//ulink/@url
 """
 checksum = """
