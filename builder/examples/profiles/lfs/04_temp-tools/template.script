@@ -27,7 +27,7 @@ cd "$LFS/sources"
 
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
+source_urls="{{source.url}}"
 tarball=$(basename "$source_urls")
 
 echo
@@ -43,7 +43,7 @@ cd "$dirname"
 
 ### START BUILD COMMANDS ###
 
-{{build_instructions}}
+{{build_instructions[*]}}
 
 ### END BUILD COMMANDS ###
 
