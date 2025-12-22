@@ -19,6 +19,9 @@ template = "ch-tools-creatingdirs.script"
 [ch-tools-createfiles]
 template = "ch-tools-createfiles.script"
 
+[ch-tools-cleanup]
+template = "ch-tools-cleanup.script"
+
 #------------------------------------------------------------------#
 # FILTERS
 #------------------------------------------------------------------#
