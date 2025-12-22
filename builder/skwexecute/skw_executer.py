@@ -40,64 +40,25 @@ class SKWExecuter:
         with open(cfg_path, "r", encoding="utf-8") as f:
             self.cfg = toml.load(f)
 
-        # Load parser output
+        # 1. BUILD METADATA REGISTRY
+        # We map (slugged_chapter, slugged_section) -> yaml_entry
+        self.metadata_registry = {}
         parser_dir = self.build_dir / book / "parser"  / "build_metadata"
         if not parser_dir.exists():
             sys.exit(f"ERROR: missing {parser_dir}")
-        
-        self.entries = []
-        for yfile in sorted(parser_dir.glob("*.yaml")):
+
+        for yfile in parser_dir.glob("*.yaml"):
             with open(yfile, "r", encoding="utf-8") as f:
                 entry = yaml.safe_load(f) or {}
-                # Normalize keys for executer
-                entry["package_name"] = entry.get("name", "")
-                entry["package_version"] = entry.get("version", "")
-                self.entries.append(entry)
+                # Normalize keys to match Scripter's slugging logic
+                c_slug = self._slug(entry.get("chapter_id", ""))
+                s_slug = self._slug(entry.get("section_id", ""))
 
-        # --- Filter YAML entries to match scripts by exact (package_name, package_version) ---
-        script_dir = self.build_dir / book / profile / "scripter" / "scripts"
-        script_files = sorted(script_dir.glob("*.sh"))
+                # Store by the IDs used in the filename
+                self.metadata_registry[(c_slug, s_slug)] = entry
 
-        def parse_script_name(fname):
-            """Extract package_name and package_version from {index}_{name}_{version}.sh"""
-            base = Path(fname).stem  # e.g. '0023_binutils-pass1_2.45'
-            parts = base.split("_")
-            if len(parts) < 3:
-                return None, None
-            pkg_name = "_".join(parts[1:-1])
-            pkg_ver = parts[-1]
-            return pkg_name, pkg_ver
-
-        # Create a set of exact (pkg_name, pkg_ver) tuples
-        script_keys = set()
-        for f in script_files:
-            pkg, ver = parse_script_name(f)
-            if pkg and ver:
-                script_keys.add((pkg, ver))
-
-        # Now filter YAMLs for exact name/version matches only
-        filtered_entries = []
-        for entry in self.entries:
-            pkg = str(entry.get("package_name", "")).strip()
-            ver = str(entry.get("package_version", "")).strip()
-            if (pkg, ver) in script_keys:
-                filtered_entries.append(entry)
-
-        print(f"[INFO] Filtered YAML metadata: {len(self.entries)} → {len(filtered_entries)} entries for this profile.")
-
-        # Sort YAMLs in the same order as scripts
-        def script_sort_key(entry):
-            for f in script_files:
-                pkg, ver = parse_script_name(f)
-                if entry.get("package_name") == pkg and entry.get("package_version") == ver:
-                    return f.name
-            return ""
-
-        filtered_entries.sort(key=script_sort_key)
-        self.entries = filtered_entries
-
-        # Scripts dir
-        self.scripts_dir = self.build_dir/ book / profile / "scripter" / "scripts"
+        # 2. IDENTIFY SCRIPTS
+        self.scripts_dir = self.build_dir / book / profile / "scripter" / "scripts"
         if not self.scripts_dir.exists():
             sys.exit(f"ERROR: missing {self.scripts_dir}")
 
@@ -105,14 +66,12 @@ class SKWExecuter:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
 
-        # Load builder.toml for path substitution
+        # Path substitution logic
         builder_cfg = {}
-        builder_toml = Path("builder.toml")
-        if builder_toml.exists():
-            with open(builder_toml, "r", encoding="utf-8") as bf:
+        if Path("builder.toml").exists():
+            with open("builder.toml", "r", encoding="utf-8") as bf:
                 builder_cfg = toml.load(bf)
 
-         # Map for variable expansion
         vars_map = {
             "build_dir": str(self.build_dir),
             "profiles_dir": str(self.profiles_dir),
@@ -121,82 +80,78 @@ class SKWExecuter:
             "profile": self.profile,
         }
 
-        # Load package dir (expanded from builder.toml or fallback)
-        self.package_dir = Path(
-            self._expand_vars(
-                self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")),
-                vars_map,
-            )
-        )
+        self.package_dir = Path(self._expand_vars(self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")), vars_map))
         self.package_dir.mkdir(parents=True, exist_ok=True)
-
-        # Config with variable expansion
         self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
-        self.download_repos = self.cfg["main"].get("download_repos", [])
-        if not self.download_repos and "download_repo" in self.cfg["main"]:
-            self.download_repos = [self.cfg["main"]["download_repo"]]
-
-        self.download_repos = [self._expand_vars(r, vars_map) for r in self.download_repos]
-
+        self.download_repos = [self._expand_vars(r, vars_map) for r in self.cfg["main"].get("download_repos", [])]
         self.chroot_dir = Path(self.cfg["main"].get("chroot_dir", self.exec_dir / "chroot"))
         self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
         self.require_confirm_root = self.cfg["main"].get("require_confirm_root", True)
 
     #------------------------------------------------------------------#
+    def _slug(self, s: str) -> str:
+        """Mirror the Scripter's slugging to ensure ID keys match filenames."""
+        s = str(s).strip().lower()
+        s = s.replace("/", "_").replace("\\", "_")
+        s = re.sub(r"\s+", "-", s)
+        s = re.sub(r"[^a-z0-9._+-]+", "-", s)
+        s = re.sub(r"-{2,}", "-", s).strip("-")
+        return s or "unnamed"
+
+    #------------------------------------------------------------------#
+    def parse_script_name(self, fname):
+        """Extract IDs from {order}_{chapter_id}_{section_id}.sh"""
+        base = Path(fname).stem
+        parts = base.split("_")
+        if len(parts) < 3:
+            return None, None, None
+        order = parts[0]
+        chap_id = parts[1]
+        sec_id = "_".join(parts[2:])
+        return order, chap_id, sec_id
+
+    #------------------------------------------------------------------#
+    def _find_metadata(self, script_name):
+        """Use the Registry to find metadata by the IDs in the filename."""
+        _, chap_slug, sec_slug = self.parse_script_name(script_name)
+        entry = self.metadata_registry.get((chap_slug, sec_slug))
+
+        if not entry:
+            sys.exit(f"ERROR: No YAML metadata found for key: ({chap_slug}, {sec_slug}) from {script_name}")
+
+        # Normalize package keys for the rest of the executer logic
+        entry["package_name"] = entry.get("name", "")
+        entry["package_version"] = entry.get("version", "")
+        return entry
+
+
+    #------------------------------------------------------------------#
     def run_all(self):
+        # Sort by the 'order' prefix naturally
         scripts = sorted(self.scripts_dir.glob("*.sh"))
         for script in scripts:
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
-    
-            # Step A: check cache
+
             if self._package_exists(pkg_file):
                 self._install_package(pkg_file, entry)
                 self._log_skip(script, pkg_file)
                 continue
-    
-            # Step B: run script
+
             exec_mode = self._exec_mode(entry)
             make_package = self._should_package(entry)
-            destdir = None
-            if make_package:
-                destdir = self._make_destdir(exec_mode, entry)
-                rc = self._run_script(script, entry, exec_mode, destdir)
-            else:
-                rc = self._run_script(script, entry, exec_mode, None)
-    
+            destdir = self._make_destdir(exec_mode, entry) if make_package else None
+
+            rc = self._run_script(script, entry, exec_mode, destdir)
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
-    
-            # Step C/D/E: package, install, upload
+
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
                 self._upload_package(archive)
-    
-                # Step F: cleanup DESTDIR after packaging
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
-
-    #------------------------------------------------------------------#
-    def _find_metadata(self, script_name):
-        scripts = sorted(self.scripts_dir.glob("*.sh"))
-        scripts = [s.name for s in scripts]
-        entries = self.entries
-    
-        if len(entries) != len(scripts):
-            print(f"[WARN] YAML/script count mismatch: {len(entries)} entries vs {len(scripts)} scripts")
-    
-        try:
-            index = scripts.index(script_name)
-        except ValueError:
-            sys.exit(f"ERROR: script {script_name} not found in scripts list")
-    
-        # Fallback protection if misalignment
-        if index >= len(entries):
-            sys.exit(f"ERROR: index out of range for {script_name} (no matching YAML entry)")
-    
-        return entries[index]
 
     #------------------------------------------------------------------#
     def _pkg_filename(self, entry):
@@ -223,7 +178,6 @@ class SKWExecuter:
     #------------------------------------------------------------------#
     def _exec_mode(self, entry):
         # Host rules take precedence
-        print(f"[DEBUG] Checking exec mode for {entry}")
         h = self.cfg.get("host", {})
         if entry.get("package_name") in h.get("packages", []):
             return "host"

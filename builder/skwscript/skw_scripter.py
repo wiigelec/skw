@@ -190,8 +190,8 @@ class SKWScripter:
             script_content = self._apply_regex(entry, script_content)
 
             order = entry.get("build_order") or f"{idx:04d}"
-            name = entry.get("name") or entry.get("chapter_id")
-            ver = entry.get("version") or entry.get("section_id")
+            name = entry.get("chapter_id")
+            ver = entry.get("section_id")
             if not name or not ver:
                 sys.exit(f"Error: missing name or version for script generation: {entry}")
 
