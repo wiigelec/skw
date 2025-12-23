@@ -80,9 +80,25 @@ class SKWExecuter:
             "profile": self.profile,
         }
 
+        # RESOLVE package_dir FIRST
+        raw_pkg_dir = self.cfg["main"].get("package_dir", str(self.exec_dir / "packages"))
+        expanded_pkg_dir = self._expand_vars(raw_pkg_dir, vars_map)
+        # Use .resolve() to ensure it is an absolute path
+        self.package_dir = Path(expanded_pkg_dir).resolve()
+        self.package_dir.mkdir(parents=True, exist_ok=True)
+
+        # UPDATE vars_map with the absolute path for subsequent expansions
+        vars_map["package_dir"] = str(self.package_dir)
+
+        # NOW expand download_repos using the updated vars_map
+        self.download_repos = [
+            self._expand_vars(r, vars_map) for r in self.cfg["main"].get("download_repos", [])
+        ]
+
+        self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
+
         self.package_dir = Path(self._expand_vars(self.cfg["main"].get("package_dir", str(self.exec_dir / "packages")), vars_map))
         self.package_dir.mkdir(parents=True, exist_ok=True)
-        self.upload_repo = self._expand_vars(self.cfg["main"].get("upload_repo", ""), vars_map)
         self.download_repos = [self._expand_vars(r, vars_map) for r in self.cfg["main"].get("download_repos", [])]
         self.chroot_dir = Path(self.cfg["main"].get("chroot_dir", self.exec_dir / "chroot"))
         self.default_extract_dir = self.cfg["main"].get("default_extract_dir", "/")
@@ -126,55 +142,41 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def run_all(self):
-        """
-        Orchestrates the execution of all scripts in the scripts directory.
-        Checks for cached packages, determines execution mode, and runs scripts.
-        """
-        # Sort by the 'order' prefix naturally to maintain build sequence
         scripts = sorted(self.scripts_dir.glob("*.sh"))
 
         for script in scripts:
-            # Link the script filename to its YAML metadata
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
 
-            # Check for existing packages in defined repositories
+            # 1. CHECK CACHE
             pkg_data = self._package_exists(pkg_file)
+            
+            #print(f"[DEBUG] Looking for cached package: {pkg_data}")
 
             if pkg_data:
-                # Install the cached version and skip building
-                # Pass pkg_data directly to resolve the 'unresolved repo' error
+                # INSTALL THE CACHE and skip building
+                print(f"[CACHE] Found {pkg_file} in {pkg_data['repo']}. Installing...")
                 self._install_package(pkg_file, entry, pkg_data)
-
-                # Update log_skip to use the repository name from the dictionary
                 self._log_skip(script, pkg_file, pkg_data['repo'])
+                # This ensures we skip the build logic below
                 continue
 
-            # Determine if we run on Host or in Chroot
+            # 2. BUILD (Only reached if no cache found)
             exec_mode = self._exec_mode(entry)
-
-            # Check if this package is marked for archive creation
             make_package = self._should_package(entry)
-
-            # Prepare a temporary DESTDIR if we are capturing the build
             destdir = self._make_destdir(exec_mode, entry) if make_package else None
 
-            # Execute the script and capture results
-            # Note: Ensure _run_script is updated to inject MAKEFLAGS if in chroot
             rc = self._run_script(script, entry, exec_mode, destdir)
-
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
-            print(f"[SUCCESS] Execution of {script.name} complete!")
-
+            # 3. PACKAGE & CLEANUP
             if make_package:
-                # Archive the DESTDIR, generate metadata, and upload
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
                 self._upload_package(archive)
 
-                # Cleanup temporary destination directory
+                # CLEANUP: Remove staging dir so it doesn't clutter CWD
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
 
@@ -251,20 +253,23 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _make_destdir(self, mode, entry):
-        pkg = entry.get("package_name") or entry.get("section_id") or entry.get("chapter_id")
-        if not pkg:
-            sys.exit("ERROR: cannot determine package identifier for entry")
-    
-        if mode == "host":
-            destdir = self.exec_dir / "destdir" / pkg
-        else:
-            # Inside chroot, this will be visible as /destdir/<pkg>
+        """Creates a staging directory isolated from the working directory."""
+        pkg = entry.get("package_name") or entry.get("section_id")
+
+        # Use the exec_dir (build_dir/book/profile/executer) to house destdirs
+        # This keeps the current working directory clean.
+        base_dest = self.exec_dir / "destdir" / pkg
+
+        if mode == "chroot":
+            # If in chroot, the physical path is inside the chroot mount point
             destdir = self.chroot_dir / "destdir" / pkg
-    
+        else:
+            destdir = base_dest
+
         if destdir.exists():
             shutil.rmtree(destdir)
         destdir.mkdir(parents=True, exist_ok=True)
-    
+
         return str(destdir)
 
     #------------------------------------------------------------------#
@@ -324,17 +329,21 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _create_archive(self, destdir, pkg_file, entry, exec_mode):
-        out_path = self.package_dir / pkg_file
+        """Creates the compressed archive in the designated package directory."""
+        # Force the output path to be inside the configured package_dir
+        out_path = (self.package_dir / pkg_file).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         fmt = self.cfg["main"].get("package_format", "tar.xz")
         mode = {"tar": "w", "tar.gz": "w:gz", "tar.xz": "w:xz"}[fmt]
 
+        # Archive the staging directory
         with tarfile.open(out_path, mode) as tar:
             tar.add(destdir, arcname="/")
 
         sha256 = self._sha256_file(out_path)
 
+        # Generate accompanying metadata for future cache checks
         metadata = {
             "package_name": entry.get("package_name"),
             "package_version": entry.get("package_version"),
@@ -344,22 +353,16 @@ class SKWExecuter:
             "section_id": entry.get("section_id"),
             "exec_mode": exec_mode,
             "build_date": datetime.utcnow().isoformat() + "Z",
-            "builder_host": platform.machine(),
-            "builder_os": platform.platform(),
-            "builder_user": os.environ.get("USER", "unknown"),
             "hostname": socket.gethostname(),
-            "archive": str(out_path),
-            "size": out_path.stat().st_size,
             "sha256": sha256,
             "files": self._list_files(destdir)
         }
+
         meta_path = out_path.with_suffix(out_path.suffix + ".meta.json")
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
-        print(f"[PKG] Created package {out_path.name} "
-              f"({out_path.stat().st_size // 1024} KB, sha256={sha256[:12]}...)")
-
+        print(f"[PKG] Created package {out_path.name} in {self.package_dir}")
         return out_path
 
     #------------------------------------------------------------------#
@@ -380,45 +383,35 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _package_exists(self, pkg_file):
-        """
-        Checks all download repositories for the existence of a package's metadata.
-        Returns a dictionary with repo info if found, else None.
-        """
-        # The metadata file is the primary indicator of a successful build
         meta_name = pkg_file + ".meta.json"
 
+        #print(f"[DEBUG] Checking if package exists: {meta_name}")
+
         for repo in self.download_repos:
-            # Skip empty entries that might result from failed variable expansion
+            #print(f"[DEBUG] Checking repo: {repo}")
             if not repo:
                 continue
 
             if repo.startswith("http"):
-                # Remote HTTP repository check
                 meta_url = f"{repo.rstrip('/')}/{meta_name}"
                 try:
-                    # Using HEAD request to check existence without downloading
                     r = requests.head(meta_url, timeout=5)
                     if r.status_code == 200:
-                        return {
-                            "repo": str(repo),
-                            "meta": str(meta_name),
-                            "is_http": True
-                        }
+                        return {"repo": str(repo), "meta": meta_name, "is_http": True}
                 except requests.RequestException:
                     continue
             else:
-                # Local filesystem repository check
-                # Ensure repo is treated as a Path for resolution
-                meta_path = Path(repo) / meta_name
-                if meta_path.exists():
-                    # Return strings to ensure the 'if not repo' check in _install_package passes
+                # FORCE absolute path resolution
+                repo_path = Path(repo).resolve()
+                meta_path = repo_path / meta_name
+                pkg_path = repo_path / pkg_file
+
+                if meta_path.exists() and pkg_path.exists():
                     return {
-                        "repo": str(repo),
+                        "repo": str(repo_path),
                         "meta": str(meta_path),
                         "is_http": False
                     }
-
-        # Return None so run_all knows to proceed with the build
         return None
 
     #------------------------------------------------------------------#
@@ -431,7 +424,7 @@ class SKWExecuter:
             entry (dict): The YAML metadata for the current package.
             pkg_data (dict): Dictionary containing 'repo', 'meta', and 'is_http' flags.
         """
-        print(f"[DEBUG] pkg_data received: {pkg_data}")
+        #print(f"[DEBUG] pkg_data received: {pkg_data}")
         repo = pkg_data.get("repo")
         meta_ref = pkg_data.get("meta")
 
