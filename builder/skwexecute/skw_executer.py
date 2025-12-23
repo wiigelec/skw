@@ -124,34 +124,57 @@ class SKWExecuter:
         entry["package_version"] = entry.get("version", "")
         return entry
 
-
     #------------------------------------------------------------------#
     def run_all(self):
-        # Sort by the 'order' prefix naturally
+        """
+        Orchestrates the execution of all scripts in the scripts directory.
+        Checks for cached packages, determines execution mode, and runs scripts.
+        """
+        # Sort by the 'order' prefix naturally to maintain build sequence
         scripts = sorted(self.scripts_dir.glob("*.sh"))
+
         for script in scripts:
+            # Link the script filename to its YAML metadata
             entry = self._find_metadata(script.name)
             pkg_file = self._pkg_filename(entry)
 
-            if self._package_exists(pkg_file):
-                self._install_package(pkg_file, entry)
-                self._log_skip(script, pkg_file)
+            # Check for existing packages in defined repositories
+            pkg_data = self._package_exists(pkg_file)
+
+            if pkg_data:
+                # Install the cached version and skip building
+                # Pass pkg_data directly to resolve the 'unresolved repo' error
+                self._install_package(pkg_file, entry, pkg_data)
+
+                # Update log_skip to use the repository name from the dictionary
+                self._log_skip(script, pkg_file, pkg_data['repo'])
                 continue
 
+            # Determine if we run on Host or in Chroot
             exec_mode = self._exec_mode(entry)
+
+            # Check if this package is marked for archive creation
             make_package = self._should_package(entry)
+
+            # Prepare a temporary DESTDIR if we are capturing the build
             destdir = self._make_destdir(exec_mode, entry) if make_package else None
 
+            # Execute the script and capture results
+            # Note: Ensure _run_script is updated to inject MAKEFLAGS if in chroot
             rc = self._run_script(script, entry, exec_mode, destdir)
+
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
-            print(f"[SUCCESS] Script execution complete!")
+            print(f"[SUCCESS] Execution of {script.name} complete!")
 
             if make_package:
+                # Archive the DESTDIR, generate metadata, and upload
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
                 self._upload_package(archive)
+
+                # Cleanup temporary destination directory
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
 
@@ -357,38 +380,73 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _package_exists(self, pkg_file):
+        """
+        Checks all download repositories for the existence of a package's metadata.
+        Returns a dictionary with repo info if found, else None.
+        """
+        # The metadata file is the primary indicator of a successful build
         meta_name = pkg_file + ".meta.json"
+
         for repo in self.download_repos:
+            # Skip empty entries that might result from failed variable expansion
+            if not repo:
+                continue
+
             if repo.startswith("http"):
+                # Remote HTTP repository check
                 meta_url = f"{repo.rstrip('/')}/{meta_name}"
                 try:
+                    # Using HEAD request to check existence without downloading
                     r = requests.head(meta_url, timeout=5)
                     if r.status_code == 200:
-                        self._found_repo = repo
-                        self._found_meta = meta_name
-                        return True
+                        return {
+                            "repo": str(repo),
+                            "meta": str(meta_name),
+                            "is_http": True
+                        }
                 except requests.RequestException:
                     continue
             else:
+                # Local filesystem repository check
+                # Ensure repo is treated as a Path for resolution
                 meta_path = Path(repo) / meta_name
                 if meta_path.exists():
-                    self._found_repo = repo
-                    self._found_meta = meta_path
-                    return True
-        return False
+                    # Return strings to ensure the 'if not repo' check in _install_package passes
+                    return {
+                        "repo": str(repo),
+                        "meta": str(meta_path),
+                        "is_http": False
+                    }
+
+        # Return None so run_all knows to proceed with the build
+        return None
 
     #------------------------------------------------------------------#
-    def _install_package(self, pkg_file, entry):
-        repo = getattr(self, "_found_repo", None)
-        meta_ref = getattr(self, "_found_meta", None)
+    def _install_package(self, pkg_file, entry, pkg_data):
+        """
+        Downloads (if remote) and extracts a cached package into the target system.
+
+        Args:
+            pkg_file (str): The filename of the package archive.
+            entry (dict): The YAML metadata for the current package.
+            pkg_data (dict): Dictionary containing 'repo', 'meta', and 'is_http' flags.
+        """
+        print(f"[DEBUG] pkg_data received: {pkg_data}")
+        repo = pkg_data.get("repo")
+        meta_ref = pkg_data.get("meta")
+
+        # Validation to prevent logic errors if called incorrectly
         if not repo or not meta_ref:
             sys.exit("ERROR: _install_package called without resolved repo/metadata")
 
         meta_name = pkg_file + ".meta.json"
 
-        if repo.startswith("http"):
+        # Handle Remote HTTP Repositories
+        if pkg_data.get("is_http"):
             url = f"{repo.rstrip('/')}/{pkg_file}"
             local_tmp = self.downloads_dir / pkg_file
+
+            print(f"[HTTP] Downloading {pkg_file}...")
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
                 with open(local_tmp, "wb") as f:
@@ -403,42 +461,27 @@ class SKWExecuter:
             with open(local_meta, "wb") as f:
                 f.write(r.content)
             meta_path = local_meta
-
         else:
+            # Handle Local Filesystem Repositories
             pkg_path = Path(repo) / pkg_file
             meta_path = Path(repo) / meta_name
 
+        # Integrity Check: Compare SHA256 from metadata against actual file
         with open(meta_path, "r", encoding="utf-8") as f:
             metadata = json.load(f)
+
         expected_sha = metadata.get("sha256")
         actual_sha = self._sha256_file(pkg_path)
+
         if expected_sha != actual_sha:
-            sys.exit(f"ERROR: checksum mismatch for {pkg_file}\nExpected: {expected_sha}\nActual:   {actual_sha}")
+            sys.exit(f"ERROR: checksum mismatch for {pkg_file}\n"
+                     f"Expected: {expected_sha}\n"
+                     f"Actual:   {actual_sha}")
 
-        exec_mode = self._exec_mode(entry)
-        if exec_mode == "chroot":
-            target = self.chroot_dir
-        else:
-            pkg = entry.get("package_name", "")
-            sec = entry.get("section_id", "")
-            chap = entry.get("chapter_id", "")
-            targets = self.cfg.get("extract.targets", {})
-            target = (
-                targets.get("packages", {}).get(pkg) or
-                targets.get("sections", {}).get(sec) or
-                targets.get("chapters", {}).get(chap) or
-                self.default_extract_dir
-            )
-
-            if str(target) == "/" and self.require_confirm_root and not self.auto_confirm:
-                ans = input(f"WARNING: installing {pkg_file} into /. Continue? [y/N] ")
-                if ans.lower() not in ["y", "yes"]:
-                    sys.exit("Aborted")
-
+        # Determine extraction target
         target = self._extract_package(pkg_path, entry)
 
-        print(f"[PKG] Installed cached package {pkg_file} "
-              f"from {repo} into {target}")
+        print(f"[PKG] Installed cached package {pkg_file} from {repo} into {target}")
 
     #------------------------------------------------------------------#
     def _install_local_package(self, archive, entry):
@@ -554,7 +597,20 @@ class SKWExecuter:
         return value
 
     #------------------------------------------------------------------#
-    def _log_skip(self, script, pkg_file):
+    def _log_skip(self, script, pkg_file, repo_name):
+        """
+        Logs that a script was skipped due to a cached package found in a repository.
+
+        Args:
+            script (Path): The Path object of the script being skipped.
+            pkg_file (str): The name of the package file found.
+            repo_name (str): The name or URL of the repository where the package was found.
+        """
         log_path = self.logs_dir / (script.name + ".log")
+
+        # Open in append mode to preserve any existing pre-check logs
         with open(log_path, "a", encoding="utf-8") as logf:
-            logf.write(f"\nSKIPPED: using cached {pkg_file} from {self._found_repo}\n")
+            # We use the explicitly passed repo_name instead of a class attribute
+            logf.write(f"\nSKIPPED: using cached {pkg_file} from {repo_name}\n")
+
+        print(f"[INFO] Skipped {script.name}: found cached {pkg_file} in {repo_name}")

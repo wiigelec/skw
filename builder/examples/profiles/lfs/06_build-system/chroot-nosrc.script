@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # ==========================================================
 # Auto-generated build script from ScratchKit
@@ -9,9 +8,6 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
-DESTDIR=$1
-
-export MAKEFLAGS=-j24
 
 echo
 echo "# =========================================================="
@@ -21,34 +17,8 @@ echo "#"
 echo "# =========================================================="
 
 
-cd "/sources"
-
-
-### EXTRACT SOURCE TARBALL ###
-source_urls="{{source.url}}"
-urls_array=($source_urls)
-tarball=$(basename "${urls_array[0]}")
-
-echo
-echo "EXTRACING TARBALL $tarball"
-echo
-
-mapfile -t toc < <(tar -tf "$tarball")
-dirname="${toc[0]%%/*}"
-[[ -d "$dirname" ]] && rm -rf -- "$dirname"
-tar -xf "$tarball"
-cd "$dirname"
-
-
 ### START BUILD COMMANDS ###
 
-{{build_instructions[*]}}
+{{build_instructions}}
 
 ### END BUILD COMMANDS ###
-
-
-### CLEANUP ###
-
-cd "/sources"
-rm -rf $dirname
-
