@@ -35,7 +35,11 @@ regex = [ "r@(### START BUILD COMMANDS ###)@\\1\\n\\nmkdir -pv $DESTDIR/etc@" ]
 regex = [ "r@grep \"Timed out\".*@@", "s@zoneinfo/<xxx>@zoneinfo/America/Denver@",
           "r@make (localedata.*)@make DESTDIR=$DESTDIR \\1@",
           "r@ZONEINFO=(.*)@ZONEINFO=$DESTDIR\\1@",
-          "r@(touch \\$DESTDIR/etc/ld\\.so\\.conf)@mkdir -p $DESTDIR/etc\\n\\1@"
+          "r@(touch \\$DESTDIR/etc/ld\\.so\\.conf)@mkdir -p $DESTDIR/etc\\n\\1@",
+	  "r@make(?: (.*))? install@make install\\nmake \\g<1> install@",
+	  "s@<xxx>@@",
+	  "s@/etc/localtime@@",
+	  "r@/usr/share/zoneinfo/@/usr/share/zoneinfo/America/Denver /etc/localtime@"
 ]
 
 [ch-system-bzip2]
