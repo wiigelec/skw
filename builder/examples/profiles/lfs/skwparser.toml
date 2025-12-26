@@ -43,6 +43,22 @@ url = """
       substring-before(concat('{name}','-pass'),'-pass')='gcc-libstdc++'
     )
   )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ:','abcdefghijklmnopqrstuvwxyz:')='xml::parser'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='xml-parser'
+    )
+  )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='elfutils'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='libelf'
+    )
+  )
 ]//para[contains(.,'Download')]//ulink/@url
 """
 checksum = """
