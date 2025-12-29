@@ -1,0 +1,9 @@
+top_xpath = "//chapter[@id='chapter-building-system']//sect1[.//productname]"
+
+[fields]
+pkgname = ".//productname/text()"
+pkgver = ".//productnumber/text()"
+build_commands = ".//screen[not(@role=\"nodump\")]/userinput//text()"
+
+[global_fields]
+#source = "//sect1[@id='ch-materials-packages']//varlistentry//para[contains(.,'Download')]//ulink/@url"
