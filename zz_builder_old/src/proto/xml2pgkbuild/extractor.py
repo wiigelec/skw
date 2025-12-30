@@ -4,6 +4,7 @@ import yaml
 import json
 from lxml import etree
 
+
 class XPathExtractor:
     def __init__(self, toml_config_path: str, xml_path: str):
         self.config_path = toml_config_path
@@ -26,12 +27,6 @@ class XPathExtractor:
         if not self.top_xpath:
             raise ValueError("Missing [top_xpath] in config")
 
-        # Extract global values once
-        global_data = {}
-        for key, xpath in self.global_fields.items():
-            matches = self.tree.xpath(xpath)
-            global_data[key] = [str(m) for m in matches]
-
         results = []
         top_elements = self.tree.xpath(self.top_xpath)
 
@@ -39,9 +34,13 @@ class XPathExtractor:
             item_data = {}
             for key, xpath in self.field_xpaths.items():
                 matches = elem.xpath(xpath)
-                item_data[key] = [str(m) for m in matches]
 
-            item_data.update(global_data)  # include shared global fields
+                # Join build_commands into multiline string with visible newlines
+                if key == "build_commands":
+                    item_data[key] = "\n".join(str(m) for m in matches)
+                else:
+                    item_data[key] = [str(m) for m in matches]
+
             results.append(item_data)
 
         return results
@@ -50,13 +49,14 @@ class XPathExtractor:
         return yaml.dump(data, sort_keys=False, allow_unicode=True)
 
     def to_json(self, data: list) -> str:
+        # Custom JSON encoder that keeps newlines visible
         return json.dumps(data, indent=2, ensure_ascii=False)
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract structured XML data using XPath.")
+    parser = argparse.ArgumentParser(description="Extract structured XML data using XPath and format build_commands.")
     parser.add_argument("--config", "-c", required=True, help="Path to the TOML config file")
     parser.add_argument("--xml", "-x", required=True, help="Path to the XML file")
-    parser.add_argument("--format", choices=["yaml", "json"], default="yaml", help="Output format")
+    parser.add_argument("--format", choices=["yaml", "json"], default="json", help="Output format")
 
     args = parser.parse_args()
 
@@ -64,9 +64,15 @@ def main():
     data = extractor.extract()
 
     if args.format == "json":
-        print(extractor.to_json(data))
+        formatted = extractor.to_json(data)
+        # Replace escaped newlines (\n) with real ones for readability
+        formatted = formatted.replace("\\n", "\n")
+        print(formatted)
     else:
         print(extractor.to_yaml(data))
 
+
 if __name__ == "__main__":
     main()
+
+# python3 extractor.py --config extractor.toml --xml lfs-full.xml --format yaml | sed '/.* pkgname.*/d' | sed 's/.*- //g' | sed 's/.*/\L&/g'
