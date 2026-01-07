@@ -10,7 +10,7 @@ default_template = "template.script"
 [global]
 regex = []
 
-[custom]
+[custom_basedirs-12.4]
 template = "template.script"
 
 
