@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ==========================================================
 # Auto-generated build script from ScratchKit
-# CUSTOM - basedirs 12.4
+# CUSTOM - basedirs 1.0
 # ==========================================================
 
 DESTDIR=$1
@@ -11,7 +11,7 @@ DESTDIR=$1
 echo
 echo "# =========================================================="
 echo "#"
-echo "# BUILDING basedirs 12.4"
+echo "# BUILDING basedirs 1.0"
 echo "#"
 echo "# =========================================================="
 
