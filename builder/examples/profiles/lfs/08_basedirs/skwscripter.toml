@@ -10,14 +10,8 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-cross-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-temporary-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-chroot-temporary-tools]
-template = "chapter-chroot-tools.script"
+[custom]
+template = "template.script"
 
 
 #------------------------------------------------------------------#
@@ -25,12 +19,12 @@ template = "chapter-chroot-tools.script"
 #------------------------------------------------------------------#
 
 [chapter_filters]
-include  = [ "chapter-cross-tools", "chapter-temporary-tools", "chapter-chroot-temporary-tools" ]
+include  = []
 exclude  = []
 
 [section_filters]
 include  = []
-exclude  = [ "ch-tools-introduction", "ch-tools-introduction-cross" ]
+exclude  = []
 
 [package_filters]
 include = []
