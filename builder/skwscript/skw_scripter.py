@@ -82,6 +82,9 @@ class SKWScripter:
             self._run_linear_mode(entries)
         else:
             self._run_dependency_mode(entries)
+            
+        # Always generate custom_* scripts
+        self._generate_custom_scripts()
         
     #------------------------------------------------------------------#
     def _run_linear_mode(self, entries):
@@ -214,29 +217,34 @@ class SKWScripter:
         
     #------------------------------------------------------------------#
     def _should_generate_script(self, entry):
-        """Determine if the script should be generated based on TOML filter sections."""
+    
         filters = {
             "chapter_id": self.cfg.get("chapter_filters", {}),
             "section_id": self.cfg.get("section_filters", {}),
             "name": self.cfg.get("package_filters", {}),
         }
-
+    
+        explicitly_included = False
+    
         for key, section in filters.items():
             ident = entry.get(key)
             if not ident:
                 continue
-
+    
             include = section.get("include", [])
             exclude = section.get("exclude", [])
-
-            # Inclusion filter
-            if include and ident not in include:
-                return False
-            # Exclusion filter
+    
+            if include:
+                if ident in include:
+                    explicitly_included = True
+                else:
+                    return False  # Not included, skip
+    
             if exclude and ident in exclude:
-                return False
+                return False  # Explicitly excluded
+    
+        return explicitly_included
 
-        return True
 
     #------------------------------------------------------------------#
     def _normalize_entry(self, raw):
@@ -372,16 +380,69 @@ class SKWScripter:
 
     #------------------------------------------------------------------#
     def _select_template(self, entry):
-        template_file = self.cfg.get("main", {}).get("default_template", "template.script")
-
         for key in [entry.get("chapter_id"), entry.get("section_id"), entry.get("name")]:
             if key and key in self.cfg and "template" in self.cfg[key]:
                 template_file = self.cfg[key]["template"]
+                path = os.path.join(self.profiles_dir, self.book, self.profile, template_file)
+                if os.path.exists(path):
+                    with open(path, "r") as f:
+                        return f.read()
+        return self.default_template
 
-        path = os.path.join(self.profiles_dir, self.book, self.profile, template_file)
-        if os.path.exists(path):
+            
+    #------------------------------------------------------------------#
+    def _generate_custom_scripts(self):
+        script_dir = self.script_dir
+        idx = 1
+    
+        for section in self.cfg:
+            if not section.startswith("custom_"):
+                continue
+                
+            suffix = section[len("custom_"):]
+            match = re.match(r"^([a-zA-Z0-9_\.\+]+)-([0-9][\w.\-]*)$", suffix)
+            if not match:
+                print(f"[WARN] Skipping malformed custom section: [{section}]")
+                continue
+            
+            name = match.group(1).strip().lower()
+            version = match.group(2).strip()
+                
+            template_file = self.cfg[section].get("template")
+            if not template_file:
+                print(f"[WARN] No template defined for custom section: [{section}]")
+                continue
+    
+            # Load the template
+            path = os.path.join(self.profiles_dir, self.book, self.profile, template_file)
+            if not os.path.exists(path):
+                print(f"[WARN] Template file not found: {path}")
+                continue
+    
             with open(path, "r") as f:
-                return f.read()
-        else:
-            print(f"Warning: template {path} not found, falling back to default.")
-            return self.default_template
+                content = f.read()
+    
+            # Allow template to use variables like {{name}}, {{version}}, etc.
+            replacements = {
+                "name": name,
+                "version": version,
+            }
+            def replace_placeholder(match):
+                key = match.group(1).strip()
+                return replacements.get(key, "")
+    
+            content = re.sub(r"{{([^}]+)}}", replace_placeholder, content)
+    
+            order = f"{idx:04d}"
+            script_name = f"{order}_{name}_{version}.sh"
+            script_path = os.path.join(script_dir, script_name)
+    
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.chmod(script_path, 0o755)
+    
+            print(f"[INFO] Custom script written: {script_path}")
+            idx += 1
+
+
+
