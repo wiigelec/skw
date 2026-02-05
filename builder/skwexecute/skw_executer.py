@@ -170,6 +170,8 @@ class SKWExecuter:
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
+            print(f"[INFO] Script execution completed successfully!")
+
             # 3. PACKAGE & CLEANUP
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
