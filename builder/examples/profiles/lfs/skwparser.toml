@@ -94,6 +94,7 @@ source.url = ""
 source.checksum = ""
 patches.url = ""
 patches.checksum = ""
+build_instructions = "string(.//screen)"
 
 [ch-materials-packages.xpaths]
 patches.url = ""
