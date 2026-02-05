@@ -94,7 +94,14 @@ source.url = ""
 source.checksum = ""
 patches.url = ""
 patches.checksum = ""
-build_instructions = ".//screen[@role=\"nodump\"]/userinput"
+
+[ch-materials-packages.xpaths]
+patches.url = ""
+patches.checksum = ""
+
+[ch-materials-patches.xpaths]
+source.url = ""
+source.checksum = ""
 
 
 #------------------------------------------------------------------#
