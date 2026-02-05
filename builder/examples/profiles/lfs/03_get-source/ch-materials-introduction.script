@@ -19,7 +19,19 @@ fi
 
 ### START BUILD COMMANDS ###
 
+sudo env LFS="$LFS" bash -l << 'ROOT_EOF'
+
+set -euo pipefail
+
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: LFS environment variable is not set"
+    exit 1
+fi
+
 mkdir -v $LFS/sources
 chmod -v a+wt $LFS/sources
+
+ROOT_EOF
 
 ### END BUILD COMMANDS ###
