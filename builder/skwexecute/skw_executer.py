@@ -170,8 +170,6 @@ class SKWExecuter:
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
-            print(f"[INFO] Script execution completed successfully!")
-
             # 3. PACKAGE & CLEANUP
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
@@ -181,6 +179,8 @@ class SKWExecuter:
                 # CLEANUP: Remove staging dir so it doesn't clutter CWD
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
+
+        print(f"[INFO] Script execution completed successfully!")
 
     #------------------------------------------------------------------#
     def _pkg_filename(self, entry):
