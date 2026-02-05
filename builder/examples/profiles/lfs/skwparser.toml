@@ -89,13 +89,6 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 # XPATH OVERRIDES
 #------------------------------------------------------------------#
 
-[ch-materials-introduction.xpaths]
-source.url = ""
-source.checksum = ""
-patches.url = ""
-patches.checksum = ""
-build_instructions = "string(.//screen)"
-
 [ch-materials-packages.xpaths]
 patches.url = ""
 patches.checksum = ""
