@@ -25,7 +25,7 @@ set -euo pipefail
 
 # Require $LFS to be set
 if [[ -z "${LFS:-}" ]]; then
-    echo "Error: LFS environment variable is not set"
+    echo "Error: root LFS environment variable is not set"
     exit 1
 fi
 
