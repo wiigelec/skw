@@ -387,6 +387,7 @@ class SKWScripter:
                 if os.path.exists(path):
                     with open(path, "r") as f:
                         return f.read()
+        print(f"[WARNING] Script template not found for {template_file}.")
         return self.default_template
 
             

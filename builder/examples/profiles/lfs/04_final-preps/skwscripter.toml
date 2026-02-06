@@ -10,9 +10,8 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-final-preps]
-template = "chapter-final-preps.script"
-regex = [ "r@groupadd lfs useradd -s@groupadd lfs\nuseradd -s@" ]
+[ch-tools-creatingminlayout]
+template = "ch-tools-creatingminlayout.script"
 
 [ch-preps-addinguser]
 template = "ch-preps-addinguser.script"
