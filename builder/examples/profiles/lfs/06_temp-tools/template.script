@@ -25,7 +25,7 @@ source /home/lfs/.bashrc
 
 # Require $LFS to be set
 if [[ -z "${LFS:-}" ]]; then
-    echo "Error: root LFS environment variable is not set"
+    echo "Error: lfs LFS environment variable is not set"
     exit 1
 fi
 
