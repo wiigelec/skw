@@ -16,7 +16,7 @@ book_title = "//bookinfo/title/text()"
 book_ver = "substring-before(substring-after(//bookinfo/subtitle[1]/text(),' '),'-')"
 book_rev = "substring-after(//bookinfo/subtitle[1]/text(),'-')"
 child1 = [ "source", "patches" ]
-build_instructions = ".//screen[not(@role=\"nodump\")]"
+build_instructions = ".//screen[not(@role=\"nodump\")]//userinput"
 
 
 [source]

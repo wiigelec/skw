@@ -49,7 +49,7 @@ cd "$dirname"
 
 ### START BUILD COMMANDS ###
 
-{{build_instructions[*]}}
+{{build_instructions}}
 
 ### END BUILD COMMANDS ###
 
