@@ -19,7 +19,7 @@ fi
 
 ### START BUILD COMMANDS ###
 
-sudo env LFS="$LFS" bash -l <<'ROOT_EOF'
+sudo env LFS="$LFS" bash <<'ROOT_EOF'
 
 set -euo pipefail
 

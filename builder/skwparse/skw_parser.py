@@ -111,6 +111,14 @@ class SKWParser:
         except etree.XPathEvalError:
             return ""
 
+        # --- NEW PATCH FOR MULTI-SCREEN EXTRACTION ---
+        if "screen" in xpath_expr and not isinstance(vals, (str, int, float, bool)):
+            # If the xpath target is screens, extract the recursive string value of each
+            results = [v.xpath("string(.)").strip() for v in vals if isinstance(v, etree._Element)]
+            if results:
+                return "\n\n".join(results) # Join with newlines for shell script compatibility
+        # ---------------------------------------------
+
         if isinstance(vals, (str, int, float)):
             vals = [str(vals)]
         elif isinstance(vals, bool):
@@ -127,12 +135,6 @@ class SKWParser:
             return ""
         if len(results) > 1 and all(isinstance(x, str) and len(x) == 1 for x in results):
             return "".join(results)
-            
-        # --- POSTPROCESS JOIN LOGIC FOR SCREEN TEXTS ---
-        #if "screen" in xpath_expr and "text()" in xpath_expr:
-        #    screens = node.xpath(".//screen[not(@role='nodump')]")
-        #    lines = [s.xpath("normalize-space(string())") for s in screens]
-        #    return lines
                         
         return results if len(results) > 1 else results[0]
 

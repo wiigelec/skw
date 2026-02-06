@@ -16,7 +16,7 @@ book_title = "//bookinfo/title/text()"
 book_ver = "substring-before(substring-after(//bookinfo/subtitle[1]/text(),' '),'-')"
 book_rev = "substring-after(//bookinfo/subtitle[1]/text(),'-')"
 child1 = [ "source", "patches" ]
-build_instructions = "string(.//screen[not(@role=\"nodump\")])"
+build_instructions = ".//screen[not(@role=\"nodump\")]"
 
 
 [source]
@@ -96,6 +96,12 @@ patches.checksum = ""
 [ch-materials-patches.xpaths]
 source.url = ""
 source.checksum = ""
+
+[chapter-final-preps.xpaths]
+source.url = ""
+source.checksum = ""
+patches.url = ""
+patches.checksum = ""
 
 
 #------------------------------------------------------------------#
