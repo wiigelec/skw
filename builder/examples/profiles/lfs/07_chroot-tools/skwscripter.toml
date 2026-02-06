@@ -18,6 +18,7 @@ template = "ch-tools-creatingdirs.script"
 
 [ch-tools-createfiles]
 template = "ch-tools-createfiles.script"
+regex = [ "r@.*tester.*@@" ]
 
 [ch-tools-cleanup]
 template = "ch-tools-cleanup.script"
