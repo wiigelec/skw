@@ -23,6 +23,12 @@ set -euo pipefail
 
 source /home/lfs/.bashrc
 
+# Require $LFS to be set
+if [[ -z "${LFS:-}" ]]; then
+    echo "Error: root LFS environment variable is not set"
+    exit 1
+fi
+
 cd "$LFS/sources"
 
 
@@ -31,7 +37,7 @@ source_urls="{{source.url}}"
 tarball=$(basename "$source_urls")
 
 echo
-echo "EXTRACING TARBALL $tarball"
+echo "EXTRACTING TARBALL $tarball"
 echo
 
 mapfile -t toc < <(tar -tf "$tarball")
