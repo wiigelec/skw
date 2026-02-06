@@ -12,9 +12,16 @@ regex = []
 
 [ch-tools-creatingminlayout]
 template = "ch-tools-creatingminlayout.script"
+regex =	[
+	    "s@ln -sv@ln -svfn@",
+	]
 
 [ch-preps-addinguser]
 template = "ch-preps-addinguser.script"
+regex =	[
+	    "s@groupadd lfs@getent group lfs >/dev/null || groupadd lfs@",
+	    "r@(useradd.*)@id -u lfs >/dev/null 2>&1 || \\1@"
+	]
 
 [ch-preps-settingenviron]
 template = "ch-preps-settingenviron.script"

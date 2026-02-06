@@ -380,6 +380,7 @@ class SKWScripter:
 
     #------------------------------------------------------------------#
     def _select_template(self, entry):
+        template_file = None
         for key in [entry.get("chapter_id"), entry.get("section_id"), entry.get("name")]:
             if key and key in self.cfg and "template" in self.cfg[key]:
                 template_file = self.cfg[key]["template"]
@@ -387,7 +388,8 @@ class SKWScripter:
                 if os.path.exists(path):
                     with open(path, "r") as f:
                         return f.read()
-        print(f"[WARNING] Script template not found for {template_file}.")
+        if template_file is not None:
+            print(f"[WARNING] Script template not found for {template_file}.")
         return self.default_template
 
             
