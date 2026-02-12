@@ -9,6 +9,10 @@ chroot_mode = "sequential"
 # Directory where the chroot environment will live
 chroot_dir = "/mnt/lfs"
 
+# Template for naming packages (disambiguates multiple builds of same package)
+# Variables: ${book}, ${profile}, ${chapter_id}, ${section_id}, ${package_name}, ${package_version}
+package_name_template = "${package_name}--${package_version}--${book}"
+
 
 [host]
 # Force execution of certain scripts on host
