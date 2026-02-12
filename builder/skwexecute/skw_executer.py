@@ -565,14 +565,39 @@ class SKWExecuter:
             sys.exit("ERROR: upload_repo cannot be http (only local path or scp)")
         if "${" in self.upload_repo:
             sys.exit(f"ERROR: unresolved variable in upload_repo: {self.upload_repo}")
+
+        meta_src = Path(str(archive) + ".meta.json")
+
         if ":" in self.upload_repo:  # scp target
             subprocess.check_call(["scp", str(archive), self.upload_repo])
-            subprocess.check_call(["scp", str(archive) + ".meta.json", self.upload_repo])
-        else:
-            dest_dir = Path(self.upload_repo)
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(archive, dest_dir)
-            shutil.copy2(str(archive) + ".meta.json", dest_dir)
+            subprocess.check_call(["scp", str(meta_src), self.upload_repo])
+            print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
+            return
+
+        dest_dir = Path(self.upload_repo).resolve()
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        dst_archive = (dest_dir / archive.name).resolve()
+        dst_meta = (dest_dir / meta_src.name).resolve()
+
+        def _copy_unless_same(src: Path, dst: Path):
+            try:
+                # If dst exists and is literally the same inode as src, skip.
+                if dst.exists() and src.exists() and src.samefile(dst):
+                    print(f"[PKG] Upload skipped (same file): {src}")
+                    return
+            except FileNotFoundError:
+                pass
+
+            # Also guard against string-equal paths after resolve()
+            if src.resolve() == dst.resolve():
+                print(f"[PKG] Upload skipped (same path): {src}")
+                return
+
+            shutil.copy2(src, dst.parent)
+
+        _copy_unless_same(Path(archive), dst_archive)
+        _copy_unless_same(meta_src, dst_meta)
 
         print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
         
