@@ -182,7 +182,12 @@ class SKWParser:
             local_context["section_id"] = sec_id
         
             # --- Determine XPath expression using override hierarchy ---
-            xpath_expr = self._get_xpath_expr(sec_id, chap_id, key) or value
+            #xpath_expr = self._get_xpath_expr(sec_id, chap_id, key) or value
+            xpath_expr = (
+                self._get_xpath_expr(sec_id, chap_id, f"{section_name}.{key}")
+                or self._get_xpath_expr(sec_id, chap_id, key)
+                or value
+            )
             
             # Apply explicit blank overrides (e.g., "source.url" = "")
             override_expr = self._get_xpath_expr(local_context.get("section_id"), local_context.get("chapter_id"), f"{section_name}.{key}")
