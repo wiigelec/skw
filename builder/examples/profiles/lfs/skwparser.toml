@@ -62,8 +62,24 @@ patches.url = ""
 patches.checksum = ""
 
 [ch-tools-libstdcpp.xpaths]
-source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'gcc') and contains(@url,'.tar')]/@url"
-
+source.url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='gcc-libstdc++'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+source.checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='gcc-libstdc++'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
 
 [ch-system-stripping.xpaths]
 source_urls = ""
