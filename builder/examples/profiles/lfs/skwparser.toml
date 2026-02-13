@@ -59,6 +59,14 @@ url = """
       substring-before(concat('{name}','-pass'),'-pass')='libelf'
     )
   )
+  or
+  (
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='d-bus'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='dbus'
+    )
+  )
 ]//para[contains(.,'Download')]//ulink/@url
 """
 checksum = """
