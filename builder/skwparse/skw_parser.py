@@ -237,25 +237,27 @@ class SKWParser:
                     return None
             return cur if isinstance(cur, str) else None
 
-        # Try section-level overrides
-        if section_id in self.toml_data:
-            sec_cfg = self.toml_data[section_id].get("xpaths", {})
-            val = resolve_nested(sec_cfg, key)
+        # 1. Check Section Override using the double-dash
+        ovr_key = f"{section_id}--xpaths"
+        if ovr_key in self.toml_data:
+            val = resolve_nested(self.toml_data[ovr_key], key)
             if val is not None:
                 return val
 
-        # Try chapter-level overrides
-        if chapter_id in self.toml_data:
-            chap_cfg = self.toml_data[chapter_id].get("xpaths", {})
-            val = resolve_nested(chap_cfg, key)
+        # 2. Check Chapter Override using the double-dash
+        chap_ovr_key = f"{chapter_id}--xpaths"
+        if chap_ovr_key in self.toml_data:
+            val = resolve_nested(self.toml_data[chap_ovr_key], key)
             if val is not None:
                 return val
 
-        # Try global-level overrides
-        if "xpaths" in self.toml_data:
-            val = resolve_nested(self.toml_data["xpaths"], key)
-            if val is not None:
-                return val
+        # 3. Global Section Fallback (handles top-level [source] and [patches])
+        if "." in key:
+            prefix, subkey = key.split(".", 1)
+            if prefix in self.toml_data:
+                val = resolve_nested(self.toml_data[prefix], subkey)
+                if val is not None:
+                    return val
 
         return None
    
