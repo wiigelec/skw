@@ -62,7 +62,7 @@ patches.url = ""
 patches.checksum = ""
 
 #------------------------------------------------------------------#
-[ch-tools-libstdcpp.xpaths]
+[ch-tools-libstdcpp--xpaths]
 source.url = """
 //sect1[@id='ch-materials-packages']//varlistentry[
   translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
