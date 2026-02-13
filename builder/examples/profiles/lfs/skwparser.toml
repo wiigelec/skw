@@ -169,11 +169,11 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 """
 
 
-[ch-system-stripping.xpaths]
-source_urls = ""
+[ch-system-stripping--xpaths]
+"source_urls" = ""
 
-[ch-system-cleanup.xpaths]
-source_urls = ""
+[ch-system-cleanup--xpaths]
+"source_urls" = ""
 
 
 #------------------------------------------------------------------#
