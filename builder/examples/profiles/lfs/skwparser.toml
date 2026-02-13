@@ -81,8 +81,6 @@ source.checksum = """
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
-patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 #------------------------------------------------------------------#
 [ch-tools-linux-headers--xpaths]
@@ -106,8 +104,6 @@ patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-wit
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
-patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 #------------------------------------------------------------------#
 [ch-system-xml-parser--xpaths]
@@ -129,8 +125,6 @@ patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-wit
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
-patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 #------------------------------------------------------------------#
 [ch-system-libelf--xpaths]
@@ -152,8 +146,6 @@ patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-wit
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
-patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 #------------------------------------------------------------------#
 [ch-system-dbus--xpaths]
@@ -175,8 +167,6 @@ patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-wit
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
-patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
 
 
 [ch-system-stripping.xpaths]
