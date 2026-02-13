@@ -61,8 +61,8 @@ source.checksum = ""
 patches.url = ""
 patches.checksum = ""
 
-[ch-system-lz4.xpaths]
-source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'lz4') and contains(@url,'.tar')]/@url"
+[ch-tools-libstdcpp.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'gcc') and contains(@url,'.tar')]/@url"
 
 [ch-system-stripping.xpaths]
 source_urls = ""
