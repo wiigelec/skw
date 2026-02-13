@@ -81,7 +81,7 @@ regex = [ "r@(mv .*DESTDIR/usr/.*)@mkdir -p $DESTDIR/usr/sbin\\n\\1@" ]
 [ch-system-libelf]
 regex = [ "r@(install .*/usr/lib/pkgconfig)@mkdir -p $DESTDIR/usr/lib/pkgconfig\\n\\1@" ]
 
-[ch-system-Python]
+[ch-system-python]
 regex = [ "r@(cat .*/etc/)@mkdir -p $DESTDIR/etc\\n\\1@",
 	  "s@-C /usr/share/doc/python-3.13.2/html@-C $DESTDIR/usr/share/doc/python-3.13.2/html@" 
 ]
