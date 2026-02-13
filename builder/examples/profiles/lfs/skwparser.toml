@@ -39,8 +39,22 @@ checksum = """
 
 
 [patches]
-url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
-checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+url = """
+//sect1[@id='ch-materials-patches']//varlistentry[
+  starts-with(
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
+    substring-before(concat('{name}','-pass'),'-pass')
+  )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+checksum = """
+//sect1[@id='ch-materials-patches']//varlistentry[
+  starts-with(
+    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
+    substring-before(concat('{name}','-pass'),'-pass')
+  )
+]//para[contains(.,'MD5')]//literal/text()
+"""
 
 
 #------------------------------------------------------------------#
