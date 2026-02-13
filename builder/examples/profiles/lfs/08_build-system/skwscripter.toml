@@ -83,7 +83,7 @@ regex = [ "r@(install .*/usr/lib/pkgconfig)@mkdir -p $DESTDIR/usr/lib/pkgconfig\
 
 [ch-system-python]
 regex = [ "r@(cat .*/etc/)@mkdir -p $DESTDIR/etc\\n\\1@",
-	  "s@-C /usr/share/doc/python-3.13.2/html@-C $DESTDIR/usr/share/doc/python-3.13.2/html@" 
+	  "s@-C (/usr/share/doc/.*)@-C $DESTDIR\1@" 
 ]
 
 [ch-system-ninja]
