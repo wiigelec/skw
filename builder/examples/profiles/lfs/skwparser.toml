@@ -80,6 +80,103 @@ source.checksum = """
     )
 ]//para[contains(.,'MD5')]//literal/text()
 """
+patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+
+[ch-tools-linux-headers.xpaths]
+source.url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
+      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+source.checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
+      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+
+[ch-system-xml-parser.xpaths]
+source.url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ:','abcdefghijklmnopqrstuvwxyz:')='xml::parser'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='xml-parser'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+source.checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ:','abcdefghijklmnopqrstuvwxyz:')='xml::parser'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='xml-parser'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+
+[ch-system-libelf.xpaths]
+source.url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='elfutils'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='libelf'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+source.checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='elfutils'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='libelf'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
+
+[ch-system-dbus.xpaths]
+source.url = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='d-bus'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='dbus'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+source.checksum = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='d-bus'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='dbus'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+patches.url = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'Download')]//ulink/@url"
+patches.checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),substring-before(concat('{name}','-pass'),'-pass'))]//para[contains(.,'MD5')]//literal/text()"
+
 
 [ch-system-stripping.xpaths]
 source_urls = ""
