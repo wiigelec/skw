@@ -26,47 +26,6 @@ url = """
     translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
     substring-before(concat('{name}','-pass'),'-pass')
   )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
-      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
-    )
-  )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='gcc-libstdc++'
-    )
-  )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ:','abcdefghijklmnopqrstuvwxyz:')='xml::parser'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='xml-parser'
-    )
-  )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='elfutils'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='libelf'
-    )
-  )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='d-bus'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='dbus'
-    )
-  )
 ]//para[contains(.,'Download')]//ulink/@url
 """
 checksum = """
@@ -74,15 +33,6 @@ checksum = """
   starts-with(
     translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),
     substring-before(concat('{name}','-pass'),'-pass')
-  )
-  or
-  (
-    translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
-    and
-    (
-      substring-before(concat('{name}','-pass'),'-pass')='linux-headers'
-      or substring-before(concat('{name}','-pass'),'-pass')='kernel'
-    )
   )
 ]//para[contains(.,'MD5')]//literal/text()
 """
@@ -110,6 +60,15 @@ source.url = ""
 source.checksum = ""
 patches.url = ""
 patches.checksum = ""
+
+[ch-system-lz4.xpaths]
+source_urls = "//sect1[@id='ch-materials-packages']//ulink[contains(@url,'lz4') and contains(@url,'.tar')]/@url"
+
+[ch-system-stripping.xpaths]
+source_urls = ""
+
+[ch-system-cleanup.xpaths]
+source_urls = ""
 
 
 #------------------------------------------------------------------#
