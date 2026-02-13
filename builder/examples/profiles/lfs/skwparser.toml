@@ -47,19 +47,19 @@ checksum = "//sect1[@id='ch-materials-patches']//varlistentry[starts-with(transl
 # XPATH OVERRIDES
 #------------------------------------------------------------------#
 
-[ch-materials-packages.xpaths]
-patches.url = ""
-patches.checksum = ""
+[ch-materials-packages--xpaths]
+"patches.url" = ""
+"patches.checksum" = ""
 
-[ch-materials-patches.xpaths]
-source.url = ""
-source.checksum = ""
+[ch-materials-patches--xpaths]
+"source.url" = ""
+"source.checksum" = ""
 
-[chapter-final-preps.xpaths]
-source.url = ""
-source.checksum = ""
-patches.url = ""
-patches.checksum = ""
+[chapter-final-preps--xpaths]
+"source.url" = ""
+"source.checksum" = ""
+"patches.url" = ""
+"patches.checksum" = ""
 
 #------------------------------------------------------------------#
 [ch-tools-libstdcpp--xpaths]
