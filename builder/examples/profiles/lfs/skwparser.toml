@@ -63,7 +63,7 @@ patches.checksum = ""
 
 #------------------------------------------------------------------#
 [ch-tools-libstdcpp--xpaths]
-source.url = """
+"source.url" = """
 //sect1[@id='ch-materials-packages']//varlistentry[
   translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
     and
@@ -72,7 +72,7 @@ source.url = """
     )
 ]//para[contains(.,'Download')]//ulink/@url
 """
-source.checksum = """
+"source.checksum" = """
 //sect1[@id='ch-materials-packages']//varlistentry[
   translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='gcc'
     and
