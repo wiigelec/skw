@@ -182,6 +182,27 @@ checksum = """
 ]//para[contains(.,'MD5')]//literal/text()
 """
 
+#------------------------------------------------------------------#
+[ch-system-procps--xpaths]
+"source.url" = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='procps'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='procps-ng'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+"source.checksum" = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='procps'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='procps-ng'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+
 
 [ch-system-stripping--xpaths]
 "source_urls" = ""
