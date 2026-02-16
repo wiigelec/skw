@@ -29,7 +29,7 @@ package_format = "tar.xz"
 
 # Template for naming packages (disambiguates multiple builds of same package)
 # Variables: ${book}, ${profile}, ${chapter_id}, ${section_id}, ${package_name}, ${package_version}
-package_name_template = "${package_name}--${package_version}--${book}"
+package_name_template = "${name}--${version}--${book_title}-${book_ver}"
 
 # Default extract dir for host mode (when installing from cache or after packaging)
 # Can be overridden below for specific packages/sections/chapters

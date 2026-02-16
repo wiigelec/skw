@@ -183,26 +183,42 @@ class SKWExecuter:
         print(f"[INFO] Script execution completed successfully!")
 
     #------------------------------------------------------------------#
-    def _pkg_filename(self, entry):
+    def _pkg_filename(self, entry: dict) -> str:
+        """
+        STRICT naming:
+          - Every ${var} must resolve from YAML 'entry' directly.
+          - Missing keys are fatal errors.
+          - Supports dotted paths like ${source.url} if entry contains nested dicts.
+        """
         tmpl = self.cfg["main"]["package_name_template"]
+        fmt = self.cfg["main"].get("package_format", "tar.xz")
 
-        pkg = entry.get("package_name")
-        if not pkg:
-            pkg = entry.get("section_id") or "noname"
+        token_re = re.compile(r"\$\{([^}]+)\}")
 
-        ver = entry.get("package_version") or "noversion"
+        def lookup(token: str):
+            cur = entry
+            for part in token.split("."):
+                if isinstance(cur, dict) and part in cur:
+                    cur = cur[part]
+                else:
+                    available = ", ".join(sorted(entry.keys()))
+                    sys.exit(
+                        f"ERROR: package_name_template references missing YAML key: '{token}'\n"
+                        f"Template: {tmpl}\n"
+                        f"Top-level YAML keys: {available}"
+                    )
+            return cur
 
-        values = {
-            "book": self.book,
-            "profile": self.profile,
-            "chapter_id": entry.get("chapter_id", ""),
-            "section_id": entry.get("section_id", ""),
-            "package_name": pkg,
-            "package_version": ver,
-        }
+        def repl(m: re.Match) -> str:
+            token = m.group(1).strip()
+            val = lookup(token)
+            # Optional: if you want empty to be fatal too, uncomment:
+            if val is None or (isinstance(val, str) and val.strip() == ""):
+                sys.exit(f"ERROR: YAML key '{token}' is empty; cannot build package filename")
+            return str(val)
 
-        tmpl = re.sub(r"\$\{([^}]+)\}", r"{\1}", tmpl)
-        return tmpl.format(**values) + "." + self.cfg["main"].get("package_format", "tar.xz")
+        rendered = token_re.sub(repl, tmpl)
+        return f"{rendered}.{fmt}"
 
     #------------------------------------------------------------------#
     def _exec_mode(self, entry):
@@ -546,7 +562,9 @@ class SKWExecuter:
             "--extract",
             "--file", str(archive),
             "--directory", str(target),
-            "--preserve-permissions"
+            "--preserve-permissions",
+            "--keep-directory-symlink",
+            "--delay-directory-restore",
         ]
     
         try:
