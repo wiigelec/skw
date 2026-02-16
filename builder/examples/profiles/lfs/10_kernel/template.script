@@ -9,6 +9,9 @@ set -euo pipefail
 # Package: {{package_name}} {{package_version}}
 # ==========================================================
 
+DESTDIR=$1
+
+export MAKEFLAGS=-j24
 
 echo
 echo "# =========================================================="
@@ -17,18 +20,14 @@ echo "# BUILDING {{chapter_id}} {{section_id}}"
 echo "#"
 echo "# =========================================================="
 
-sudo -u lfs env HOME=/home/lfs bash -l <<'LFS_EOF'
 
-set -euo pipefail
-
-source /home/lfs/.bashrc
-
-cd "$LFS/sources"
+cd "/sources"
 
 
 ### EXTRACT SOURCE TARBALL ###
-source_urls="{{sources.urls}}"
-tarball=$(basename "$source_urls")
+source_urls="{{source.url}}"
+urls_array=($source_urls)
+tarball=$(basename "${urls_array[0]}")
 
 echo
 echo "EXTRACING TARBALL $tarball"
@@ -43,14 +42,13 @@ cd "$dirname"
 
 ### START BUILD COMMANDS ###
 
-{{build_instructions}}
+{{build_instructions[*]}}
 
 ### END BUILD COMMANDS ###
 
 
 ### CLEANUP ###
 
-cd "$LFS/sources"
+cd "/sources"
 rm -rf $dirname
 
-LFS_EOF

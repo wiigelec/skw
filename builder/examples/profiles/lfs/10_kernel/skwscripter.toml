@@ -10,14 +10,15 @@ default_template = "template.script"
 [global]
 regex = []
 
-[chapter-cross-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-temporary-tools]
-template = "chapter-temp-tools.script"
-
-[chapter-chroot-temporary-tools]
-template = "chapter-chroot-tools.script"
+[ch-bootable-kernel]
+regex = [
+	"r@(make mrproper)@\\1\\ncp /sources/kernel_config .config\\nmake olddefconfig@",
+	"s@make modules_install@make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install\\ninstall -v -m755 -d \"$DESTDIR\"/boot@",
+	"r@(cp -iv .* )/boot@\\1\"$DESTDIR\"/boot@",
+	"r@cp -r Documentation .*@@",
+	"r@(install .* )/etc/modprobe.d@\\1\"$DESTDIR\"/etc/modprobe.d@",
+	"s@cat > /etc/modprobe.d@cat > \"$DESTDIR\"/etc/modprobe.d@"
+]
 
 
 #------------------------------------------------------------------#
@@ -25,12 +26,12 @@ template = "chapter-chroot-tools.script"
 #------------------------------------------------------------------#
 
 [chapter_filters]
-include  = [ "chapter-cross-tools", "chapter-temporary-tools", "chapter-chroot-temporary-tools" ]
+include  = []
 exclude  = []
 
 [section_filters]
-include  = []
-exclude  = [ "ch-tools-introduction", "ch-tools-introduction-cross" ]
+include  = [ "ch-bootable-kernel" ]
+exclude  = []
 
 [package_filters]
 include = []

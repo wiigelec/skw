@@ -212,6 +212,28 @@ checksum = """
 
 
 #------------------------------------------------------------------#
+[ch-bootable-kernel--xpaths]
+"source.url" = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+]//para[contains(.,'Download')]//ulink/@url
+"""
+"source.checksum" = """
+//sect1[@id='ch-materials-packages']//varlistentry[
+  translate(substring-before(term,' '),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='linux'
+    and
+    (
+      substring-before(concat('{name}','-pass'),'-pass')='kernel'
+    )
+]//para[contains(.,'MD5')]//literal/text()
+"""
+
+
+#------------------------------------------------------------------#
 # MAIN CONFIG SECTION
 #------------------------------------------------------------------#
 [main]
