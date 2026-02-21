@@ -146,10 +146,11 @@ class SKWExecuter:
 
         for script in scripts:
             entry = self._find_metadata(script.name)
-            pkg_file = self._pkg_filename(entry)
+            make_package = self._should_package(entry)
+            pkg_file = self._pkg_filename(entry) if make_package else None
 
             # 1. CHECK CACHE
-            pkg_data = self._package_exists(pkg_file)
+            pkg_data = self._package_exists(pkg_file) if make_package else None
             
             #print(f"[DEBUG] Looking for cached package: {pkg_data}")
 
@@ -163,7 +164,6 @@ class SKWExecuter:
 
             # 2. BUILD (Only reached if no cache found)
             exec_mode = self._exec_mode(entry)
-            make_package = self._should_package(entry)
             destdir = self._make_destdir(exec_mode, entry) if make_package else None
 
             rc = self._run_script(script, entry, exec_mode, destdir)
