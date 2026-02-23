@@ -72,13 +72,13 @@ chapters = []
 [chroot]
 # Force execution of certain scripts in chroot
 packages = []
-sections = [ "ch-bootable-kernel"]
+sections = []
 chapters = []
 
 [package]
 # Scripts that should produce packages
 packages = []
-sections = [ "ch-bootable-kernel"]
+sections = []
 chapters = []
 
 [packages.exclude]
