@@ -179,7 +179,7 @@ EOF
 
 
 ### 11.1 ###
-echo 12.4-systemd > /"$DESTDIR"/etc/lfs-release
+echo 12.4-systemd > "$DESTDIR"/etc/lfs-release
 
 cat > "$DESTDIR"/etc/lsb-release << "EOF"
 DISTRIB_ID="Linux From Scratch"
