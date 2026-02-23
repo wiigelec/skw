@@ -1,0 +1,72 @@
+# ================================================================
+# Executer Configuration
+# ================================================================
+
+[main]
+# Execution mode for chroot: "individual" (reset each script) or "sequential" (reuse)
+chroot_mode = "sequential"
+
+# Directory where the chroot environment will live
+chroot_dir = "/mnt/lfs"
+
+# Optional base tarball to extract for chroot environment
+chroot_archive = ""
+
+# Upload repository: local path or scp target (user@host:/path)
+upload_repo = "${package_dir}"
+# upload_repo = "builder@server:/srv/packages"
+
+# Download repository: local path or http URL
+# Download repos in priority order (first is primary, rest are fallbacks)
+download_repos = [
+  "${package_dir}", 
+  "http://mirror1.example.com/packages",
+  "http://mirror2.example.com/packages"
+]
+
+# Package format: tar, tar.gz, tar.xz
+package_format = "tar.xz"
+
+# Template for naming packages (disambiguates multiple builds of same package)
+# Variables: ${book}, ${profile}, ${chapter_id}, ${section_id}, ${package_name}, ${package_version}
+package_name_template = "${name}--${version}--lfs-${book_ver}"
+
+# Default extract dir for host mode (when installing from cache or after packaging)
+# Can be overridden below for specific packages/sections/chapters
+default_extract_dir = "/mnt/lfs"
+
+# Require user confirmation before extracting to "/" (set true for safety)
+require_confirm_root = true
+
+
+[host]
+# Force execution of certain scripts on host
+packages = []
+sections = []
+chapters = []
+
+[chroot]
+# Force execution of certain scripts in chroot
+packages = []
+sections = [ "ch-bootable-kernel"]
+chapters = []
+
+[package]
+# Scripts that should produce packages
+packages = []
+sections = [ "ch-bootable-kernel"]
+chapters = []
+
+[packages.exclude]
+# Explicit exclusions (take precedence)
+packages = []
+sections = []
+chapters = []
+
+
+[extract.targets]
+# Override extraction directories for host installs
+# e.g., stage1 gcc/glibc into /tools instead of /
+#packages = { gcc = "/tools", glibc = "/tools" }
+#sections = { "05.09" = "/tools" }
+#chapters = { "05" = "/tools" }

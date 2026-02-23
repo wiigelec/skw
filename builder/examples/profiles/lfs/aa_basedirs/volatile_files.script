@@ -1,0 +1,170 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+DESTDIR=$1
+
+
+echo
+echo "# =========================================================="
+echo "#"
+echo "# BUILDING aa_volatile-files"
+echo "#"
+echo "# =========================================================="
+
+
+### START BUILD COMMANDS ###
+
+mkdir -pv "$DESTDIR"/etc
+mkdir -pv "$DESTDIR"/lib64
+
+echo "**EDITME**" > "$DESTDIR"/etc/hostname
+
+cat > "$DESTDIR"/etc/hosts << EOF
+# Begin /etc/hosts
+
+10.0.2.9 **EDITME**.local **EDITME**
+::1       ip6-localhost ip6-loopback
+ff02::1   ip6-allnodes
+ff02::2   ip6-allrouters
+
+# End /etc/hosts
+EOF
+
+cat > "$DESTDIR"/etc/passwd << "EOF"
+root:x:0:0:root:/root:/bin/bash
+bin:x:1:1:bin:/dev/null:/usr/bin/false
+daemon:x:6:6:Daemon User:/dev/null:/usr/bin/false
+messagebus:x:18:18:D-Bus Message Daemon User:/run/dbus:/usr/bin/false
+systemd-journal-gateway:x:73:73:systemd Journal Gateway:/:/usr/bin/false
+systemd-journal-remote:x:74:74:systemd Journal Remote:/:/usr/bin/false
+systemd-journal-upload:x:75:75:systemd Journal Upload:/:/usr/bin/false
+systemd-network:x:76:76:systemd Network Management:/:/usr/bin/false
+systemd-resolve:x:77:77:systemd Resolver:/:/usr/bin/false
+systemd-timesync:x:78:78:systemd Time Synchronization:/:/usr/bin/false
+systemd-coredump:x:79:79:systemd Core Dumper:/:/usr/bin/false
+uuidd:x:80:80:UUID Generation Daemon User:/dev/null:/usr/bin/false
+systemd-oom:x:81:81:systemd Out Of Memory Daemon:/:/usr/bin/false
+nobody:x:65534:65534:Unprivileged User:/dev/null:/usr/bin/false
+EOF
+
+cat > "$DESTDIR"/etc/group << "EOF"
+root:x:0:
+bin:x:1:daemon
+sys:x:2:
+kmem:x:3:
+tape:x:4:
+tty:x:5:
+daemon:x:6:
+floppy:x:7:
+disk:x:8:
+lp:x:9:
+dialout:x:10:
+audio:x:11:
+video:x:12:
+utmp:x:13:
+cdrom:x:15:
+adm:x:16:
+messagebus:x:18:
+systemd-journal:x:23:
+input:x:24:
+mail:x:34:
+kvm:x:61:
+systemd-journal-gateway:x:73:
+systemd-journal-remote:x:74:
+systemd-journal-upload:x:75:
+systemd-network:x:76:
+systemd-resolve:x:77:
+systemd-timesync:x:78:
+systemd-coredump:x:79:
+uuidd:x:80:
+systemd-oom:x:81:
+wheel:x:97:
+users:x:999:
+nogroup:x:65534:
+EOF
+
+
+cat > "$DESTDIR"/etc/shadow << "EOF"
+root:x:20506:0:99999:7:::
+bin:x:20506:0:99999:7:::
+daemon:x:20506:0:99999:7:::
+messagebus:x:20506:0:99999:7:::
+systemd-journal-gateway:x:20506:0:99999:7:::
+systemd-journal-remote:x:20506:0:99999:7:::
+systemd-journal-upload:x:20506:0:99999:7:::
+systemd-network:x:20506:0:99999:7:::
+systemd-resolve:x:20506:0:99999:7:::
+systemd-timesync:x:20506:0:99999:7:::
+systemd-coredump:x:20506:0:99999:7:::
+uuidd:x:20506:0:99999:7:::
+systemd-oom:x:20506:0:99999:7:::
+nobody:x:20506:0:99999:7:::
+EOF
+chmod 400 "$DESTDIR"/etc/shadow
+
+
+cat > "$DESTDIR"/etc/gshadow << "EOF"
+root:x::
+bin:x::daemon
+sys:x::
+kmem:x::
+tape:x::
+tty:x::
+daemon:x::
+floppy:x::
+disk:x::
+lp:x::
+dialout:x::
+audio:x::
+video:x::
+utmp:x::
+cdrom:x::
+adm:x::
+messagebus:x::
+systemd-journal:x::
+input:x::
+mail:x::
+kvm:x::
+systemd-journal-gateway:x::
+systemd-journal-remote:x::
+systemd-journal-upload:x::
+systemd-network:x::
+systemd-resolve:x::
+systemd-timesync:x::
+systemd-coredump:x::
+uuidd:x::
+systemd-oom:x::
+wheel:x::
+users:x::
+nogroup:x::
+EOF
+chmod 400 "$DESTDIR"/etc/gshadow
+
+
+cat > "$DESTDIR"/etc/fstab << "EOF"
+# Begin /etc/fstab
+
+# file system  mount-point  type     options             dump  fsck
+#                                                              order
+
+/dev/**EDITME<xxx>EDITME**     /            **EDITME<fff>EDITME**    defaults            1     1
+/dev/**EDITME<yyy>EDITME**     swap         swap     pri=1               0     0
+
+# End /etc/fstab
+EOF
+
+
+ln -sfv ../lib/ld-linux-x86-64.so.2 "$DESTDIR"/lib64
+ln -sfv ../lib/ld-linux-x86-64.so.2 "$DESTDIR"/lib64/ld-lsb-x86-64.so.3
+
+### END BUILD COMMANDS ###
+
+

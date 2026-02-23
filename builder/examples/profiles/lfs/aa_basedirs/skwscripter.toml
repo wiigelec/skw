@@ -1,0 +1,40 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_output = "builder/build/{book}/parser/build_metadata/"
+script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
+default_template = "template.script"
+
+[global]
+regex = []
+
+[ch-bootable-kernel]
+regex = [
+	"r@(make mrproper)@\\1\\ncp /sources/kernel_config .config\\nmake olddefconfig@",
+	"s@make modules_install@make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install\\ninstall -v -m755 -d \"$DESTDIR\"/boot@",
+	"r@(cp -iv .* )/boot@\\1\"$DESTDIR\"/boot@",
+	"r@cp -r Documentation .*@@",
+	"r@(install .* )/etc/modprobe.d@\\1\"$DESTDIR\"/etc/modprobe.d@",
+	"s@cat > /etc/modprobe.d@cat > \"$DESTDIR\"/etc/modprobe.d@"
+]
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = []
+exclude  = []
+
+[section_filters]
+include  = [ "ch-bootable-kernel" ]
+exclude  = []
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+

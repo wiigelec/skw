@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+DESTDIR=$1
+
+
+echo
+echo "# =========================================================="
+echo "#"
+echo "# BUILDING aa_volatile-dirs"
+echo "#"
+echo "# =========================================================="
+
+
+### START BUILD COMMANDS ###
+
+mkdir -pv "$DESTDIR"/{etc,var} "$DESTDIR"/usr/{bin,lib,sbin}
+for i in bin lib sbin; do
+  ln -sv usr/$i "$DESTDIR"/$i
+done
+case $(uname -m) in
+  x86_64) mkdir -pv "$DESTDIR"/lib64 ;;
+esac
+
+### END BUILD COMMANDS ###
+
+

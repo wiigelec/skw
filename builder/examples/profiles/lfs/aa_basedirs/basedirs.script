@@ -1,0 +1,205 @@
+#!/bin/bash
+set -euo pipefail
+
+# ==========================================================
+# Auto-generated build script from ScratchKit
+# Book: {{source_book}}
+# Chapter: {{chapter_id}}
+# Section: {{section_id}}
+# Package: {{package_name}} {{package_version}}
+# ==========================================================
+
+DESTDIR=$1
+
+
+echo
+echo "# =========================================================="
+echo "#"
+echo "# BUILDING aa_basedirs"
+echo "#"
+echo "# =========================================================="
+
+
+### START BUILD COMMANDS ###
+
+
+### 3.1 ###
+mkdir -v "$DESTDIR"/sources
+chmod -v a+wt "$DESTDIR"/sources
+
+
+### 7.3 ###
+mkdir -pv "$DESTDIR"/{dev,proc,sys,run}
+
+
+### 7.5 ###
+mkdir -pv "$DESTDIR"/{boot,home,mnt,opt,srv}
+
+mkdir -pv "$DESTDIR"/etc/{opt,sysconfig}
+mkdir -pv "$DESTDIR"/lib/firmware
+mkdir -pv "$DESTDIR"/media/{floppy,cdrom}
+mkdir -pv "$DESTDIR"/usr/{,local/}{include,src}
+mkdir -pv "$DESTDIR"/usr/lib/locale
+mkdir -pv "$DESTDIR"/usr/local/{bin,lib,sbin}
+mkdir -pv "$DESTDIR"/usr/{,local/}share/{color,dict,doc,info,locale,man}
+mkdir -pv "$DESTDIR"/usr/{,local/}share/{misc,terminfo,zoneinfo}
+mkdir -pv "$DESTDIR"/usr/{,local/}share/man/man{1..8}
+mkdir -pv "$DESTDIR"/var/{cache,local,log,mail,opt,spool}
+mkdir -pv "$DESTDIR"/var/lib/{color,misc,locate}
+
+ln -sfv /run "$DESTDIR"/var/run
+ln -sfv /run/lock "$DESTDIR"/var/lock
+
+install -dv -m 0750 "$DESTDIR"/root
+install -dv -m 1777 "$DESTDIR"/tmp "$DESTDIR"/var/tmp
+
+
+### 7.6 ###
+ln -sv /proc/self/mounts "$DESTDIR"/etc/mtab
+
+touch "$DESTDIR"/var/log/{btmp,lastlog,faillog,wtmp}
+chgrp -v utmp "$DESTDIR"/var/log/lastlog
+chmod -v 664  "$DESTDIR"/var/log/lastlog
+chmod -v 600  "$DESTDIR"/var/log/btmp
+
+
+### 9.2 ###
+mkdir -pv "$DESTDIR"/etc/systemd/network/
+cat > "$DESTDIR"/etc/systemd/network/10-eth-static.network << "EOF"
+[Match]
+Name=eth0
+
+[Network]
+Address=192.168.0.2/24
+Gateway=192.168.0.1
+DNS=192.168.0.1
+Domains=local
+EOF
+
+
+### 9.5 ###
+cat > "$DESTDIR"/etc/adjtime << "EOF"
+0.0 0 0.0
+0
+LOCAL
+EOF
+
+
+### 9.6 ###
+cat > "$DESTDIR"/etc/vconsole.conf << "EOF"
+KEYMAP=us
+FONT=lat0-16
+EOF
+
+
+### 9.7 ###
+cat > "$DESTDIR"/etc/locale.conf << "EOF"
+LANG=en_US.UTF-8
+EOF
+
+cat > "$DESTDIR"/etc/profile << "EOF"
+# Begin /etc/profile
+
+for i in $(locale); do
+  unset ${i%=*}
+done
+
+if [[ "$TERM" = linux ]]; then
+  export LANG=C.UTF-8
+else
+  source /etc/locale.conf
+
+  for i in $(locale); do
+    key=${i%=*}
+    if [[ -v $key ]]; then
+      export $key
+    fi
+  done
+fi
+
+# End /etc/profile
+EOF
+
+
+### 9.8 ###
+cat > "$DESTDIR"/etc/inputrc << "EOF"
+# Begin /etc/inputrc
+# Modified by Chris Lynn <roryo@roryo.dynup.net>
+
+# Allow the command prompt to wrap to the next line
+set horizontal-scroll-mode Off
+
+# Enable 8-bit input
+set meta-flag On
+set input-meta On
+
+# Turns off 8th bit stripping
+set convert-meta Off
+
+# Keep the 8th bit for display
+set output-meta On
+
+# none, visible or audible
+set bell-style none
+
+# All of the following map the escape sequence of the value
+# contained in the 1st argument to the readline specific functions
+"\eOd": backward-word
+"\eOc": forward-word
+
+# for linux console
+"\e[1~": beginning-of-line
+"\e[4~": end-of-line
+"\e[5~": beginning-of-history
+"\e[6~": end-of-history
+"\e[3~": delete-char
+"\e[2~": quoted-insert
+
+# for xterm
+"\eOH": beginning-of-line
+"\eOF": end-of-line
+
+# for Konsole
+"\e[H": beginning-of-line
+"\e[F": end-of-line
+
+# End /etc/inputrc
+EOF
+
+
+### 9.9 ###
+cat > "$DESTDIR"/etc/shells << "EOF"
+# Begin /etc/shells
+
+/bin/sh
+/bin/bash
+
+# End /etc/shells
+EOF
+
+
+### 11.1 ###
+echo 12.4-systemd > /"$DESTDIR"etc/lfs-release
+
+cat > "$DESTDIR"/etc/lsb-release << "EOF"
+DISTRIB_ID="Linux From Scratch"
+DISTRIB_RELEASE="12.4-systemd"
+DISTRIB_CODENAME="wiigelec-skw"
+DISTRIB_DESCRIPTION="Linux From Scratch"
+EOF
+
+cat > "$DESTDIR"/etc/os-release << "EOF"
+NAME="Linux From Scratch"
+VERSION="12.4-systemd"
+ID=lfs
+PRETTY_NAME="Linux From Scratch 12.4-systemd"
+VERSION_CODENAME="wiigelec-skw"
+HOME_URL="https://www.linuxfromscratch.org/lfs/"
+RELEASE_TYPE="stable"
+EOF
+
+
+
+### END BUILD COMMANDS ###
+
+
