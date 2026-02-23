@@ -40,6 +40,19 @@ class SKWExecuter:
         with open(cfg_path, "r", encoding="utf-8") as f:
             self.cfg = toml.load(f)
 
+        # Map [[custom]].script -> custom dict
+        self.custom_map = {}
+        for c in self.cfg.get("custom", []):
+            if not isinstance(c, dict):
+                continue
+            key = str(c.get("script", "")).strip()
+            if not key:
+                sys.exit("ERROR: [[custom]] entry missing required key: script")
+            if key in self.custom_map:
+                sys.exit(f"ERROR: Duplicate [[custom]].script key: {key}")
+                
+            self.custom_map[key] = c
+            
         # 1. BUILD METADATA REGISTRY
         # We map (slugged_chapter, slugged_section) -> yaml_entry
         self.metadata_registry = {}
@@ -128,16 +141,33 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _find_metadata(self, script_name):
-        """Use the Registry to find metadata by the IDs in the filename."""
-        _, chap_slug, sec_slug = self.parse_script_name(script_name)
+        """Use YAML registry metadata; fallback to [[custom]] when YAML is missing."""
+        _, chap_id, sec_id = self.parse_script_name(script_name)
+        if chap_id is None:
+            sys.exit(f"ERROR: malformed script filename (expected order_chapter_section.sh): {script_name}")
+
+        # YAML metadata keys are stored slugged
+        chap_slug = self._slug(chap_id)
+        sec_slug = self._slug(sec_id)
         entry = self.metadata_registry.get((chap_slug, sec_slug))
 
+        # Fallback: custom metadata from executer.toml
         if not entry:
-            sys.exit(f"ERROR: No YAML metadata found for key: ({chap_slug}, {sec_slug}) from {script_name}")
+            custom_key = f"{chap_id}_{sec_id}"
+            c = self.custom_map.get(custom_key)
+            if not c:
+                sys.exit(
+                    f"ERROR: No YAML metadata found for key: ({chap_id}, {sec_id}) from {script_name}\n"
+                    f"       Also no [[custom]] matched script='{custom_key}'"
+                )
+
+            entry = dict(c)
+            entry["chapter_id"] = chap_id
+            entry["section_id"] = sec_id
 
         # Normalize package keys for the rest of the executer logic
-        entry["package_name"] = entry.get("name", "")
-        entry["package_version"] = entry.get("version", "")
+        entry["package_name"] = entry.get("package_name") or entry.get("name", "")
+        entry["package_version"] = entry.get("package_version") or entry.get("version", "")
         return entry
 
     #------------------------------------------------------------------#
