@@ -52,7 +52,7 @@ class SKWExecuter:
                 sys.exit(f"ERROR: Duplicate [[custom]].script key: {key}")
                 
             self.custom_map[key] = c
-            
+
         # 1. BUILD METADATA REGISTRY
         # We map (slugged_chapter, slugged_section) -> yaml_entry
         self.metadata_registry = {}
@@ -252,6 +252,13 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _exec_mode(self, entry):
+        # Per-entry override (used by [[custom]].exec_mode)
+        override = (entry.get("exec_mode") or "").strip().lower()
+        if override:
+            if override not in ("host", "chroot"):
+                sys.exit(f"ERROR: invalid exec_mode '{override}' (expected 'host' or 'chroot')")
+            return override
+            
         # Host rules take precedence
         h = self.cfg.get("host", {})
         if entry.get("package_name") in h.get("packages", []):
