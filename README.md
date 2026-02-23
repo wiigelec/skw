@@ -1,5 +1,13 @@
 # SKW
 
+                           __         .__     __   .__  __    ___.                   .__.__              .__                 
+  ______ ________________ _/  |_  ____ |  |__ |  | _|__|/  |_  \_ |__ ___.__. __  _  _|__|__| ____   ____ |  |   ____   ____  
+ /  ___// ___\_  __ \__  \\   __\/ ___\|  |  \|  |/ /  \   __\  | __ <   |  | \ \/ \/ /  |  |/ ___\_/ __ \|  | _/ __ \_/ ___\ 
+ \___ \\  \___|  | \// __ \|  | \  \___|   Y  \    <|  ||  |    | \_\ \___  |  \     /|  |  / /_/  >  ___/|  |_\  ___/\  \___ 
+/____  >\___  >__|  (____  /__|  \___  >___|  /__|_ \__||__|    |___  / ____|   \/\_/ |__|__\___  / \___  >____/\___  >\___  >
+     \/     \/           \/          \/     \/     \/               \/\/                   /_____/      \/          \/     \/ 
+     
+
 SKW is a comprehensive set of tools for building and managing the lifecycle of your own custom Linux distribution. It consists of three core components:
 
 * **SKW Builder:** Automates the process of compiling your system from source code.
