@@ -258,7 +258,7 @@ class SKWExecuter:
             if override not in ("host", "chroot"):
                 sys.exit(f"ERROR: invalid exec_mode '{override}' (expected 'host' or 'chroot')")
             return override
-            
+
         # Host rules take precedence
         h = self.cfg.get("host", {})
         if entry.get("package_name") in h.get("packages", []):
@@ -282,6 +282,9 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _should_package(self, entry):
+        if "package" in entry:
+            return bool(entry["package"])
+
         pkg = entry.get("package_name", "")
         ver = entry.get("package_version", "")
         sec = entry.get("section_id", "")
