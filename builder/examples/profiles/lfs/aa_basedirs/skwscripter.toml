@@ -30,7 +30,7 @@ include  = []
 exclude  = []
 
 [section_filters]
-include  = [ "ch-bootable-kernel" ]
+include  = []
 exclude  = []
 
 [package_filters]
