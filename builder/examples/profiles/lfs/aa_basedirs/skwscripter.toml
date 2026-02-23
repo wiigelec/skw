@@ -10,12 +10,11 @@ default_template = "template.script"
 [global]
 regex = []
 
+["custom_aavolatiledirs-12.4"]
+template = "volatile_dirs.script"
 
 ["custom_aabasedirs-12.4"]
 template = "basedirs.script"
-
-["custom_aavolatiledirs-12.4"]
-template = "volatile_dirs.script"
 
 ["custom_aavolatilefiles-12.4"]
 template = "volatile_files.script"
