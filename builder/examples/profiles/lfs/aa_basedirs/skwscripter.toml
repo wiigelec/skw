@@ -10,15 +10,16 @@ default_template = "template.script"
 [global]
 regex = []
 
-[ch-bootable-kernel]
-regex = [
-	"r@(make mrproper)@\\1\\ncp /sources/kernel_config .config\\nmake olddefconfig@",
-	"s@make modules_install@make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install\\ninstall -v -m755 -d \"$DESTDIR\"/boot@",
-	"r@(cp -iv .* )/boot@\\1\"$DESTDIR\"/boot@",
-	"r@cp -r Documentation .*@@",
-	"r@(install .* )/etc/modprobe.d@\\1\"$DESTDIR\"/etc/modprobe.d@",
-	"s@cat > /etc/modprobe.d@cat > \"$DESTDIR\"/etc/modprobe.d@"
-]
+
+["custom_aabasedirs-12.4"]
+template = "basedirs.script"
+
+["custom_aavolatiledirs-12.4"]
+template = "volatile_dirs.script"
+
+["custom_aavolatilefiles-12.4"]
+template = "volatile_files.script"
+
 
 
 #------------------------------------------------------------------#
