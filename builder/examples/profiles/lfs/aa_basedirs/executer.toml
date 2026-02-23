@@ -42,7 +42,7 @@ require_confirm_root = true
 script = "aabasedirs_12.4"
 exec_mode = "chroot"
 package = true
-name = "aa_basedirs"
+name = "aaa_basedirs"
 version = "12.4"
 book_ver = "12.4"
 
@@ -58,7 +58,7 @@ book_ver = "12.4"
 script = "aavolatilefiles_12.4"
 exec_mode = "chroot"
 package = true
-name = "aa_volatile-files"
+name = "aaa_volatile-files"
 version = "12.4"
 book_ver = "12.4"
 
