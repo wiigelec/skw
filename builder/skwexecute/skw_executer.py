@@ -392,6 +392,16 @@ class SKWExecuter:
         out_path = (self.package_dir / pkg_file).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Optional pre-package hook (per-entry override wins)
+        hook = (
+            entry.get("pre_package_hook")
+            or self.cfg.get("main", {}).get("pre_package_hook")
+            or ""
+        )
+        hook = str(hook).strip()
+        if hook:
+            self._run_pre_package_hook(hook, destdir, pkg_file, entry, exec_mode)
+
         fmt = self.cfg["main"].get("package_format", "tar.xz")
         mode = {"tar": "w", "tar.gz": "w:gz", "tar.xz": "w:xz"}[fmt]
 
@@ -422,6 +432,40 @@ class SKWExecuter:
 
         print(f"[PKG] Created package {out_path.name} in {self.package_dir}")
         return out_path
+
+    #------------------------------------------------------------------#
+    def _run_pre_package_hook(self, hook_path: str, destdir: str, pkg_file: str, entry: dict, exec_mode: str):
+        hook = Path(hook_path)
+        if not hook.is_absolute():
+            # Interpret relative paths as relative to the profile directory (same place as executer.toml)
+            hook = (self.profiles_dir / self.book / self.profile / hook).resolve()
+
+        if not hook.exists():
+            sys.exit(f"ERROR: pre_package_hook not found: {hook}")
+
+        # Provide context to the hook
+        env = os.environ.copy()
+        env.update({
+            "SKW_DESTDIR": str(Path(destdir).resolve()),
+            "SKW_PKG_FILE": pkg_file,
+            "SKW_EXEC_MODE": exec_mode,
+            "SKW_BOOK": self.book,
+            "SKW_PROFILE": self.profile,
+            "SKW_PACKAGE_DIR": str(self.package_dir),
+            "SKW_CHROOT_DIR": str(self.chroot_dir),
+            "SKW_CHAPTER_ID": str(entry.get("chapter_id", "")),
+            "SKW_SECTION_ID": str(entry.get("section_id", "")),
+            "SKW_PACKAGE_NAME": str(entry.get("package_name", "")),
+            "SKW_PACKAGE_VERSION": str(entry.get("package_version", "")),
+        })
+
+        # Run on host against the physical destdir path (works for host and chroot builds)
+        cmd = ["/bin/bash", str(hook), str(Path(destdir).resolve())]
+        print(f"[HOOK] Running pre-package hook: {hook}")
+        try:
+            subprocess.run(cmd, check=True, env=env)
+        except subprocess.CalledProcessError as e:
+            sys.exit(f"ERROR: pre-package hook failed ({hook}) with code {e.returncode}")
 
     #------------------------------------------------------------------#
     def _sha256_file(self, path):
