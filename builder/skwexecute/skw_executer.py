@@ -386,13 +386,12 @@ class SKWExecuter:
             return proc.returncode
 
     #------------------------------------------------------------------#
-    def _create_archive(self, destdir, pkg_file, entry, exec_mode):
-        """Creates the compressed archive in the designated package directory."""
-        # Force the output path to be inside the configured package_dir
+   def _create_archive(self, destdir, pkg_file, entry, exec_mode):
+
         out_path = (self.package_dir / pkg_file).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Optional pre-package hook (per-entry override wins)
+        # Optional pre-package hook
         hook = (
             entry.get("pre_package_hook")
             or self.cfg.get("main", {}).get("pre_package_hook")
@@ -402,19 +401,16 @@ class SKWExecuter:
         if hook:
             self._run_pre_package_hook(hook, destdir, pkg_file, entry, exec_mode)
 
-        fmt = self.cfg["main"].get("package_format", "tar.xz")
-        mode = {"tar": "w", "tar.gz": "w:gz", "tar.xz": "w:xz"}[fmt]
+        # 1. Generate internal metadata
+        pkg_name = entry.get("package_name")
+        pkg_ver  = entry.get("package_version")
 
-        # Archive the staging directory
-        with tarfile.open(out_path, mode) as tar:
-            tar.add(destdir, arcname="/")
+        if not pkg_name or not pkg_ver:
+            sys.exit("ERROR: package_name/package_version required for internal metadata")
 
-        sha256 = self._sha256_file(out_path)
-
-        # Generate accompanying metadata for future cache checks
         metadata = {
-            "package_name": entry.get("package_name"),
-            "package_version": entry.get("package_version"),
+            "package_name": pkg_name,
+            "package_version": pkg_ver,
             "book": self.book,
             "profile": self.profile,
             "chapter_id": entry.get("chapter_id"),
@@ -422,13 +418,24 @@ class SKWExecuter:
             "exec_mode": exec_mode,
             "build_date": datetime.utcnow().isoformat() + "Z",
             "hostname": socket.gethostname(),
-            "sha256": sha256,
             "files": self._list_files(destdir)
         }
 
-        meta_path = out_path.with_suffix(out_path.suffix + ".meta.json")
-        with open(meta_path, "w", encoding="utf-8") as f:
+        meta_dir = Path(destdir) / "_metadata"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+
+        meta_filename = f"{pkg_name}--{pkg_ver}.json"
+        meta_path_inside = meta_dir / meta_filename
+
+        with open(meta_path_inside, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
+
+        # 2. Create archive
+        fmt = self.cfg["main"].get("package_format", "tar.xz")
+        mode = {"tar": "w", "tar.gz": "w:gz", "tar.xz": "w:xz"}[fmt]
+
+        with tarfile.open(out_path, mode) as tar:
+            tar.add(destdir, arcname="/")
 
         print(f"[PKG] Created package {out_path.name} in {self.package_dir}")
         return out_path
