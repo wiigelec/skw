@@ -492,35 +492,24 @@ class SKWExecuter:
 
     #------------------------------------------------------------------#
     def _package_exists(self, pkg_file):
-        meta_name = pkg_file + ".meta.json"
-
-        #print(f"[DEBUG] Checking if package exists: {meta_name}")
-
         for repo in self.download_repos:
-            #print(f"[DEBUG] Checking repo: {repo}")
             if not repo:
                 continue
 
             if repo.startswith("http"):
-                meta_url = f"{repo.rstrip('/')}/{meta_name}"
+                pkg_url = f"{repo.rstrip('/')}/{pkg_file}"
                 try:
-                    r = requests.head(meta_url, timeout=5)
+                    r = requests.head(pkg_url, timeout=5)
                     if r.status_code == 200:
-                        return {"repo": str(repo), "meta": meta_name, "is_http": True}
+                        return {"repo": str(repo), "is_http": True}
                 except requests.RequestException:
                     continue
             else:
-                # FORCE absolute path resolution
                 repo_path = Path(repo).resolve()
-                meta_path = repo_path / meta_name
                 pkg_path = repo_path / pkg_file
+                if pkg_path.exists():
+                    return {"repo": str(repo_path), "is_http": False}
 
-                if meta_path.exists() and pkg_path.exists():
-                    return {
-                        "repo": str(repo_path),
-                        "meta": str(meta_path),
-                        "is_http": False
-                    }
         return None
 
     #------------------------------------------------------------------#
@@ -530,18 +519,12 @@ class SKWExecuter:
 
         Args:
             pkg_file (str): The filename of the package archive.
-            entry (dict): The YAML metadata for the current package.
-            pkg_data (dict): Dictionary containing 'repo', 'meta', and 'is_http' flags.
+            entry (dict): The metadata entry for the current package (YAML or [[custom]]).
+            pkg_data (dict): Dictionary containing 'repo' and 'is_http' flags.
         """
-        #print(f"[DEBUG] pkg_data received: {pkg_data}")
         repo = pkg_data.get("repo")
-        meta_ref = pkg_data.get("meta")
-
-        # Validation to prevent logic errors if called incorrectly
-        if not repo or not meta_ref:
-            sys.exit("ERROR: _install_package called without resolved repo/metadata")
-
-        meta_name = pkg_file + ".meta.json"
+        if not repo:
+            sys.exit("ERROR: _install_package called without resolved repo")
 
         # Handle Remote HTTP Repositories
         if pkg_data.get("is_http"):
@@ -555,50 +538,48 @@ class SKWExecuter:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
             pkg_path = local_tmp
-
-            meta_url = f"{repo.rstrip('/')}/{meta_name}"
-            local_meta = self.downloads_dir / meta_name
-            r = requests.get(meta_url)
-            r.raise_for_status()
-            with open(local_meta, "wb") as f:
-                f.write(r.content)
-            meta_path = local_meta
         else:
             # Handle Local Filesystem Repositories
-            pkg_path = Path(repo) / pkg_file
-            meta_path = Path(repo) / meta_name
+            pkg_path = (Path(repo).resolve() / pkg_file)
 
-        # Integrity Check: Compare SHA256 from metadata against actual file
-        with open(meta_path, "r", encoding="utf-8") as f:
-            metadata = json.load(f)
+        if not Path(pkg_path).exists():
+            sys.exit(f"ERROR: cached package not found: {pkg_path}")
 
-        expected_sha = metadata.get("sha256")
-        actual_sha = self._sha256_file(pkg_path)
+        # Optional: sanity-check embedded metadata exists inside the archive
+        pkg_name = entry.get("package_name")
+        pkg_ver = entry.get("package_version")
+        if pkg_name and pkg_ver:
+            meta_member = f"_metadata/{pkg_name}--{pkg_ver}.json"
+            try:
+                with tarfile.open(pkg_path, "r:*") as tar:
+                    try:
+                        tar.getmember(meta_member)
+                    except KeyError:
+                        print(f"[WARN] Package missing embedded metadata: {meta_member}")
+            except tarfile.TarError as e:
+                sys.exit(f"ERROR: invalid package archive {pkg_path}: {e}")
 
-        if expected_sha != actual_sha:
-            sys.exit(f"ERROR: checksum mismatch for {pkg_file}\n"
-                     f"Expected: {expected_sha}\n"
-                     f"Actual:   {actual_sha}")
-
-        # Determine extraction target
+        # Determine extraction target and extract
         target = self._extract_package(pkg_path, entry)
 
         print(f"[PKG] Installed cached package {pkg_file} from {repo} into {target}")
 
     #------------------------------------------------------------------#
     def _install_local_package(self, archive, entry):
-        meta_path = archive.with_suffix(archive.suffix + ".meta.json")
-        if not meta_path.exists():
-            sys.exit(f"ERROR: missing metadata {meta_path}")
-    
-        with open(meta_path, "r", encoding="utf-8") as f:
-            metadata = json.load(f)
-    
-        expected_sha = metadata.get("sha256")
-        actual_sha = self._sha256_file(archive)
-        if expected_sha != actual_sha:
-            sys.exit(f"ERROR: checksum mismatch for {archive}")
-    
+        # Optional: sanity-check embedded metadata exists inside the archive
+        pkg_name = entry.get("package_name")
+        pkg_ver = entry.get("package_version")
+        if pkg_name and pkg_ver:
+            meta_member = f"_metadata/{pkg_name}--{pkg_ver}.json"
+            try:
+                with tarfile.open(archive, "r:*") as tar:
+                    try:
+                        tar.getmember(meta_member)
+                    except KeyError:
+                        print(f"[WARN] Package missing embedded metadata: {meta_member}")
+            except tarfile.TarError as e:
+                sys.exit(f"ERROR: invalid package archive {archive}: {e}")
+
         target = self._extract_package(archive, entry)
         print(f"[PKG] Installed freshly built package {archive.name} into {target}")
 
