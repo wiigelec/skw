@@ -137,6 +137,40 @@ class Builder:
         executer = SKWExecuter(self.build_dir, self.profiles_dir, book, profile, auto_confirm=auto_confirm)
         executer.run_all()
 
+    #------------------------------------------------------------------#
+    def clean(self, book=None, profile=None, nuke=False):
+        if nuke:
+            target = self.build_dir
+            if not os.path.exists(target):
+                print("Build directory already clean.")
+                return
+
+            print(f"[NUKE] Deleting entire build directory: {target}")
+            shutil.rmtree(target)
+            print("[NUKE] Complete.")
+            return
+
+        if book and profile:
+            target = os.path.join(self.build_dir, book, profile)
+            if not os.path.exists(target):
+                sys.exit(f"Profile build dir not found: {target}")
+
+            print(f"[CLEAN] Deleting profile build directory: {target}")
+            shutil.rmtree(target)
+            print("[CLEAN] Profile removed.")
+            return
+
+        if book:
+            target = os.path.join(self.build_dir, book)
+            if not os.path.exists(target):
+                sys.exit(f"Book build dir not found: {target}")
+
+            print(f"[CLEAN] Deleting book build directory: {target}")
+            shutil.rmtree(target)
+            print("[CLEAN] Book removed.")
+            return
+
+        sys.exit("Invalid clean arguments. Use --book [--profile] or --nuke.")
 
 #------------------------------------------------------------------#
 # CLI
@@ -171,6 +205,11 @@ def main():
     p.add_argument("--profile", required=True)
     p.add_argument("--yes", action="store_true", help="auto confirm dangerous actions")
 
+    p = sub.add_parser("clean")
+    p.add_argument("--book")
+    p.add_argument("--profile")
+    p.add_argument("--nuke", action="store_true")
+
     args = parser.parse_args()
     builder = Builder()
 
@@ -190,6 +229,10 @@ def main():
         builder.script_book(args.book, args.profile)
     elif args.command == "execute":
         builder.execute_book(args.book, args.profile, auto_confirm=args.yes)
+    elif args.command == "clean":
+        builder.clean(book=args.book,
+                      profile=args.profile,
+                      nuke=args.nuke)
     else:
         parser.print_help()
 
