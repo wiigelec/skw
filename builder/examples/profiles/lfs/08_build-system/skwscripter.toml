@@ -109,6 +109,9 @@ regex = [ "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/bin\\nmkdir -p $DESTDI
 	  "s@for L in  /usr@for L in  $DESTDIR/usr@" 
 ]
 
+[ch-system-systemd]
+regex = [ "s@systemd-machine-id-setup@@", "s@systemctl preset-all@@" ]
+
 [ch-system-dbus]
 regex = [ "r@(ninja install)@\\1\\nmkdir -p $DESTDIR/var/lib/dbus" ]
 

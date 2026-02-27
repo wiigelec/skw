@@ -386,7 +386,7 @@ class SKWExecuter:
             return proc.returncode
 
     #------------------------------------------------------------------#
-   def _create_archive(self, destdir, pkg_file, entry, exec_mode):
+    def _create_archive(self, destdir, pkg_file, entry, exec_mode):
 
         out_path = (self.package_dir / pkg_file).resolve()
         out_path.parent.mkdir(parents=True, exist_ok=True)
