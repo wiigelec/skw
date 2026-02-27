@@ -668,7 +668,6 @@ class SKWExecuter:
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         dst_archive = (dest_dir / archive.name).resolve()
-        dst_meta = (dest_dir / meta_src.name).resolve()
 
         def _copy_unless_same(src: Path, dst: Path):
             try:
@@ -687,7 +686,6 @@ class SKWExecuter:
             shutil.copy2(src, dst.parent)
 
         _copy_unless_same(Path(archive), dst_archive)
-        _copy_unless_same(meta_src, dst_meta)
 
         print(f"[PKG] Uploaded package {archive.name} to {self.upload_repo}")
         
