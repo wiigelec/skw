@@ -58,7 +58,7 @@ book_ver = "12.4"
 script = "aavolatilefiles_12.4"
 exec_mode = "chroot"
 package = true
-name = "aaa_volatile-files"
+name = "aa_volatile-files"
 version = "12.4"
 book_ver = "12.4"
 

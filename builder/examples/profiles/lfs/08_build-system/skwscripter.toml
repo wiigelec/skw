@@ -110,7 +110,10 @@ regex = [ "r@(make DESTDIR.*)@\\1\\nmkdir -p $DESTDIR/usr/bin\\nmkdir -p $DESTDI
 ]
 
 [ch-system-systemd]
-regex = [ "s@systemd-machine-id-setup@@", "s@systemctl preset-all@@" ]
+regex = [ "s@systemd-machine-id-setup@@", "s@systemctl preset-all@@",
+	  "r@(tar -xf ../../systemd-man-pages.*)@mkdir -pv $DESTDIR/usr/share/man\\n\\1",
+	  "s@-C /usr/share/man@-C $DESTDIR/usr/share/man@"
+]
 
 [ch-system-dbus]
 regex = [ "r@(ninja install)@\\1\\nmkdir -p $DESTDIR/var/lib/dbus" ]
