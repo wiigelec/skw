@@ -38,30 +38,6 @@ default_extract_dir = "/mnt/lfs"
 # Require user confirmation before extracting to "/" (set true for safety)
 require_confirm_root = true
 
-[[custom]]
-script = "aabasedirs_12.4"
-exec_mode = "chroot"
-package = true
-name = "aa_basedirs"
-version = "12.4"
-book_ver = "12.4"
-
-[[custom]]
-script = "aavolatiledirs_12.4"
-exec_mode = "chroot"
-package = true
-name = "aaa_volatile-dirs"
-version = "12.4"
-book_ver = "12.4"
-
-[[custom]]
-script = "aavolatilefiles_12.4"
-exec_mode = "chroot"
-package = true
-name = "aaa_volatile-files"
-version = "12.4"
-book_ver = "12.4"
-
 
 [host]
 # Force execution of certain scripts on host
@@ -72,13 +48,13 @@ chapters = []
 [chroot]
 # Force execution of certain scripts in chroot
 packages = []
-sections = []
+sections = [ "ch-tools-linux-headers"]
 chapters = []
 
 [package]
 # Scripts that should produce packages
 packages = []
-sections = []
+sections = [ "ch-tools-linux-headers"]
 chapters = []
 
 [packages.exclude]

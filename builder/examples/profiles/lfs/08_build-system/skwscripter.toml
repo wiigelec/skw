@@ -116,7 +116,7 @@ regex = [ "s@systemd-machine-id-setup@@", "s@systemctl preset-all@@" ]
 regex = [ "r@(ninja install)@\\1\\nmkdir -p $DESTDIR/var/lib/dbus" ]
 
 [ch-system-util-linux]
-regex = [ "r@(make)\\n@\\1\\nmkdir -p $DESTDIR/etc\\n" ]
+regex = [ "r@touch .*/etc/fstab@@" ]
 
 [ch-system-e2fsprogs]
 regex = [ "s@gunzip -v /usr@gunzip -v $DESTDIR/usr" ]

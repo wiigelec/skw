@@ -1,0 +1,33 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_output = "builder/build/{book}/parser/build_metadata/"
+script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
+default_template = "template.script"
+
+[global]
+regex = []
+
+[ch-tools-linux-headers]
+regex = [ "r@cp -rv usr/include \\$LFS/usr@mkdir -pv $DESTDIR/usr\\ncp -rv usr/include $DESTDIR/usr@"]
+
+
+#------------------------------------------------------------------#
+# FILTERS
+#------------------------------------------------------------------#
+
+[chapter_filters]
+include  = []
+exclude  = []
+
+[section_filters]
+include  = [ "ch-tools-linux-headers" ]
+exclude  = []
+
+[package_filters]
+include = []
+exclude = []
+deps    = []
+
