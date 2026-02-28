@@ -43,7 +43,8 @@ regex = [ "r@grep \"Timed out\".*@@",
 ]
 
 [ch-system-bzip2]
-regex = [ "r@(make DESTDIR.*install)@\\1\\nmkdir -p $DESTDIR/usr/{lib,bin}",
+regex = [ "s@PREFIX=/usr install@PREFIX=$DESTDIR/usr install@",
+	  "r@(make DESTDIR.*install)@\\1\\nmkdir -p $DESTDIR/usr/{lib,bin}",
 	  "r@for i in /@for i in $DESTDIR/@" 
 ]
 
