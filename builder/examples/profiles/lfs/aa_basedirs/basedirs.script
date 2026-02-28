@@ -28,6 +28,15 @@ mkdir -v "$DESTDIR"/sources
 chmod -v a+wt "$DESTDIR"/sources
 
 
+### 6.4 ###
+mkdir -pv "$DESTDIR"/usr/bin
+ln -sv bash "$DESTDIR"/usr/bin/sh
+
+
+### 6.18 ###
+ln -sv gcc "$DESTDIR"/usr/bin/cc
+
+
 ### 7.3 ###
 mkdir -pv "$DESTDIR"/{dev,proc,sys,run}
 
