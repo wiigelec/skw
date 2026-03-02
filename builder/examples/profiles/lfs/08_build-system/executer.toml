@@ -38,6 +38,9 @@ default_extract_dir = "/mnt/lfs"
 # Require user confirmation before extracting to "/" (set true for safety)
 require_confirm_root = true
 
+# Pre-package script
+pre_package_hook = "strip.script"
+
 
 [host]
 # Force execution of certain scripts on host
