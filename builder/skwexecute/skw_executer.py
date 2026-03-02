@@ -23,7 +23,7 @@ from datetime import datetime
 
 #------------------------------------------------------------------#
 class SKWExecuter:
-    def __init__(self, build_dir, profiles_dir, book, profile, auto_confirm=False):
+    def __init__(self, build_dir, profiles_dir, book, profile, auto_confirm=False, only=None, force=False):
         self.build_dir = Path(build_dir)
         self.profiles_dir = Path(profiles_dir)
         self.book = book
@@ -32,6 +32,8 @@ class SKWExecuter:
         self.logs_dir = self.exec_dir / "logs"
         self.downloads_dir = self.exec_dir / "downloads"
         self.auto_confirm = auto_confirm
+        self.only = only
+        self.force = force
 
         # Load executer.toml
         cfg_path = self.profiles_dir / book / profile / "executer.toml"
@@ -174,25 +176,43 @@ class SKWExecuter:
     def run_all(self):
         scripts = sorted(self.scripts_dir.glob("*.sh"))
 
+        # Optional: restrict to one target
+        if self.only:
+            target = self._slug(self.only)
+            filtered = []
+
+            for script in scripts:
+                entry = self._find_metadata(script.name)
+                # match by package_name or raw section_id or "chapter_section"
+                keys = [
+                    self._slug(entry.get("package_name", "")),
+                    self._slug(entry.get("section_id", "")),
+                    self._slug(f"{entry.get('chapter_id','')}_{entry.get('section_id','')}"),
+                ]
+                if target in keys:
+                    filtered.append(script)
+
+            if not filtered:
+                sys.exit(f"ERROR: --only '{self.only}' did not match any script/package")
+            scripts = filtered
+
         for script in scripts:
             entry = self._find_metadata(script.name)
             make_package = self._should_package(entry)
             pkg_file = self._pkg_filename(entry) if make_package else None
 
-            # 1. CHECK CACHE
-            pkg_data = self._package_exists(pkg_file) if make_package else None
-            
-            #print(f"[DEBUG] Looking for cached package: {pkg_data}")
+            # 1) CHECK CACHE (skip if forcing)
+            pkg_data = None
+            if make_package and not self.force:
+                pkg_data = self._package_exists(pkg_file)
 
             if pkg_data:
-                # INSTALL THE CACHE and skip building
                 print(f"[CACHE] Found {pkg_file} in {pkg_data['repo']}. Installing...")
                 self._install_package(pkg_file, entry, pkg_data)
                 self._log_skip(script, pkg_file, pkg_data['repo'])
-                # This ensures we skip the build logic below
                 continue
 
-            # 2. BUILD (Only reached if no cache found)
+            # 2) BUILD
             exec_mode = self._exec_mode(entry)
             destdir = self._make_destdir(exec_mode, entry) if make_package else None
 
@@ -200,17 +220,15 @@ class SKWExecuter:
             if rc != 0:
                 sys.exit(f"ERROR: script {script} failed with code {rc}")
 
-            # 3. PACKAGE & CLEANUP
+            # 3) PACKAGE & CLEANUP
             if make_package:
                 archive = self._create_archive(destdir, pkg_file, entry, exec_mode)
                 self._install_local_package(archive, entry)
                 self._upload_package(archive)
-
-                # CLEANUP: Remove staging dir so it doesn't clutter CWD
                 if destdir and Path(destdir).exists():
                     shutil.rmtree(destdir, ignore_errors=True)
 
-        print(f"[INFO] Script execution completed successfully!")
+        print("[INFO] Script execution completed successfully!")
 
     #------------------------------------------------------------------#
     def _pkg_filename(self, entry: dict) -> str:

@@ -133,8 +133,16 @@ class Builder:
         scripter.run()
 
     #------------------------------------------------------------------#
-    def execute_book(self, book, profile, auto_confirm=False):
-        executer = SKWExecuter(self.build_dir, self.profiles_dir, book, profile, auto_confirm=auto_confirm)
+    def execute_book(self, book, profile, auto_confirm=False, only=None, force=False):
+        executer = SKWExecuter(
+            self.build_dir,
+            self.profiles_dir,
+            book,
+            profile,
+            auto_confirm=auto_confirm,
+            only=only,
+            force=force,
+        )
         executer.run_all()
 
     #------------------------------------------------------------------#
@@ -204,6 +212,8 @@ def main():
     p.add_argument("--book", required=True)
     p.add_argument("--profile", required=True)
     p.add_argument("--yes", action="store_true", help="auto confirm dangerous actions")
+    p.add_argument("--only", help="Run only one target (package name, section_id, or chapter_id_section_id)")
+    p.add_argument("--force", action="store_true", help="Force rebuild: ignore cached packages")
 
     p = sub.add_parser("clean")
     p.add_argument("--book")
@@ -228,7 +238,13 @@ def main():
     elif args.command == "script":
         builder.script_book(args.book, args.profile)
     elif args.command == "execute":
-        builder.execute_book(args.book, args.profile, auto_confirm=args.yes)
+        builder.execute_book(
+            args.book,
+            args.profile,
+            auto_confirm=args.yes,
+            only=args.only,
+            force=args.force,
+        )
     elif args.command == "clean":
         builder.clean(book=args.book,
                       profile=args.profile,
