@@ -18,6 +18,7 @@ import platform
 import hashlib
 import re
 import yaml
+import fnmatch
 from pathlib import Path
 from datetime import datetime
 
@@ -311,18 +312,44 @@ class SKWExecuter:
         inc = self.cfg.get("package", {})
         exc = self.cfg.get("packages", {}).get("exclude", {})
 
+        def _as_list(x):
+            if x is None:
+                return []
+            if isinstance(x, str):
+                return [x]
+            return list(x)
+
+        def _match_any(patterns, value):
+            # patterns may include globs like "*" or "gcc*"
+            for p in patterns:
+                if fnmatch.fnmatchcase(value, str(p)):
+                    return True
+            return False
+
+        inc_pkgs = _as_list(inc.get("packages", []))
+        inc_secs = _as_list(inc.get("sections", []))
+        inc_chap = _as_list(inc.get("chapters", []))
+
+        exc_pkgs = _as_list(exc.get("packages", []))
+        exc_secs = _as_list(exc.get("sections", []))
+        exc_chap = _as_list(exc.get("chapters", []))
+
+        # candidates for matching
+        pkg_id = pkg
+        pkg_ver_id = f"{pkg}-{ver}" if pkg and ver else ""
+
         include = (
-            pkg in inc.get("packages", [])
-            or f"{pkg}-{ver}" in inc.get("packages", [])
-            or sec in inc.get("sections", [])
-            or chap in inc.get("chapters", [])
+            (pkg_id and _match_any(inc_pkgs, pkg_id))
+            or (pkg_ver_id and _match_any(inc_pkgs, pkg_ver_id))
+            or (sec and _match_any(inc_secs, sec))
+            or (chap and _match_any(inc_chap, chap))
         )
 
         exclude = (
-            pkg in exc.get("packages", [])
-            or f"{pkg}-{ver}" in exc.get("packages", [])
-            or sec in exc.get("sections", [])
-            or chap in exc.get("chapters", [])
+            (pkg_id and _match_any(exc_pkgs, pkg_id))
+            or (pkg_ver_id and _match_any(exc_pkgs, pkg_ver_id))
+            or (sec and _match_any(exc_secs, sec))
+            or (chap and _match_any(exc_chap, chap))
         )
 
         return include and not exclude
