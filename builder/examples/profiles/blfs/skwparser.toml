@@ -13,7 +13,7 @@ name_version = "./title/text()"
 book_title = "/book/bookinfo/title//text()"
 book_ver = "substring-after(/book/bookinfo/subtitle/text(),' ')"
 book_rev = "/book/bookinfo/title/phrase/@revision"
-child1 = [ "source", "additional_downloads", "patches", "dependencies" ]
+child1 = [ "source", "additional_downloads", "dependencies" ]
 build_instructions = ".//screen//userinput//text()"
 
 
@@ -23,10 +23,6 @@ checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': '
 
 [additional_downloads]
 url = ".//bridgehead[text() = 'Additional Downloads']/following-sibling::*[1]//ulink/@url"
-checksum = ""
-
-[patches]
-url = ".//para[contains(.,'patch:')]//ulink/@url"
 checksum = ""
 
 
