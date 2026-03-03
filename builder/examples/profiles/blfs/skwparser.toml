@@ -22,7 +22,7 @@ url = ".//para[contains(.,'Download (HTTP):')]//ulink/@url"
 checksum = "substring-after(.//para[contains(.,'Download MD5 sum:')]/text(),': ')"
 
 [additional_downloads]
-url = ".//para[contains(.,'Download: ')]//ulink/@url"
+url = ".//bridgehead[text() = 'Additional Downloads']/following-sibling::*[1]//ulink/@url"
 checksum = ""
 
 [patches]
