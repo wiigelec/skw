@@ -22,6 +22,7 @@ class SKWScripter:
         self.profiles_dir = profiles_dir
         self.book = book
         self.profile = profile
+        self.dep_mode = False
 
         # Load scripter.toml
         self.config_path = os.path.join(profiles_dir, book, profile, "skwscripter.toml")
@@ -107,6 +108,8 @@ class SKWScripter:
     #------------------------------------------------------------------#
     def _run_dependency_mode(self, entries):
         print("[INFO] No build_order fields detected - switching to dependency mode.")
+
+        self.dep_mode = True
     
         # Get alias file path
         raw_alias_file = self.cfg.get("main", {}).get("alias_file", "aliases.toml")
@@ -193,8 +196,8 @@ class SKWScripter:
             script_content = self._apply_regex(entry, script_content)
 
             order = entry.get("build_order") or f"{idx:04d}"
-            name = entry.get("chapter_id")
-            ver = entry.get("section_id")
+            name = entry.get("chapter_id") or entry.get("name")
+            ver = entry.get("section_id") or entry.get("version")
             if not name or not ver:
                 sys.exit(f"Error: missing name or version for script generation: {entry}")
 
@@ -225,6 +228,8 @@ class SKWScripter:
         }
     
         explicitly_included = False
+        if self.dep_mode:
+            explicitly_included = True
     
         for key, section in filters.items():
             ident = entry.get(key)
