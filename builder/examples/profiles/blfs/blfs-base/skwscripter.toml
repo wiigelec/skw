@@ -1,0 +1,36 @@
+# ================================================================
+# Scripter Configuration
+# ================================================================
+
+[main]
+parser_output = "builder/build/{book}/parser/build_metadata/"
+script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
+default_template = "template.script"
+alias_file = "{profiles_dir}/{book}/{profile}/aliases.toml"
+
+target = "git"
+include_classes = ["required", "recommended"]
+
+
+[global]
+regex = []
+
+
+# Chapter-specific filters
+# Example:
+# [<chapter>]
+# template = "chapter.script"
+# regex = ["s/foo/bar/"]
+
+# Section-specific filters
+# Example:
+# [<section>]
+# template = "section.script"
+# regex = []
+
+# Package-specific filters
+# Example:
+# [<package>]
+# template = "package.script"
+# regex = []
+
