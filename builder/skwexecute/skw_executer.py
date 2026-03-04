@@ -59,6 +59,10 @@ class SKWExecuter:
         # 1. BUILD METADATA REGISTRY
         # We map (slugged_chapter, slugged_section) -> yaml_entry
         self.metadata_registry = {}
+
+        # Also map (slugged_name, slugged_version) -> yaml_entry
+        self.metadata_registry_pkg = {}
+
         parser_dir = self.build_dir / book / "parser"  / "build_metadata"
         if not parser_dir.exists():
             sys.exit(f"ERROR: missing {parser_dir}")
@@ -72,6 +76,13 @@ class SKWExecuter:
 
                 # Store by the IDs used in the filename
                 self.metadata_registry[(c_slug, s_slug)] = entry
+
+                # Store by package name/version too (for {order}_{name}_{version}.sh)
+                n_slug = self._slug(entry.get("name", ""))
+                v_slug = self._slug(entry.get("version", ""))
+                if n_slug and v_slug and n_slug != "unnamed" and v_slug != "unnamed":
+                    # If duplicates exist, last one wins (same behavior as current dict overwrite)
+                    self.metadata_registry_pkg[(n_slug, v_slug)] = entry
 
         # 2. IDENTIFY SCRIPTS
         self.scripts_dir = self.build_dir / book / profile / "scripter" / "scripts"
@@ -154,6 +165,12 @@ class SKWExecuter:
         sec_slug = self._slug(sec_id)
         entry = self.metadata_registry.get((chap_slug, sec_slug))
 
+        # If not found, interpret filename as {order}_{name}_{version}.sh
+        if not entry:
+            name_slug = chap_slug        # same token position in filename
+            ver_slug  = sec_slug
+            entry = self.metadata_registry_pkg.get((name_slug, ver_slug))
+
         # Fallback: custom metadata from executer.toml
         if not entry:
             custom_key = f"{chap_id}_{sec_id}"
@@ -165,8 +182,12 @@ class SKWExecuter:
                 )
 
             entry = dict(c)
-            entry["chapter_id"] = chap_id
-            entry["section_id"] = sec_id
+
+            # Keep both sets populated as best-effort; custom entries may define either scheme.
+            entry.setdefault("chapter_id", chap_id)
+            entry.setdefault("section_id", sec_id)
+            entry.setdefault("name", chap_id)
+            entry.setdefault("version", sec_id)
 
         # Normalize package keys for the rest of the executer logic
         entry["package_name"] = entry.get("package_name") or entry.get("name", "")
