@@ -47,15 +47,15 @@ chapters = []
 
 [chroot]
 # Force execution of certain scripts in chroot
-packages = []
+packages = [ "*" ]
 sections = []
-chapters = [ "*" ]
+chapters = []
 
 [package]
 # Scripts that should produce packages
-packages = []
+packages = [ "*" ]
 sections = []
-chapters = [ "*" ]
+chapters = []
 
 [packages.exclude]
 # Explicit exclusions (take precedence)

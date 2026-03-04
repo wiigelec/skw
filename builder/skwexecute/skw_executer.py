@@ -298,25 +298,42 @@ class SKWExecuter:
             if override not in ("host", "chroot"):
                 sys.exit(f"ERROR: invalid exec_mode '{override}' (expected 'host' or 'chroot')")
             return override
-
-        # Host rules take precedence
+    
+        def _as_list(x):
+            if x is None:
+                return []
+            if isinstance(x, str):
+                return [x]
+            return list(x)
+    
+        def _match_any(patterns, value):
+            for p in patterns:
+                if fnmatch.fnmatchcase(value, str(p)):
+                    return True
+            return False
+    
+        pkg  = entry.get("package_name", "") or ""
+        sec  = entry.get("section_id", "") or ""
+        chap = entry.get("chapter_id", "") or ""
+    
+        # Host rules take precedence (same precedence as your current code)
         h = self.cfg.get("host", {})
-        if entry.get("package_name") in h.get("packages", []):
+        if pkg and _match_any(_as_list(h.get("packages", [])), pkg):
             return "host"
-        if entry.get("section_id") in h.get("sections", []):
+        if sec and _match_any(_as_list(h.get("sections", [])), sec):
             return "host"
-        if entry.get("chapter_id") in h.get("chapters", []):
+        if chap and _match_any(_as_list(h.get("chapters", [])), chap):
             return "host"
-
+    
         # Then chroot rules
         c = self.cfg.get("chroot", {})
-        if entry.get("package_name") in c.get("packages", []):
+        if pkg and _match_any(_as_list(c.get("packages", [])), pkg):
             return "chroot"
-        if entry.get("section_id") in c.get("sections", []):
+        if sec and _match_any(_as_list(c.get("sections", [])), sec):
             return "chroot"
-        if entry.get("chapter_id") in c.get("chapters", []):
+        if chap and _match_any(_as_list(c.get("chapters", [])), chap):
             return "chroot"
-
+    
         # Default fallback
         return "host"
 
