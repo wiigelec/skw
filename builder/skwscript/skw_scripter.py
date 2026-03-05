@@ -241,7 +241,7 @@ class SKWScripter:
                 f.write(script_content)
             os.chmod(script_path, 0o755)
 
-        print(f"[INFO] Scripter complete. Scripts written to {script_dir}")
+        print(f"[INFO] Scripter complete. Scripts written to {script_dir}:")
         scripts = sorted(f for f in os.listdir(script_dir) if f.endswith(".sh"))
         for s in scripts:
             print(f"  {s}")
