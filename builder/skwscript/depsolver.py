@@ -58,7 +58,9 @@ class DependencySolver:
             if not alias_value:
                 print(f"[WARN] Alias for '{dep}' is empty; skipping dependency.")
                 return None
-            yaml_path = self.yaml_dir / f"{alias_value}.yaml"
+            raw = f"{alias_value}.yaml"
+            fname = "".join(c if c.isalnum() or c in "-_." else "_" for c in raw)
+            yaml_path = self.yaml_dir / fname 
             if not yaml_path.exists():
                 print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
                 sys.exit(1)
