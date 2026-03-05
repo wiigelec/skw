@@ -15,6 +15,13 @@ include_classes = ["required", "recommended"]
 [global]
 regex = []
 
+[git]
+regex = [ "s@make html@@",
+          "s@make man@@",
+          "s@make install-man@@",
+          "r@.*install-html@@"
+]
+
 
 # Chapter-specific filters
 # Example:
