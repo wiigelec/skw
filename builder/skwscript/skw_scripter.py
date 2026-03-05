@@ -142,30 +142,58 @@ class SKWScripter:
             sys.exit("Error: [main].target must be a string or a list of strings in skwscripter.toml")
 
         # Build dependency trees for all targets, then union them (preserving order)
-        ordered_names = []
+        ordered_names: list[tuple[str, str]] = []  # (phase, pkg)
         for target in targets:
             solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
             tree = solver.build_full_phase_tree()
             flat = solver.flatten_phases(tree)
 
-            ordered_names += (
-                flat["bootstrap_pass1"]
-                + flat["buildtime"]
-                + flat["target"]
-                + flat["bootstrap_pass2"]
-                + flat["runtime"]
-            )
+            pass1_roots = set(p.lower() for p in flat["bootstrap_pass2"])
 
-        # Deduplicate while preserving first-seen order
-        seen = set()
-        deduped = []
-        for n in ordered_names:
-            key = str(n).lower()
+            ordered_items = []
+
+            for p in flat["bootstrap_pass1"]:
+                ordered_items.append(("bootstrap_pass1", p))
+            
+            for p in flat["buildtime"]:
+                ordered_items.append(("buildtime", p))
+            
+            for p in flat["target"]:
+                ordered_items.append(("target", p))
+            
+            for p in flat["bootstrap_pass2"]:
+                ordered_items.append(("bootstrap_pass2", p))
+            
+            for p in flat["runtime"]:
+                ordered_items.append(("runtime", p))
+            
+            # Merge into the global list for all targets
+            ordered_names += ordered_items
+
+        pass1_roots: set[str] = set()
+        for target in targets:
+            solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
+            tree = solver.build_full_phase_tree()
+            flat = solver.flatten_phases(tree)
+            pass1_roots.update(p.lower() for p in flat["bootstrap_pass2"])
+        
+        # Global dedupe across ALL targets, but keep bootstrap_pass2 occurrence of pass1 roots
+        seen: set[str] = set()
+        deduped: list[tuple[str, str]] = []
+        
+        for phase, pkg in ordered_names:
+            key = str(pkg).lower()
+        
+            # Keep pass2 rebuild of pass1 roots even if seen already
+            if phase == "bootstrap_pass2" and key in pass1_roots:
+                deduped.append((phase, pkg))
+                continue
+        
             if key in seen:
                 continue
+        
             seen.add(key)
-            deduped.append(n)
-        ordered_names = deduped
+            deduped.append((phase, pkg))
 
         print(f"[INFO] Dependency trees resolved - {len(ordered_names)} total packages across {len(targets)} targets.")
 
@@ -198,12 +226,40 @@ class SKWScripter:
                     name_map[alias] = name_map[key]
                     break
     
-        # Match dependency order to YAML entries
+        # Track how many times we’ve emitted scripts per pass1-root
+        root_emitted = {}  # key -> {"pass1": bool, "pass2": bool}
+        
         ordered_entries = []
-        for pkg in ordered_names:
-            pkg_lower = pkg.lower()
+        for phase, pkg in deduped:
+            key = str(pkg).lower()
+        
+            is_root = key in pass1_roots
+            if is_root:
+                st = root_emitted.setdefault(key, {"pass1": False, "pass2": False})
+        
+                if phase == "bootstrap_pass1":
+                    if st["pass1"]:
+                        continue
+                    st["pass1"] = True
+                    emit_pass1 = True
+        
+                elif phase == "bootstrap_pass2":
+                    if st["pass2"]:
+                        continue
+                    st["pass2"] = True
+                    emit_pass1 = False
+        
+                else:
+                    # If it’s a pass1 root, we *only* want the pass1 + pass2 occurrences.
+                    continue
+            else:
+                emit_pass1 = False
+        
+            pkg_lower = key
             if pkg_lower in name_map:
-                ordered_entries.append(name_map[pkg_lower])
+                e = dict(name_map[pkg_lower])   # copy; don’t mutate shared entry
+                e["_pass1_root"] = emit_pass1
+                ordered_entries.append(e)
             else:
                 print(f"[WARN] Package '{pkg}' not found among YAML entries.")
     
@@ -215,6 +271,7 @@ class SKWScripter:
     #------------------------------------------------------------------#
     def _generate_scripts(self, ordered_entries):
         script_dir = self.script_dir
+        emitted = set()
 
         # Clean existing scripts
         print(f"[INFO] Cleaning script dir.")
@@ -230,10 +287,21 @@ class SKWScripter:
             script_content = self._apply_regex(entry, script_content)
 
             order = entry.get("build_order") or f"{idx:04d}"
+            is_pass1 = bool(entry.get("_pass1_root"))
+            if is_pass1:
+                order = f"{order}-pass1"
             name = entry.get("chapter_id") or entry.get("name")
             ver = entry.get("section_id") or entry.get("version")
             if not name or not ver:
                 sys.exit(f"Error: missing name or version for script generation: {entry}")
+
+            name_slug = self._slug(name)
+            ver_slug = self._slug(ver)
+    
+            dedupe_key = (name_slug, ver_slug, is_pass1)
+            if dedupe_key in emitted:
+                continue
+            emitted.add(dedupe_key)
 
             script_name = f"{order}_{self._slug(name)}_{self._slug(ver)}.sh"
             script_path = os.path.join(script_dir, script_name)

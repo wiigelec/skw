@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# ================================================================
+#
+# depsolver.py
+#
+# ================================================================
+
 from __future__ import annotations
 from pathlib import Path
 import yaml
@@ -8,13 +14,14 @@ import argparse
 import sys
 from collections import defaultdict
 
-
+#------------------------------------------------------------------#
 class DependencySolver:
     """
     DependencySolver — Stage 1 strict mode with recursive 5-phase dependency support.
     Honors --classes filters (e.g. required, recommended).
     """
 
+    #------------------------------------------------------------------#
     def __init__(self, target: str, yaml_dir: Path, alias_file: Path, include_classes: list[str]):
         self.target = target.lower()
         self.yaml_dir = Path(yaml_dir)
@@ -23,9 +30,7 @@ class DependencySolver:
         self.alias_map = self._load_aliases()
         self.dependency_tree: dict[str, dict] = {}
 
-    # ---------------------------
-    # Alias & YAML loading
-    # ---------------------------
+    #------------------------------------------------------------------#
     def _load_aliases(self) -> dict[str, str]:
         """Load alias mappings from a TOML file (keys converted to lowercase)."""
         if not self.alias_file.exists():
@@ -46,6 +51,7 @@ class DependencySolver:
                 print(f"[WARN] Alias for '{k}' is not a string; treating as blank.")
         return normalized
 
+    #------------------------------------------------------------------#
     def _resolve_yaml_path(self, dep: str) -> Path | None:
         """Resolve dependency name to YAML file path.
         Alias mapping takes precedence over directory scan.
@@ -93,11 +99,12 @@ class DependencySolver:
         print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
         sys.exit(1)
 
-
+    #------------------------------------------------------------------#
     def _parse_yaml(self, yaml_path: Path) -> dict:
         with open(yaml_path, "r") as f:
             return yaml.safe_load(f) or {}
 
+    #------------------------------------------------------------------#
     def _normalize_names(self, entry: dict) -> list[str]:
         """Normalize dependency entries to lowercase list."""
         if not entry or entry == "" or entry == {"name": ""}:
@@ -107,9 +114,7 @@ class DependencySolver:
             return [names.lower()]
         return [n.lower() for n in names if n]
 
-    # ---------------------------
-    # Strict dependency resolver
-    # ---------------------------
+    #------------------------------------------------------------------#
     def _collect_dependencies(self, package: str, visited: set[str] | None = None, stack: list[str] | None = None) -> dict:
         if visited is None:
             visited = set()
@@ -146,17 +151,17 @@ class DependencySolver:
         visited.add(package)
         return result
 
+    #------------------------------------------------------------------#
     def build_tree(self) -> dict:
         print(f"[INFO] Building dependency tree for target: {self.target}")
         self.dependency_tree = self._collect_dependencies(self.target)
         return self.dependency_tree
 
+    #------------------------------------------------------------------#
     def print_tree(self):
         print(json.dumps(self.dependency_tree, indent=2))
 
-    # ---------------------------
-    # Full-phase builder
-    # ---------------------------
+    #------------------------------------------------------------------#
     def _expand_phase_tree(self, pkg: str, visited=None):
         if visited is None:
             visited = set()
@@ -197,16 +202,16 @@ class DependencySolver:
                     tree[f"after_{pkg}"][dep] = self._expand_phase_tree(dep, visited)
         return tree
 
+    #------------------------------------------------------------------#
     def build_full_phase_tree(self):
         return self._expand_phase_tree(self.target)
 
+    #------------------------------------------------------------------#
     def print_full_phase_tree(self):
         tree = self.build_full_phase_tree()
         print(json.dumps(tree, indent=2))
 
-    # ---------------------------
-    # Flatten (v5 logic integrated)
-    # ---------------------------
+    #------------------------------------------------------------------#
     def flatten_phases(self, node, built_so_far=None, first_seen=None, target_pkg=None):
         """
         Flatten dependency tree into five ordered lists:
@@ -322,11 +327,7 @@ class DependencySolver:
 
         return order
 
-
-
-# ---------------------------
-# CLI Entrypoint
-# ---------------------------
+#------------------------------------------------------------------#
 def main():
     parser = argparse.ArgumentParser(description="Dependency Solver — strict mode with optional recursive 5-phase tree.")
     parser.add_argument("--target", required=True, help="Target package to resolve (e.g., mesa)")
