@@ -104,5 +104,5 @@ cd "$dirname"
 
 ### CLEANUP ###
 
-cd "$LFS/sources"
+cd "/sources"
 rm -rf $dirname
