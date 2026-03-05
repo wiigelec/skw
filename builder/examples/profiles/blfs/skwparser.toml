@@ -9,7 +9,7 @@
 xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indexterm]"
 name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 version = "translate('{version}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
-name_version = "./title/text()"
+name_version = "./@xreflabel"
 book_title = "/book/bookinfo/title//text()"
 book_ver = "substring-after(/book/bookinfo/subtitle/text(),' ')"
 book_rev = "/book/bookinfo/title/phrase/@revision"

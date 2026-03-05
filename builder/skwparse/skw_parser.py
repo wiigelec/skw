@@ -291,7 +291,9 @@ class SKWParser:
             filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
             filepath = self.output_dir / filename
             
-            #entry = self._force_str(entry)
+            # Version check
+            if val2 == "{version}":
+                print(f"[SKWParser] WARNING: unresolved version for: '{val1}'")
             
             self._write_yaml(entry, filepath, filename)
 
