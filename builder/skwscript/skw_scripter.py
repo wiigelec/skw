@@ -215,6 +215,11 @@ class SKWScripter:
     #------------------------------------------------------------------#
     def _generate_scripts(self, ordered_entries):
         script_dir = self.script_dir
+
+        # Clean existing scripts
+        for f in os.listdir(script_dir):
+            os.remove(os.path.join(script_dir, f))
+
         for idx, entry in enumerate(ordered_entries, start=1):
             if not self._should_generate_script(entry):
                 continue
@@ -236,6 +241,9 @@ class SKWScripter:
             os.chmod(script_path, 0o755)
 
         print(f"[INFO] Scripter complete. Scripts written to {script_dir}")
+        scripts = sorted(f for f in os.listdir(script_dir) if f.endswith(".sh"))
+        for s in scripts:
+            print(f"  {s}")
         
     #------------------------------------------------------------------#  
     def _slug(self, s: str) -> str:
