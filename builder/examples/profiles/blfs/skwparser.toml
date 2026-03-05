@@ -6,7 +6,7 @@
 
 ### DO NOT MOVE THIS SECTION FOR PROPER PARSING AND FILE NAMING ###
 [package]
-xpath = "//sect1[@xreflabel and indexterm] | //sect1/sect2[@xreflabel and indexterm]"
+xpath = "//sect1[@xreflabel] | //sect2[@xreflabel]"
 name = "translate('{name}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 version = "translate('{version}', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')"
 name_version = "./@xreflabel"
