@@ -220,7 +220,14 @@ class SKWExecuter:
 
         for script in scripts:
             entry = self._find_metadata(script.name)
-            make_package = self._should_package(entry)
+
+            # If the script filename order token contains "-pass1", never package/cache it.
+            order, _, _ = self.parse_script_name(script.name)
+            is_pass1 = bool(order) and ("pass1" in order.split("-"))
+            if is_pass1:
+                print(f"[NOPKG] pass1 script detected: {script.name}")
+        
+            make_package = (self._should_package(entry) and not is_pass1)
             pkg_file = self._pkg_filename(entry) if make_package else None
 
             # 1) CHECK CACHE (skip if forcing)
