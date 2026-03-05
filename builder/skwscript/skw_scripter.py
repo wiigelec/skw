@@ -220,12 +220,6 @@ class SKWScripter:
                 name_map[alias] = name_map[canonical]
                 continue
     
-            # Prefix match (e.g. canonical 'glib-2.82.5' ? YAML 'glib')
-            for key in list(name_map.keys()):
-                if canonical.startswith(key) and alias not in name_map:
-                    name_map[alias] = name_map[key]
-                    break
-    
         # Track how many times we've emitted scripts per pass1-root
         root_emitted = {}  # key -> {"pass1": bool, "pass2": bool}
         
