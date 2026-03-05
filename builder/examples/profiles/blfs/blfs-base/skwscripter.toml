@@ -8,7 +8,7 @@ script_dir = "builder/build/{book}/{profile}/scripter/scripts/"
 default_template = "template.script"
 alias_file = "{profiles_dir}/{book}/{profile}/aliases.toml"
 
-target = "git"
+target = [ "wget", "git" ]
 include_classes = ["required", "recommended"]
 
 

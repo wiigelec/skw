@@ -122,25 +122,53 @@ class SKWScripter:
         alias_file = Path(alias_file).expanduser().resolve()
     
         include_classes = self.cfg.get("main", {}).get("include_classes", ["required", "recommended"])
-        target = self.cfg.get("main", {}).get("target")
+        targets = self.cfg.get("main", {}).get("target")
     
-        if not target:
+        if not targets:
             sys.exit("Error: [main].target must be defined in skwscripter.toml for dependency mode.")
     
-        # Build dependency tree
-        solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
-        tree = solver.build_full_phase_tree()
-        flat = solver.flatten_phases(tree)
-    
-        ordered_names = (
-            flat["bootstrap_pass1"]
-            + flat["buildtime"]
-            + flat["target"]
-            + flat["bootstrap_pass2"]
-            + flat["runtime"]
-        )
-        print(f"[INFO] Dependency tree resolved - {len(ordered_names)} total packages.")
-    
+        # Allow target to be either a string or a list of strings
+        if isinstance(targets, str):
+            targets = [targets]
+        elif isinstance(targets, list):
+            # normalize + validate items
+            norm = []
+            for t in targets:
+                if not isinstance(t, str) or not t.strip():
+                    sys.exit(f"Error: invalid entry in [main].target list: {t!r}")
+                norm.append(t.strip())
+            targets = norm
+        else:
+            sys.exit("Error: [main].target must be a string or a list of strings in skwscripter.toml")
+
+        # Build dependency trees for all targets, then union them (preserving order)
+        ordered_names = []
+        for target in targets:
+            solver = DependencySolver(target, self.parser_dir, alias_file, include_classes)
+            tree = solver.build_full_phase_tree()
+            flat = solver.flatten_phases(tree)
+
+            ordered_names += (
+                flat["bootstrap_pass1"]
+                + flat["buildtime"]
+                + flat["target"]
+                + flat["bootstrap_pass2"]
+                + flat["runtime"]
+            )
+
+        # Deduplicate while preserving first-seen order
+        seen = set()
+        deduped = []
+        for n in ordered_names:
+            key = str(n).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(n)
+        ordered_names = deduped
+
+        print(f"[INFO] Dependency trees resolved - {len(ordered_names)} total packages across {len(targets)} targets.")
+
         # Load aliases for reverse lookup
         try:
             alias_data = toml.load(alias_file)
