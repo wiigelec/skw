@@ -217,6 +217,7 @@ class SKWScripter:
         script_dir = self.script_dir
 
         # Clean existing scripts
+        print(f"[INFO] Cleaning script dir.")
         for f in os.listdir(script_dir):
             os.remove(os.path.join(script_dir, f))
 
