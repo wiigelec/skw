@@ -226,7 +226,7 @@ class SKWScripter:
                     name_map[alias] = name_map[key]
                     break
     
-        # Track how many times we’ve emitted scripts per pass1-root
+        # Track how many times we've emitted scripts per pass1-root
         root_emitted = {}  # key -> {"pass1": bool, "pass2": bool}
         
         ordered_entries = []
@@ -250,20 +250,20 @@ class SKWScripter:
                     emit_pass1 = False
         
                 else:
-                    # If it’s a pass1 root, we *only* want the pass1 + pass2 occurrences.
+                    # If it's a pass1 root, we *only* want the pass1 + pass2 occurrences.
                     continue
             else:
                 emit_pass1 = False
         
             pkg_lower = key
             if pkg_lower in name_map:
-                e = dict(name_map[pkg_lower])   # copy; don’t mutate shared entry
+                e = dict(name_map[pkg_lower])   # copy; don't mutate shared entry
                 e["_pass1_root"] = emit_pass1
                 ordered_entries.append(e)
             else:
                 print(f"[WARN] Package '{pkg}' not found among YAML entries.")
     
-        print(f"[INFO] Matched {len(ordered_entries)} of {len(ordered_names)} packages to YAML entries.")
+        print(f"[INFO] Matched {len(ordered_entries)} of {len(deduped)} deduplicated packages to YAML entries.")
     
         # Generate scripts in dependency order
         self._generate_scripts(ordered_entries)
