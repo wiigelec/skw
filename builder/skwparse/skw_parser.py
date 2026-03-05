@@ -29,6 +29,10 @@ class SKWParser:
         self.build_dir = Path(build_dir)
         self.profiles_dir = Path(profiles_dir)
         self.book = book
+        self.versions = {}
+
+        # Get versions toml config
+        self.version_toml_path = self.profiles_dir / book / "versions.toml"
 
         # Get xml path from config
         self.config_path = self.profiles_dir / book / "skwparser.toml"
@@ -65,6 +69,7 @@ class SKWParser:
         print(f"[SKWParser] Running parser for book '{self.book}'")
         self._load_toml()
         self._load_xml()
+        self._load_versions()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._generate_yaml_files()
         print(f"[SKWParser] Completed. YAML outputs in {self.output_dir}")
@@ -79,6 +84,14 @@ class SKWParser:
         parser = etree.XMLParser(remove_blank_text=True)
         with self.xml_path.open("r", encoding="utf-8") as f:
             self.xml_tree = etree.parse(f, parser)
+
+    #------------------------------------------------------------------#        
+    def _load_versions(self):
+        if self.version_toml_path.exists():
+            with self.version_toml_path.open("r", encoding="utf-8") as f:
+                self.versions = toml.load(f)
+        else:
+            self.versions = {}
 
     #------------------------------------------------------------------#
     def _extract_value(self, node, xpath_expr, context=None):
@@ -287,13 +300,27 @@ class SKWParser:
             fields = list(entry.keys())
             val1 = str(entry.get(fields[0], "") or "unknown")
             val2 = str(entry.get(fields[1], "") or "unknown")
-            filename = f"{val1}-{val2}.yaml"
-            filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
-            filepath = self.output_dir / filename
             
             # Version check
             if val2 == "{version}":
-                print(f"[SKWParser] WARNING: unresolved version for: '{val1}'")
+                resolved = ""
+                # support either flat or [versions] table; pick one and stick to it
+                if isinstance(self.versions.get("versions"), dict):
+                    resolved = self.versions["versions"].get(val1, "")
+                else:
+                    resolved = self.versions.get(val1, "")
+            
+                if resolved:
+                    val2 = str(resolved)
+                    entry[fields[1]] = val2  # update the YAML data too, not just filename
+                else:
+                    print(f"[WARN] Unresolved version for: '{val1}' (no match in version.toml)")
+                    val2 = ""
+                    entry[fields[1]] = val2
+                    
+            filename = f"{val1}-{val2}.yaml"
+            filename = "".join(c if c.isalnum() or c in "-_." else "_" for c in filename)
+            filepath = self.output_dir / filename
             
             self._write_yaml(entry, filepath, filename)
 
