@@ -1,5 +1,5 @@
 [aliases]
-glib2 = "glib-2.82.5"
+glib2 = "glib-2.84.4"
 docbook = "docbook-xml-4.5"
 docbook-xsl = "docbook-xsl-nons-1.79.2"
 xorg-env = "xorg_build_environment-7.12.4"
