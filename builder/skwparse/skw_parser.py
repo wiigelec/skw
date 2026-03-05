@@ -71,6 +71,7 @@ class SKWParser:
         self._load_xml()
         self._load_versions()
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._clean_output_dir()
         self._generate_yaml_files()
         print(f"[SKWParser] Completed. YAML outputs in {self.output_dir}")
 
@@ -289,6 +290,18 @@ class SKWParser:
             return {k: self._force_str(v) for k, v in obj.items()}
         return obj
         
+    #------------------------------------------------------------------#
+    def _clean_output_dir(self):
+        """Remove old YAML files from build_metadata before regenerating."""
+        if not self.output_dir.exists():
+            return
+
+        for f in self.output_dir.glob("*.yaml"):
+            try:
+                f.unlink()
+            except Exception as e:
+                print(f"[SKWParser] WARNING: failed to remove {f}: {e}")
+
     #------------------------------------------------------------------#
     def _generate_yaml_files(self):
         top_section = list(self.toml_data.keys())[0]
