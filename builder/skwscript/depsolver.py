@@ -32,20 +32,20 @@ class DependencySolver:
 
     #------------------------------------------------------------------#
     def _load_aliases(self) -> dict[str, str]:
-        """Load alias mappings from a TOML file (keys converted to lowercase)."""
+        """Load depsolver alias mappings from TOML: [depsolver_aliases]."""
         if not self.alias_file.exists():
             print(f"[ERROR] Alias file not found: {self.alias_file}")
             sys.exit(1)
-
+    
         with open(self.alias_file, "r") as f:
             data = toml.load(f)
-
-        aliases = data.get("aliases", {})
+    
+        aliases = data.get("depsolver_aliases", {})
         normalized = {}
         for k, v in aliases.items():
-            key = k.lower()
+            key = k.lower().strip()
             if isinstance(v, str):
-                normalized[key] = v.strip()
+                normalized[key] = v.strip().lower()
             else:
                 normalized[key] = ""
                 print(f"[WARN] Alias for '{k}' is not a string; treating as blank.")
@@ -53,49 +53,46 @@ class DependencySolver:
 
     #------------------------------------------------------------------#
     def _resolve_yaml_path(self, dep: str) -> Path | None:
-        """Resolve dependency name to YAML file path.
-        Alias mapping takes precedence over directory scan.
-        """
-        dep = dep.lower()
-
-        # Check alias mapping first
+        dep = dep.lower().strip()
+    
+        # Apply depsolver alias first
         if dep in self.alias_map:
             alias_value = self.alias_map[dep]
             if not alias_value:
                 print(f"[WARN] Alias for '{dep}' is empty; skipping dependency.")
                 return None
-            raw = f"{alias_value}.yaml"
-            fname = "".join(c if c.isalnum() or c in "-_." else "_" for c in raw)
-            yaml_path = self.yaml_dir / fname 
-            if not yaml_path.exists():
-                print(f"[ERROR] Alias '{dep}' points to missing file '{yaml_path.name}'")
-                sys.exit(1)
-            return yaml_path
-
-        # Fallback: scan YAML directory
+            dep = alias_value
+    
+        # 1) Exact stem match first: <stem>.yaml / <stem>.yml
+        for ext in (".yaml", ".yml"):
+            yaml_path = self.yaml_dir / f"{dep}{ext}"
+            if yaml_path.exists():
+                return yaml_path
+    
+        # 2) Fallback: scan for <name>-<version>.yaml by base name
         candidates = []
-        for f in self.yaml_dir.glob("*.yaml"):
+        for f in list(self.yaml_dir.glob("*.yaml")) + list(self.yaml_dir.glob("*.yml")):
             parts = f.stem.split("-")
             base = "-".join(parts[:-1]) if len(parts) > 1 else f.stem
             if base.lower() == dep:
                 candidates.append(f)
-
+    
         if len(candidates) > 1:
-            # Sort numerically by version tokens and choose latest
             def version_key(path: Path):
                 parts = path.stem.split("-")
                 try:
                     return [int(x) if x.isdigit() else x for x in parts[-1].split(".")]
                 except Exception:
                     return [parts[-1]]
+    
             candidates.sort(key=version_key, reverse=True)
             chosen = candidates[0]
             print(f"[WARN] Multiple YAMLs match '{dep}': {[c.name for c in candidates]} — using {chosen.name}")
             return chosen
-
+    
         if len(candidates) == 1:
             return candidates[0]
-
+    
         print(f"[ERROR] No YAML or alias found for dependency '{dep}'")
         sys.exit(1)
 

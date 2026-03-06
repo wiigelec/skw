@@ -1,9 +1,19 @@
-[aliases]
-glib2 = "glib-2.84.4"
+[scripter_aliases]
+glib2 = "glib"
+docbook = "docbook-xml"
+docbook-xsl = "docbook-xsl-nons"
+xorg-env = "xorg build environment"
+xorg7-lib = "xorg libraries"
+freetype2 = "freetype"
+rust = "rustc"
+pygobject3 = "pygobject"
+
+[depsolver_aliases]
+glib2 = "glib"
 docbook = "docbook-xml-4.5"
-docbook-xsl = "docbook-xsl-nons-1.79.2"
-xorg-env = "xorg_build_environment-7.12.4"
-xorg7-lib = "xorg_libraries-7.12.4"
-freetype2 = "freetype-2.13.3"
-rust = "rustc-1.89.0"
-pygobject3 = "pygobject-3.52.3"
+docbook-xsl = "docbook-xsl-nons"
+xorg-env = "xorg_build_environment"
+xorg7-lib = "xorg_libraries"
+freetype2 = "freetype"
+rust = "rustc"
+pygobject3 = "pygobject"

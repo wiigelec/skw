@@ -200,7 +200,7 @@ class SKWScripter:
         # Load aliases for reverse lookup
         try:
             alias_data = toml.load(alias_file)
-            aliases = alias_data.get("aliases", {})
+            aliases = alias_data.get("scripter_aliases", {})
         except Exception as e:
             sys.exit(f"[ERROR] Failed to load alias file {alias_file}: {e}")
     
